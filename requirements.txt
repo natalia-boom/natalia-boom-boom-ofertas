@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pg8000
+jinja2
+python-multipart
+python-dotenv
+reportlab
+anthropic
+openpyxl
+xhtml2pdf
+weasyprint

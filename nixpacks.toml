@@ -1,0 +1,13 @@
+[phases.setup]
+# Dependencias del sistema para WeasyPrint (HTML→PDF de alta calidad)
+nixPkgs = [
+  "pango",
+  "cairo",
+  "glib",
+  "gobject-introspection",
+  "libffi",
+  "fontconfig",
+  "freetype",
+  "harfbuzz",
+  "gdk-pixbuf",
+]
