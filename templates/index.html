@@ -1816,7 +1816,6 @@ function showModuloSelector(user) {
   if (rol === 'operaciones') { enterModulo('operaciones'); return; }
   if (rol === 'comercial' || rol === 'viewer') { enterModulo('comercial'); return; }
   // admin: habilitar todas las tarjetas
-  document.getElementById('moduloLogoImg').src = document.getElementById('headerLogoImg').src;
   document.getElementById('cardOperaciones').classList.remove('disabled');
   document.getElementById('cardTi').classList.remove('disabled');
   document.getElementById('moduloSelector').style.display = 'flex';
@@ -2060,13 +2059,7 @@ async function initApp() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Carga el logo temprano para que esté disponible en el selector de módulos
-  fetch('/api/logo').then(r => r.json()).then(d => {
-    if (d.src) {
-      document.getElementById('headerLogoImg').src  = d.src;
-      document.getElementById('loginLogoImg').src   = d.src;
-      document.getElementById('moduloLogoImg').src  = d.src;
-    }
-  });
+  // logos son SVG inline — no requieren carga dinámica
   await checkAuth();
 });
 
