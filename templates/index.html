@@ -444,74 +444,136 @@ body.rol-viewer .write-only { display:none !important; }
 <div id="loginOverlay">
   <div class="login-card">
     <!-- Hero: camión futurista nIA -->
-    <svg width="100%" viewBox="0 0 420 195" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;border-radius:18px 18px 0 0;">
+    <svg width="100%" viewBox="0 0 420 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;border-radius:18px 18px 0 0;">
       <defs>
         <filter id="nt-gb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feFlood flood-color="#00d4ff" flood-opacity="0.8" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="nt-gp" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feFlood flood-color="#9933ff" flood-opacity="0.7" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="nt-go" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feFlood flood-color="#ff6600" flood-opacity="0.8" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="nt-gs" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <linearGradient id="nt-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#060c1e"/><stop offset="100%" stop-color="#04080f"/></linearGradient>
-        <linearGradient id="nt-tb" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#141d42"/><stop offset="100%" stop-color="#080e22"/></linearGradient>
-        <linearGradient id="nt-cb" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1a1060"/><stop offset="100%" stop-color="#0c1130"/></linearGradient>
-        <radialGradient id="nt-wg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#00d4ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/></radialGradient>
-        <linearGradient id="nt-ug" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8822ff" stop-opacity="0.4"/><stop offset="100%" stop-color="#8822ff" stop-opacity="0"/></linearGradient>
+        <linearGradient id="nt-ts" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1e42"/><stop offset="100%" stop-color="#060e24"/></linearGradient>
+        <linearGradient id="nt-tt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c3368"/><stop offset="100%" stop-color="#0f2245"/></linearGradient>
+        <linearGradient id="nt-cs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1050"/><stop offset="100%" stop-color="#0a0820"/></linearGradient>
+        <linearGradient id="nt-ct" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#301878"/><stop offset="100%" stop-color="#1c0c50"/></linearGradient>
+        <linearGradient id="nt-cf" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#100830"/><stop offset="100%" stop-color="#060412"/></linearGradient>
+        <linearGradient id="nt-ug" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8822ff" stop-opacity="0.35"/><stop offset="100%" stop-color="#8822ff" stop-opacity="0"/></linearGradient>
+        <radialGradient id="nt-wg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#00d4ff" stop-opacity="0.2"/><stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/></radialGradient>
       </defs>
-      <rect width="420" height="195" fill="url(#nt-bg)"/>
-      <rect x="0" y="172" width="420" height="23" fill="#04080f"/>
-      <line x1="0" y1="172" x2="420" y2="172" stroke="#0d1c3a" stroke-width="1"/>
-      <ellipse cx="212" cy="177" rx="192" ry="9" fill="url(#nt-ug)"/>
-      <!-- Líneas de velocidad -->
-      <line x1="0" y1="55" x2="12" y2="55" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
-      <line x1="0" y1="67" x2="20" y2="67" stroke="#9933ff" stroke-width="1" opacity="0.45"/>
-      <line x1="0" y1="80" x2="15" y2="80" stroke="#00d4ff" stroke-width="1.2" opacity="0.4"/>
-      <line x1="0" y1="93" x2="22" y2="93" stroke="#9933ff" stroke-width="1.5" opacity="0.5"/>
-      <line x1="0" y1="106" x2="14" y2="106" stroke="#00d4ff" stroke-width="1" opacity="0.35"/>
-      <line x1="0" y1="120" x2="18" y2="120" stroke="#9933ff" stroke-width="1" opacity="0.4"/>
+
+      <!-- Fondo -->
+      <rect width="420" height="200" fill="url(#nt-bg)"/>
+      <!-- Suelo -->
+      <rect x="0" y="183" width="420" height="17" fill="#04080f"/>
+      <line x1="0" y1="183" x2="420" y2="183" stroke="#0d1c3a" stroke-width="1"/>
+      <ellipse cx="210" cy="186" rx="195" ry="7" fill="url(#nt-ug)"/>
+
+      <!-- Líneas de velocidad (izq) -->
+      <line x1="0" y1="80" x2="12" y2="80" stroke="#00d4ff" stroke-width="1.5" opacity="0.5"/>
+      <line x1="0" y1="94" x2="20" y2="94" stroke="#9933ff" stroke-width="1" opacity="0.4"/>
+      <line x1="0" y1="107" x2="14" y2="107" stroke="#00d4ff" stroke-width="1.2" opacity="0.35"/>
+      <line x1="0" y1="120" x2="22" y2="120" stroke="#9933ff" stroke-width="1.5" opacity="0.45"/>
       <line x1="0" y1="133" x2="10" y2="133" stroke="#00d4ff" stroke-width="0.8" opacity="0.3"/>
-      <!-- TRAILER -->
-      <rect x="8" y="18" width="248" height="112" rx="4" fill="url(#nt-tb)" stroke="#00d4ff" stroke-width="1.8" filter="url(#nt-gs)"/>
-      <line class="nt-led-b" x1="9" y1="26" x2="255" y2="26" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)"/>
-      <line class="nt-led-p" x1="9" y1="123" x2="255" y2="123" stroke="#9933ff" stroke-width="2.5" opacity="0.8" filter="url(#nt-gp)"/>
-      <line x1="9" y1="74" x2="255" y2="74" stroke="rgba(0,212,255,0.08)" stroke-width="0.7"/>
-      <text x="132" y="70" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="42" fill="none" stroke="#00d4ff" stroke-width="1.2" text-anchor="middle" opacity="0.7" filter="url(#nt-gb)">BOOM</text>
-      <text x="132" y="70" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="42" fill="#0d1535" text-anchor="middle" opacity="0.9">BOOM</text>
-      <text x="132" y="90" font-family="'Exo 2',Arial,sans-serif" font-weight="600" font-size="10" fill="#9933ff" text-anchor="middle" opacity="0.65" letter-spacing="4">LOGISTICS</text>
-      <rect x="7" y="32" width="5" height="18" rx="2" fill="#ff2222" opacity="0.9" filter="url(#nt-go)"/>
-      <rect x="7" y="98" width="5" height="14" rx="2" fill="#ff5500" opacity="0.75" filter="url(#nt-go)"/>
-      <line x1="256" y1="19" x2="256" y2="130" stroke="#162050" stroke-width="1.5"/>
-      <!-- CABINA -->
-      <polygon points="256,130 256,20 278,0 398,0 420,28 420,130" fill="url(#nt-cb)" stroke="#00d4ff" stroke-width="1.8" filter="url(#nt-gs)"/>
-      <line class="nt-led-b" x1="280" y1="4" x2="397" y2="4" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)" style="animation-delay:0.3s"/>
-      <polygon points="396,0 420,28 420,80 374,44" fill="rgba(0,180,255,0.08)" stroke="#0099dd" stroke-width="0.8" opacity="0.8"/>
-      <rect x="264" y="24" width="56" height="42" rx="3" fill="rgba(0,150,255,0.05)" stroke="rgba(0,212,255,0.28)" stroke-width="0.8"/>
-      <line x1="312" y1="22" x2="312" y2="130" stroke="rgba(0,212,255,0.1)" stroke-width="0.8"/>
-      <rect x="268" y="78" width="14" height="3" rx="1.5" fill="#4488cc" opacity="0.45"/>
-      <rect x="342" y="0" width="7" height="12" rx="3" fill="#0d1535" stroke="#9933ff" stroke-width="1" opacity="0.75"/>
-      <rect class="nt-light" x="417" y="50" width="4" height="18" rx="2" fill="#00ffcc" opacity="0.95" filter="url(#nt-gb)"/>
-      <line class="nt-light" x1="410" y1="30" x2="420" y2="30" stroke="#00ffcc" stroke-width="1.8" opacity="0.6" filter="url(#nt-gb)" style="animation-delay:0.2s"/>
-      <text x="358" y="22" font-family="'Exo 2',Arial,sans-serif" font-weight="700" font-size="9" fill="#E8601C" text-anchor="middle" opacity="0.8">BOOM</text>
-      <rect x="252" y="118" width="16" height="9" rx="2" fill="rgba(79,142,247,0.15)" stroke="#4f8ef7" stroke-width="0.7"/>
-      <!-- RUEDA TRASERA -->
-      <circle cx="66" cy="150" r="32" fill="url(#nt-wg)"/>
-      <circle cx="66" cy="150" r="24" fill="#080e22" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="66" cy="150" r="17" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="66" cy="150" r="9" fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="66" cy="150" r="3.5" fill="#00d4ff" opacity="0.65"/>
-      <line x1="66" y1="126" x2="66" y2="174" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="42" y1="150" x2="90" y2="150" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="49" y1="133" x2="83" y2="167" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="83" y1="133" x2="49" y2="167" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <!-- RUEDA MEDIA -->
-      <circle cx="192" cy="150" r="32" fill="url(#nt-wg)"/>
-      <circle cx="192" cy="150" r="24" fill="#080e22" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="192" cy="150" r="17" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="192" cy="150" r="9" fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="192" cy="150" r="3.5" fill="#00d4ff" opacity="0.65"/>
-      <line x1="192" y1="126" x2="192" y2="174" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="168" y1="150" x2="216" y2="150" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="175" y1="133" x2="209" y2="167" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="209" y1="133" x2="175" y2="167" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <!-- RUEDA CABINA -->
-      <circle cx="370" cy="150" r="26" fill="url(#nt-wg)"/>
-      <circle cx="370" cy="150" r="20" fill="#080e22" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="370" cy="150" r="14" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="370" cy="150" r="7" fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="370" cy="150" r="3" fill="#00d4ff" opacity="0.65"/>
-      <line x1="370" y1="130" x2="370" y2="170" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="350" y1="150" x2="390" y2="150" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="356" y1="136" x2="384" y2="164" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/><line x1="384" y1="136" x2="356" y2="164" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+
+      <!-- ══ CARA SUPERIOR TRAILER (parallelogram — perspectiva 3D) ══ -->
+      <polygon points="18,62 265,62 283,40 36,40" fill="url(#nt-tt)" stroke="#00d4ff" stroke-width="1.4" opacity="0.95"/>
+      <!-- Studs Lego en techo trailer -->
+      <ellipse cx="60" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="97" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="134" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="171" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="208" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="245" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+
+      <!-- ══ CARA SUPERIOR CABINA ══ -->
+      <polygon points="265,38 375,38 393,16 283,16" fill="url(#nt-ct)" stroke="#9933ff" stroke-width="1.4" opacity="0.95"/>
+      <!-- Studs Lego en techo cabina -->
+      <ellipse cx="302" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="332" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
+      <ellipse cx="362" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
+      <!-- Escapes de aire (salen del techo cabina) -->
+      <rect x="346" y="4" width="7" height="14" rx="3.5" fill="#0d1535" stroke="#9933ff" stroke-width="1" opacity="0.85"/>
+      <rect x="357" y="6" width="6" height="12" rx="3" fill="#0d1535" stroke="#00d4ff" stroke-width="0.8" opacity="0.7"/>
+      <ellipse cx="349" cy="4" rx="3.5" ry="1.5" fill="rgba(153,51,255,0.25)" stroke="#9933ff" stroke-width="0.6" opacity="0.5"/>
+
+      <!-- ══ RUEDAS (dibujadas antes del cuerpo para que el cuerpo las tape arriba) ══ -->
+      <ellipse cx="82"  cy="181" rx="22" ry="5" fill="rgba(0,180,255,0.12)"/>
+      <ellipse cx="205" cy="181" rx="22" ry="5" fill="rgba(0,180,255,0.12)"/>
+      <ellipse cx="347" cy="181" rx="18" ry="4" fill="rgba(0,180,255,0.12)"/>
+      <!-- Trasera trailer -->
+      <circle cx="82" cy="162" r="20" fill="url(#nt-wg)"/>
+      <circle cx="82" cy="162" r="18" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
+      <circle cx="82" cy="162" r="12" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
+      <circle cx="82" cy="162" r="7"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
+      <circle cx="82" cy="162" r="3"  fill="#00d4ff" opacity="0.7"/>
+      <line x1="82" y1="144" x2="82"  y2="180" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="64" y1="162" x2="100" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="69" y1="149" x2="95"  y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="95" y1="149" x2="69"  y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <!-- Media trailer -->
+      <circle cx="205" cy="162" r="20" fill="url(#nt-wg)"/>
+      <circle cx="205" cy="162" r="18" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
+      <circle cx="205" cy="162" r="12" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
+      <circle cx="205" cy="162" r="7"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
+      <circle cx="205" cy="162" r="3"  fill="#00d4ff" opacity="0.7"/>
+      <line x1="205" y1="144" x2="205" y2="180" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="187" y1="162" x2="223" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="192" y1="149" x2="218" y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="218" y1="149" x2="192" y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <!-- Cabina -->
+      <circle cx="347" cy="162" r="17" fill="url(#nt-wg)"/>
+      <circle cx="347" cy="162" r="15" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
+      <circle cx="347" cy="162" r="10" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
+      <circle cx="347" cy="162" r="6"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
+      <circle cx="347" cy="162" r="2.5" fill="#00d4ff" opacity="0.7"/>
+      <line x1="347" y1="147" x2="347" y2="177" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="332" y1="162" x2="362" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="336" y1="151" x2="358" y2="173" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+      <line x1="358" y1="151" x2="336" y2="173" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+
+      <!-- ══ CARA LATERAL TRAILER ══ -->
+      <rect x="18" y="62" width="247" height="90" rx="9" fill="url(#nt-ts)" stroke="#00d4ff" stroke-width="1.8"/>
+      <!-- LED superior -->
+      <line class="nt-led-b" x1="20" y1="73" x2="263" y2="73" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)"/>
+      <!-- LED inferior -->
+      <line class="nt-led-p" x1="20" y1="143" x2="263" y2="143" stroke="#9933ff" stroke-width="2.5" opacity="0.8" filter="url(#nt-gp)"/>
+      <!-- Texto BOOM -->
+      <text x="140" y="118" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="38" fill="none" stroke="#00d4ff" stroke-width="1" text-anchor="middle" opacity="0.6" filter="url(#nt-gb)">BOOM</text>
+      <text x="140" y="118" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="38" fill="#0d1535" text-anchor="middle" opacity="0.9">BOOM</text>
+      <text x="140" y="131" font-family="'Exo 2',Arial,sans-serif" font-weight="600" font-size="9" fill="#9933ff" text-anchor="middle" opacity="0.65" letter-spacing="4">LOGISTICS</text>
+      <!-- Luz trasera -->
+      <rect x="17" y="75" width="4" height="16" rx="2" fill="#ff2222" opacity="0.9" filter="url(#nt-go)"/>
+      <rect x="17" y="120" width="4" height="12" rx="2" fill="#ff5500" opacity="0.8" filter="url(#nt-go)"/>
+      <!-- Conector -->
+      <rect x="261" y="128" width="12" height="8" rx="2" fill="#0a1228" stroke="rgba(0,212,255,0.45)" stroke-width="0.8"/>
+
+      <!-- ══ CARA FRONTAL CABINA (parallelogram — en sombra) ══ -->
+      <polygon points="375,38 393,16 393,152 375,152" fill="url(#nt-cf)" stroke="rgba(0,212,255,0.55)" stroke-width="1.2"/>
+      <!-- Faros delanteros -->
+      <rect class="nt-light" x="377" y="54" width="12" height="8" rx="2.5" fill="#fffce0" opacity="0.95" filter="url(#nt-gb)"/>
+      <rect class="nt-light" x="377" y="67" width="11" height="5" rx="1.5" fill="#00ffcc" opacity="0.88" filter="url(#nt-gb)" style="animation-delay:0.2s"/>
+      <!-- Bumper naranja -->
+      <line x1="378" y1="130" x2="392" y2="130" stroke="#E8601C" stroke-width="3" opacity="0.85" filter="url(#nt-go)"/>
+
+      <!-- ══ CARA LATERAL CABINA ══ -->
+      <rect x="265" y="38" width="110" height="114" rx="11" fill="url(#nt-cs)" stroke="#9933ff" stroke-width="1.8"/>
+      <!-- LED superior cabina -->
+      <line class="nt-led-b" x1="267" y1="49" x2="373" y2="49" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)" style="animation-delay:0.3s"/>
+      <!-- Parabrisas (curvilíneo) -->
+      <rect x="292" y="52" width="76" height="55" rx="7" fill="rgba(0,150,255,0.06)" stroke="rgba(0,212,255,0.28)" stroke-width="1.2"/>
+      <line x1="294" y1="55" x2="285" y2="105" stroke="rgba(0,180,255,0.18)" stroke-width="2"/>
+      <line x1="316" y1="54" x2="307" y2="106" stroke="rgba(255,255,255,0.05)" stroke-width="0.8"/>
+      <line x1="340" y1="54" x2="330" y2="106" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+      <!-- Línea de puerta -->
+      <line x1="292" y1="47" x2="292" y2="150" stroke="rgba(0,212,255,0.13)" stroke-width="1.2"/>
+      <!-- Manija -->
+      <rect x="268" y="100" width="16" height="3" rx="1.5" fill="#4488cc" opacity="0.5"/>
+      <!-- Franja naranja BOOM en cabina -->
+      <rect x="267" y="120" width="106" height="5" rx="2" fill="rgba(232,96,28,0.18)" stroke="#E8601C" stroke-width="0.9" opacity="0.75"/>
+
+      <!-- ══ ARCOS DE GUARDABARROS (detalle curvilíneo) ══ -->
+      <path d="M 58,152 Q 82,136 106,152" fill="none" stroke="#00d4ff" stroke-width="1.6" opacity="0.55"/>
+      <path d="M 181,152 Q 205,136 229,152" fill="none" stroke="#00d4ff" stroke-width="1.6" opacity="0.55"/>
+      <path d="M 327,152 Q 347,137 367,152" fill="none" stroke="#9933ff" stroke-width="1.6" opacity="0.55"/>
     </svg>
     <!-- nIA title -->
     <div style="text-align:center;padding:16px 0 20px;border-bottom:1px solid rgba(0,212,255,0.1);margin-bottom:20px;">
