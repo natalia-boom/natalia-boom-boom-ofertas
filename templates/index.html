@@ -1940,11 +1940,25 @@ function prepareUser(user) {
 
 function showModuloSelector(user) {
   const rol = user.rol;
-  if (rol === 'operaciones') { enterModulo('operaciones'); return; }
-  if (rol === 'comercial' || rol === 'viewer') { enterModulo('comercial'); return; }
-  // admin: habilitar todas las tarjetas
-  document.getElementById('cardOperaciones').classList.remove('disabled');
-  document.getElementById('cardTi').classList.remove('disabled');
+  // Habilitar/deshabilitar tarjetas según rol
+  const cards = {
+    comercial:   document.getElementById('cardComercial'),
+    operaciones: document.getElementById('cardOperaciones'),
+    tarifario:   document.getElementById('cardTarifario'),
+    ti:          document.getElementById('cardTi'),
+  };
+  // Por defecto todas deshabilitadas
+  Object.values(cards).forEach(c => { if(c) c.classList.add('disabled'); });
+  if (rol === 'admin') {
+    // Admin puede entrar a todo
+    Object.values(cards).forEach(c => { if(c) c.classList.remove('disabled'); });
+  } else if (rol === 'operaciones') {
+    cards.operaciones.classList.remove('disabled');
+  } else {
+    // comercial y viewer → solo módulo comercial
+    cards.comercial.classList.remove('disabled');
+  }
+  // Todos ven el selector
   document.getElementById('moduloSelector').style.display = 'flex';
   ocultarApp();
 }
