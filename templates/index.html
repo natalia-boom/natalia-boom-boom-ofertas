@@ -708,6 +708,12 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="modulo-desc">Administración de áreas, usuarios, permisos y estado del sistema</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
+    <div class="modulo-card disabled" id="cardRentabilidad" onclick="enterModulo('rentabilidad')">
+      <div class="modulo-icon">💹</div>
+      <div class="modulo-title">Rentabilidad</div>
+      <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente</div>
+      <div class="modulo-tag">Ingresar</div>
+    </div>
   </div>
 </div>
 
@@ -795,6 +801,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
   <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
   <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
+  <button class="tab-btn" id="tabRentabilidadBtn" style="display:none;" onclick="switchTab('rentabilidad')">💹 Rentabilidad</button>
 </nav>
 
 <!-- MAIN CONTENT -->
@@ -1117,7 +1124,24 @@ body.rol-viewer .write-only { display:none !important; }
           </select>
         </div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:4px;">
+      <div style="margin-top:14px;">
+        <label style="font-weight:600;font-size:13px;color:var(--text);display:block;margin-bottom:8px;">Módulos a los que tiene acceso *</label>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
+            <input type="checkbox" id="nuModComercial" value="comercial"> 📊 Comercial
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
+            <input type="checkbox" id="nuModOperaciones" value="operaciones"> 🚚 Operaciones
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
+            <input type="checkbox" id="nuModRentabilidad" value="rentabilidad"> 💹 Rentabilidad
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
+            <input type="checkbox" id="nuModTarifario" value="tarifario"> 📋 Tarifario
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;">
         <button class="btn btn-primary" onclick="crearUsuario()">💾 Crear Usuario</button>
         <button class="btn btn-secondary" onclick="document.getElementById('nuevoUsuarioForm').style.display='none'">Cancelar</button>
       </div>
@@ -1595,6 +1619,56 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </section>
 
+<!-- ==================== RENTABILIDAD ==================== -->
+<section class="tab-panel" id="tab-rentabilidad">
+  <div class="section-card">
+    <div class="section-title">💹 Módulo de Rentabilidad</div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;" id="rentKpis">
+      <div class="kpi-card"><div class="kpi-label">Ingresos Totales</div><div class="kpi-value" id="rentIngresos">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Costos Totales</div><div class="kpi-value" id="rentCostos">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Utilidad Bruta</div><div class="kpi-value" id="rentUtilidad">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Margen Promedio</div><div class="kpi-value" id="rentMargen">—</div></div>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
+      <select id="rentFiltroAnio" onchange="loadRentabilidad()" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
+        <option value="">Todos los años</option>
+      </select>
+      <select id="rentFiltroMes" onchange="loadRentabilidad()" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
+        <option value="">Todos los meses</option>
+        <option>ENERO</option><option>FEBRERO</option><option>MARZO</option><option>ABRIL</option>
+        <option>MAYO</option><option>JUNIO</option><option>JULIO</option><option>AGOSTO</option>
+        <option>SEPTIEMBRE</option><option>OCTUBRE</option><option>NOVIEMBRE</option><option>DICIEMBRE</option>
+      </select>
+      <button class="btn btn-primary" onclick="loadRentabilidad()">🔄 Actualizar</button>
+    </div>
+
+    <!-- Tabla de proyectos con rentabilidad -->
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;" id="rentTabla">
+        <thead>
+          <tr style="background:var(--petrol);color:#fff;">
+            <th style="padding:10px 12px;text-align:left;">N° Oferta</th>
+            <th style="padding:10px 12px;text-align:left;">Cliente</th>
+            <th style="padding:10px 12px;text-align:left;">Mes</th>
+            <th style="padding:10px 12px;text-align:right;">Ingreso</th>
+            <th style="padding:10px 12px;text-align:right;">Costo</th>
+            <th style="padding:10px 12px;text-align:right;">Utilidad</th>
+            <th style="padding:10px 12px;text-align:center;">Margen %</th>
+            <th style="padding:10px 12px;text-align:center;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rentTbody">
+          <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- ==================== OPERACIONES ==================== -->
 <!-- ==================== CLIENTES ==================== -->
 <section class="tab-panel" id="tab-clientes">
@@ -1940,34 +2014,33 @@ function prepareUser(user) {
 
 function showModuloSelector(user) {
   const rol = user.rol;
-  // Habilitar/deshabilitar tarjetas según rol
+  const modulos = user.modulos || [];
   const cards = {
-    comercial:   document.getElementById('cardComercial'),
-    operaciones: document.getElementById('cardOperaciones'),
-    tarifario:   document.getElementById('cardTarifario'),
-    ti:          document.getElementById('cardTi'),
+    comercial:     document.getElementById('cardComercial'),
+    operaciones:   document.getElementById('cardOperaciones'),
+    tarifario:     document.getElementById('cardTarifario'),
+    ti:            document.getElementById('cardTi'),
+    rentabilidad:  document.getElementById('cardRentabilidad'),
   };
   // Por defecto todas deshabilitadas
   Object.values(cards).forEach(c => { if(c) c.classList.add('disabled'); });
   if (rol === 'admin') {
-    // Admin puede entrar a todo
+    // Admin accede a todo
     Object.values(cards).forEach(c => { if(c) c.classList.remove('disabled'); });
-  } else if (rol === 'operaciones') {
-    cards.operaciones.classList.remove('disabled');
   } else {
-    // comercial y viewer → solo módulo comercial
-    cards.comercial.classList.remove('disabled');
+    // Habilitar solo los módulos asignados
+    modulos.forEach(m => { if(cards[m]) cards[m].classList.remove('disabled'); });
   }
-  // Todos ven el selector
   document.getElementById('moduloSelector').style.display = 'flex';
   ocultarApp();
 }
 
 const MODULO_INFO = {
-  comercial:  { subtitulo: 'Control de Ofertas Comerciales',   tab: 'dashboard',    tabsComercial: true  },
-  operaciones:{ subtitulo: 'Módulo de Operaciones',            tab: 'operaciones',  tabsComercial: false },
-  tarifario:  { subtitulo: 'Tarifario Automático',             tab: 'tarifario',    tabsComercial: false },
-  ti:         { subtitulo: 'Tecnología — TI',                  tab: 'ti',           tabsComercial: false },
+  comercial:     { subtitulo: 'Control de Ofertas Comerciales',   tab: 'dashboard',      tabsComercial: true  },
+  operaciones:   { subtitulo: 'Módulo de Operaciones',            tab: 'operaciones',    tabsComercial: false },
+  tarifario:     { subtitulo: 'Tarifario Automático',             tab: 'tarifario',      tabsComercial: false },
+  ti:            { subtitulo: 'Tecnología — TI',                  tab: 'ti',             tabsComercial: false },
+  rentabilidad:  { subtitulo: 'Módulo de Rentabilidad',           tab: 'rentabilidad',   tabsComercial: false },
 };
 
 function enterModulo(modulo) {
@@ -1981,17 +2054,19 @@ function enterModulo(modulo) {
     if (btn) btn.style.display = info.tabsComercial ? '' : 'none';
   });
   document.getElementById('tabClientesBtn').style.display    = info.tabsComercial ? '' : 'none';
-  document.getElementById('tabOperacionesBtn').style.display = modulo === 'operaciones' ? '' : 'none';
-  document.getElementById('tabTarifarioBtn').style.display   = modulo === 'tarifario'   ? '' : 'none';
-  document.getElementById('tabUsuariosBtn').style.display    = (rol === 'admin' && info.tabsComercial) ? '' : 'none';
-  document.getElementById('tabTiBtn').style.display          = modulo === 'ti' ? '' : 'none';
-  document.getElementById('btnCambiarModulo').style.display  = (rol === 'admin') ? '' : 'none';
+  document.getElementById('tabOperacionesBtn').style.display   = modulo === 'operaciones'   ? '' : 'none';
+  document.getElementById('tabTarifarioBtn').style.display     = modulo === 'tarifario'     ? '' : 'none';
+  document.getElementById('tabUsuariosBtn').style.display      = (rol === 'admin' && info.tabsComercial) ? '' : 'none';
+  document.getElementById('tabTiBtn').style.display            = modulo === 'ti'            ? '' : 'none';
+  document.getElementById('tabRentabilidadBtn').style.display  = modulo === 'rentabilidad'  ? '' : 'none';
+  document.getElementById('btnCambiarModulo').style.display    = (currentUser && (currentUser.rol === 'admin' || (currentUser.modulos||[]).length > 1)) ? '' : 'none';
   document.getElementById('appHeader').querySelector('.header-subtitle').textContent = info.subtitulo;
   document.body.classList.remove('rol-admin','rol-comercial','rol-operaciones','rol-viewer');
   document.body.classList.add('rol-' + rol);
   mostrarApp();
   if (info.tabsComercial) { switchTab('dashboard'); initApp(); }
   else if (modulo === 'ti') { switchTab('ti'); tiSwitchTab('estado'); }
+  else if (modulo === 'rentabilidad') { switchTab('rentabilidad'); initRentabilidad(); }
   else { switchTab(info.tab); }
 }
 
@@ -2109,18 +2184,23 @@ async function crearUsuario() {
   const username = document.getElementById('nuUsername').value.trim();
   const password = document.getElementById('nuPassword').value;
   const rol      = document.getElementById('nuRol').value;
+  const modulos  = ['nuModComercial','nuModOperaciones','nuModRentabilidad','nuModTarifario']
+                    .filter(id => document.getElementById(id).checked)
+                    .map(id => document.getElementById(id).value);
   if (!nombre || !username || !password) { showToast('Completa todos los campos', 'warning'); return; }
   if (password.length < 6) { showToast('La contraseña debe tener al menos 6 caracteres', 'warning'); return; }
+  if (modulos.length === 0) { showToast('Selecciona al menos un módulo', 'warning'); return; }
   try {
     const res = await fetch('/api/usuarios', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({nombre, username, password, rol})
+      body: JSON.stringify({nombre, username, password, rol, modulos})
     });
     if (!res.ok) { const e = await res.json(); showToast(e.detail || 'Error', 'error'); return; }
     showToast('✅ Usuario creado correctamente', 'success');
     document.getElementById('nuNombre').value = '';
     document.getElementById('nuUsername').value = '';
     document.getElementById('nuPassword').value = '';
+    ['nuModComercial','nuModOperaciones','nuModRentabilidad','nuModTarifario'].forEach(id => document.getElementById(id).checked = false);
     document.getElementById('nuevoUsuarioForm').style.display = 'none';
     loadUsuarios();
   } catch(e) { showToast('Error de conexión', 'error'); }
@@ -4397,6 +4477,108 @@ async function exportarInformeExcel() {
 // ── FEATURE 1: Botón Excel en Aprobadas mejorado ─────────────────────────────
 // (el botón ya existente en la approved-header llama exportExcel('aprobadas')
 // que usa SheetJS — se mantiene. El botón del informe mensual llama exportarInformeExcel)
+
+// ==================== MÓDULO RENTABILIDAD ====================
+function initRentabilidad() {
+  // Poblar años disponibles
+  const sel = document.getElementById('rentFiltroAnio');
+  const anioActual = new Date().getFullYear();
+  sel.innerHTML = '<option value="">Todos los años</option>';
+  for (let y = anioActual; y >= anioActual - 4; y--) {
+    sel.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+  sel.value = anioActual;
+  loadRentabilidad();
+}
+
+async function loadRentabilidad() {
+  const anio = document.getElementById('rentFiltroAnio').value;
+  const mes  = document.getElementById('rentFiltroMes').value;
+  const tbody = document.getElementById('rentTbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">Cargando...</td></tr>';
+
+  try {
+    let url = '/api/rentabilidad?';
+    if (anio) url += `anio=${anio}&`;
+    if (mes)  url += `mes=${encodeURIComponent(mes)}&`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Error al cargar datos');
+    const data = await res.json();
+    renderRentabilidad(data);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--danger);">Error al cargar datos</td></tr>`;
+  }
+}
+
+function fmtCop(n) {
+  if (n == null || isNaN(n)) return '$ —';
+  return '$ ' + Math.round(n).toLocaleString('es-CO');
+}
+
+function margenColor(pct) {
+  if (pct >= 20) return '#16a34a';
+  if (pct >= 10) return '#d97706';
+  return '#dc2626';
+}
+
+function renderRentabilidad(data) {
+  const tbody = document.getElementById('rentTbody');
+  const rows  = data.rows || [];
+
+  // KPIs
+  const totalIngreso  = rows.reduce((s,r) => s + (r.ingreso||0), 0);
+  const totalCosto    = rows.reduce((s,r) => s + (r.costo||0), 0);
+  const totalUtilidad = totalIngreso - totalCosto;
+  const margenProm    = totalIngreso > 0 ? (totalUtilidad / totalIngreso * 100) : 0;
+
+  document.getElementById('rentIngresos').textContent = fmtCop(totalIngreso);
+  document.getElementById('rentCostos').textContent   = fmtCop(totalCosto);
+  document.getElementById('rentUtilidad').textContent = fmtCop(totalUtilidad);
+  document.getElementById('rentMargen').textContent   = margenProm.toFixed(1) + '%';
+  document.getElementById('rentUtilidad').style.color = totalUtilidad >= 0 ? '#16a34a' : '#dc2626';
+  document.getElementById('rentMargen').style.color   = margenColor(margenProm);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">No hay proyectos con costo registrado en este período</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const utilidad = (r.ingreso||0) - (r.costo||0);
+    const margen   = r.ingreso > 0 ? (utilidad / r.ingreso * 100) : 0;
+    const color    = margenColor(margen);
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:9px 12px;font-weight:600;">${r.num}</td>
+      <td style="padding:9px 12px;">${r.cliente||'—'}</td>
+      <td style="padding:9px 12px;">${r.mes||'—'}</td>
+      <td style="padding:9px 12px;text-align:right;">${fmtCop(r.ingreso)}</td>
+      <td style="padding:9px 12px;text-align:right;">${r.costo ? fmtCop(r.costo) : '<span style="color:var(--text-muted)">Sin costo</span>'}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:600;color:${color};">${fmtCop(utilidad)}</td>
+      <td style="padding:9px 12px;text-align:center;">
+        <span style="background:${color}20;color:${color};font-weight:700;padding:3px 10px;border-radius:20px;">${margen.toFixed(1)}%</span>
+      </td>
+      <td style="padding:9px 12px;text-align:center;">
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editarCosto(${r.id},'${r.num}',${r.costo||0})">✏️ Costo</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function editarCosto(id, num, costoActual) {
+  const input = prompt(`Ingresa el costo total del proyecto ${num}:\n(Ingresa solo números, sin puntos ni comas)`, costoActual || '');
+  if (input === null) return;
+  const costo = parseInt(input.replace(/\D/g,''));
+  if (isNaN(costo) || costo < 0) { showToast('Valor inválido', 'warning'); return; }
+  try {
+    const res = await fetch(`/api/ofertas/${id}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({costo_proyecto: costo})
+    });
+    if (!res.ok) throw new Error();
+    showToast('✅ Costo actualizado', 'success');
+    loadRentabilidad();
+  } catch(e) { showToast('Error al guardar', 'error'); }
+}
 </script>
 </body>
 </html>

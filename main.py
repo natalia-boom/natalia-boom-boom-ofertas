@@ -1518,6 +1518,7 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS facturacion text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS sector text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS pdf_data jsonb")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS costo_proyecto bigint DEFAULT NULL")
         print("[DB] Tabla 'ofertas' lista.")
 
         cur.execute("""
@@ -1539,6 +1540,7 @@ def _ensure_db():
         """, (_admin_hash,))
         # Migración: área en usuarios
         cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS area varchar(60)")
+        cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos text[] DEFAULT '{}'::text[]")
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS areas (
@@ -1962,6 +1964,7 @@ class OfertaUpdate(BaseModel):
     valor_facturado: Optional[int] = None
     no_factura: Optional[str] = None
     pdf_data: Optional[dict] = None
+    costo_proyecto: Optional[int] = None
 
 
 class EquipoItem(BaseModel):
@@ -2019,6 +2022,7 @@ class UsuarioCreate(BaseModel):
     nombre: str
     password: str
     rol: str = "viewer"
+    modulos: Optional[List[str]] = None
 
 
 class UsuarioUpdate(BaseModel):
@@ -2026,6 +2030,7 @@ class UsuarioUpdate(BaseModel):
     password: Optional[str] = None
     rol: Optional[str] = None
     activo: Optional[bool] = None
+    modulos: Optional[List[str]] = None
 
 
 class TextoCliente(BaseModel):
@@ -2207,6 +2212,32 @@ def get_consecutivo():
             cur = conn.cursor()
             cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
             return {"consecutivo": fetchone(cur)["next"]}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/rentabilidad")
+def get_rentabilidad(anio: Optional[str] = None, mes: Optional[str] = None):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            filters, params = ["UPPER(respuesta) = 'ACEPTADA'"], []
+            if anio:
+                filters.append("EXTRACT(YEAR FROM COALESCE(fecha, created_at))::text = %s")
+                params.append(anio)
+            if mes:
+                filters.append("UPPER(mes_aceptado) = %s")
+                params.append(mes.upper())
+            where = " AND ".join(filters)
+            cur.execute(f"""
+                SELECT id, num, cliente, mes_aceptado AS mes, valor AS ingreso, costo_proyecto AS costo
+                FROM ofertas
+                WHERE {where}
+                ORDER BY CAST(num AS INTEGER) DESC
+            """, params)
+            rows = fetchall(cur)
+        return {"rows": rows}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
@@ -2724,19 +2755,20 @@ def login(body: LoginBody, response: Response):
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT id, username, nombre, password_hash, rol, activo FROM usuarios WHERE username = %s",
+                "SELECT id, username, nombre, password_hash, rol, activo, modulos FROM usuarios WHERE username = %s",
                 (body.username.lower().strip(),)
             )
             row = fetchone(cur)
         if not row or not row.get("activo") or not _verify_pw(body.password, row["password_hash"]):
             raise HTTPException(401, "Usuario o contraseña incorrectos")
         token = secrets.token_hex(32)
+        modulos = row.get("modulos") or []
         user_data = {"id": row["id"], "username": row["username"],
-                     "nombre": row["nombre"], "rol": row["rol"]}
+                     "nombre": row["nombre"], "rol": row["rol"], "modulos": modulos}
         _session_save(token, user_data, max_age_s=86400 * 7)
         response.set_cookie("boom_session", token, httponly=True, samesite="lax",
                             max_age=86400 * 7)
-        return {"nombre": row["nombre"], "rol": row["rol"], "username": row["username"]}
+        return {"nombre": row["nombre"], "rol": row["rol"], "username": row["username"], "modulos": modulos}
     except HTTPException:
         raise
     except Exception as e:
@@ -2768,7 +2800,7 @@ def list_usuarios(request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id, username, nombre, rol, activo, creado_en FROM usuarios ORDER BY id")
+            cur.execute("SELECT id, username, nombre, rol, activo, creado_en, modulos FROM usuarios ORDER BY id")
             return fetchall(cur)
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -2783,13 +2815,14 @@ def create_usuario(body: UsuarioCreate, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+            modulos = body.modulos or []
             cur.execute(
-                "INSERT INTO usuarios (username, nombre, password_hash, rol) VALUES (%s,%s,%s,%s) RETURNING id",
-                (body.username.lower().strip(), body.nombre, _hash_pw(body.password), body.rol)
+                "INSERT INTO usuarios (username, nombre, password_hash, rol, modulos) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                (body.username.lower().strip(), body.nombre, _hash_pw(body.password), body.rol, modulos)
             )
             row = fetchone(cur)
             return {"id": row["id"], "username": body.username.lower(), "nombre": body.nombre,
-                    "rol": body.rol, "activo": True}
+                    "rol": body.rol, "activo": True, "modulos": modulos}
     except Exception as e:
         if "unique" in str(e).lower():
             raise HTTPException(409, f'El usuario "{body.username}" ya existe')
@@ -2808,6 +2841,7 @@ def update_usuario(uid: int, body: UsuarioUpdate, request: Request):
             raise HTTPException(400, "Rol inválido")
         sets.append("rol = %s"); params.append(body.rol)
     if body.activo   is not None: sets.append("activo = %s");        params.append(body.activo)
+    if body.modulos  is not None: sets.append("modulos = %s");       params.append(body.modulos)
     if not sets:
         raise HTTPException(400, "Nada que actualizar")
     params.append(uid)
