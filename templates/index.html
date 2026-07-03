@@ -2138,30 +2138,56 @@ const ROL_AVATAR = { admin:'admin', comercial:'', operaciones:'op', viewer:'' };
 function renderUsuarios(users) {
   const container = document.getElementById('usuariosList');
   if (!users.length) { container.innerHTML = '<div class="empty-state">No hay usuarios registrados</div>'; return; }
-  container.innerHTML = users.map(u => `
-    <div class="user-card ${u.activo ? '' : 'inactivo'}">
-      <div class="user-avatar ${u.rol === 'admin' ? 'admin' : ''}">${(u.nombre||'?')[0].toUpperCase()}</div>
-      <div style="flex:1;">
-        <div style="font-weight:600;font-size:14px;color:var(--text);">${u.nombre}</div>
-        <div style="font-size:12px;color:var(--text-muted);">@${u.username} &nbsp;·&nbsp;
-          <span style="color:${ROL_COLOR[u.rol]||'var(--petrol)'}; font-weight:600;">${ROL_LABEL[u.rol]||u.rol}</span>
-          ${u.activo ? '' : ' &nbsp;·&nbsp; <span style="color:var(--danger)">Inactivo</span>'}
+  const MODULOS_LIST = [
+    { key: 'comercial',    label: '📊 Comercial' },
+    { key: 'operaciones',  label: '🚚 Operaciones' },
+    { key: 'rentabilidad', label: '💹 Rentabilidad' },
+    { key: 'tarifario',    label: '📋 Tarifario' },
+  ];
+
+  container.innerHTML = users.map(u => {
+    const modulos = u.modulos || [];
+    const modulosHtml = MODULOS_LIST.map(m => {
+      const checked = modulos.includes(m.key) ? 'checked' : '';
+      const disabled = u.rol === 'admin' ? 'disabled title="El admin tiene acceso a todo"' : '';
+      return `<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;">
+        <input type="checkbox" ${checked} ${disabled}
+          onchange="toggleModuloUsuario(${u.id}, '${m.key}', this.checked)"
+          style="cursor:pointer;">
+        ${m.label}
+      </label>`;
+    }).join('');
+
+    return `
+    <div class="user-card ${u.activo ? '' : 'inactivo'}" style="flex-direction:column;align-items:stretch;gap:10px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="user-avatar ${u.rol === 'admin' ? 'admin' : ''}">${(u.nombre||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${u.nombre}</div>
+          <div style="font-size:12px;color:var(--text-muted);">@${u.username} &nbsp;·&nbsp;
+            <span style="color:${ROL_COLOR[u.rol]||'var(--petrol)'}; font-weight:600;">${ROL_LABEL[u.rol]||u.rol}</span>
+            ${u.activo ? '' : ' &nbsp;·&nbsp; <span style="color:var(--danger)">Inactivo</span>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select onchange="cambiarRol(${u.id}, this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;" ${u.id===(currentUser&&currentUser.id)?'disabled':''}>
+            <option value="comercial" ${u.rol==='comercial'?'selected':''}>Comercial</option>
+            <option value="operaciones" ${u.rol==='operaciones'?'selected':''}>Operaciones</option>
+            <option value="viewer" ${u.rol==='viewer'?'selected':''}>Solo lectura</option>
+            <option value="admin" ${u.rol==='admin'?'selected':''}>Administrador</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="resetPasswordPrompt(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">🔑 Contraseña</button>
+          ${u.activo && u.id !== (currentUser&&currentUser.id)
+            ? `<button class="btn btn-sm" style="background:#fde8e8;color:var(--danger);border:1px solid #f5c6c6;" onclick="desactivarUsuario(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">Desactivar</button>`
+            : u.activo ? '' : `<button class="btn btn-sm" style="background:#d4f4e5;color:var(--success);border:1px solid #b3e8cc;" onclick="activarUsuario(${u.id})">Activar</button>`}
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select onchange="cambiarRol(${u.id}, this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;" ${u.id===(currentUser&&currentUser.id)?'disabled':''}>
-          <option value="comercial" ${u.rol==='comercial'?'selected':''}>Comercial</option>
-          <option value="operaciones" ${u.rol==='operaciones'?'selected':''}>Operaciones</option>
-          <option value="viewer" ${u.rol==='viewer'?'selected':''}>Solo lectura</option>
-          <option value="admin" ${u.rol==='admin'?'selected':''}>Administrador</option>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="resetPasswordPrompt(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">🔑 Contraseña</button>
-        ${u.activo && u.id !== (currentUser&&currentUser.id)
-          ? `<button class="btn btn-sm" style="background:#fde8e8;color:var(--danger);border:1px solid #f5c6c6;" onclick="desactivarUsuario(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">Desactivar</button>`
-          : u.activo ? '' : `<button class="btn btn-sm" style="background:#d4f4e5;color:var(--success);border:1px solid #b3e8cc;" onclick="activarUsuario(${u.id})">Activar</button>`}
+      <div style="border-top:1px solid var(--border);padding-top:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos con acceso</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">${modulosHtml}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function cambiarRol(uid, nuevoRol) {
@@ -2226,6 +2252,23 @@ async function toggleRol(uid, rolActual) {  // legacy — usar cambiarRol()
   });
   if (res.ok) { showToast('✅ Rol actualizado', 'success'); loadUsuarios(); }
   else showToast('Error al actualizar', 'error');
+}
+
+async function toggleModuloUsuario(uid, modulo, activo) {
+  // Obtener módulos actuales del usuario desde la lista renderizada
+  const res0 = await fetch('/api/usuarios');
+  const users = await res0.json();
+  const user = users.find(u => u.id === uid);
+  if (!user) return;
+  let modulos = user.modulos || [];
+  if (activo) { if (!modulos.includes(modulo)) modulos = [...modulos, modulo]; }
+  else { modulos = modulos.filter(m => m !== modulo); }
+  const res = await fetch(`/api/usuarios/${uid}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ modulos })
+  });
+  if (res.ok) showToast(`✅ Módulo actualizado`, 'success');
+  else showToast('Error al actualizar módulo', 'error');
 }
 
 async function desactivarUsuario(uid, nombre) {
