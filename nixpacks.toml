@@ -1,8 +1,6 @@
 [phases.setup]
 # Dependencias del sistema para WeasyPrint (HTML→PDF de alta calidad)
 nixPkgs = [
-  "python311",
-  "python311Packages.pip",
   "pango",
   "cairo",
   "glib",
@@ -12,4 +10,9 @@ nixPkgs = [
   "freetype",
   "harfbuzz",
   "gdk-pixbuf",
+]
+
+[phases.build]
+cmds = [
+  "pip install -r requirements.txt"
 ]
