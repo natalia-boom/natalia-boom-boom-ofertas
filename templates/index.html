@@ -374,24 +374,75 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
 /* LOGIN OVERLAY */
-#loginOverlay { position:fixed;inset:0;background:linear-gradient(135deg,#040818 0%,#080f24 55%,#120820 100%);z-index:9999;display:flex;align-items:center;justify-content:center; }
-.login-card { background:linear-gradient(180deg,#06101f 0%,#0a1428 100%);border:1px solid rgba(0,212,255,0.2);border-radius:18px;padding:0 36px 40px;width:440px;max-width:95vw;box-shadow:0 0 60px rgba(0,150,255,0.12),0 0 120px rgba(139,76,255,0.08),0 24px 80px rgba(0,0,0,0.7);overflow:hidden; }
-.login-card h2 { font-family:'Barlow Condensed',sans-serif;font-size:24px;color:#fff;margin:0 0 4px; }
-.login-card p { font-size:12px;color:rgba(255,255,255,0.35);margin:0 0 28px; }
-.login-field { margin-bottom:16px; }
-.login-field label { display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px; }
-.login-field input { width:100%;padding:11px 14px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(0,212,255,0.2);color:#fff;border-radius:8px;font-family:'Barlow',sans-serif;font-size:14px;box-sizing:border-box;transition:border-color 0.2s; }
-.login-field input::placeholder { color:rgba(255,255,255,0.25); }
-.login-field input:focus { outline:none;border-color:#00d4ff;background:rgba(0,212,255,0.05); }
-.login-error { display:none;background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.25);font-size:12px;padding:8px 12px;border-radius:6px;margin-bottom:14px;text-align:center; }
-.login-btn { width:100%;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s;box-shadow:0 0 22px rgba(232,96,28,0.4); }
-.login-btn:hover { background:var(--orange-dark);box-shadow:0 0 36px rgba(232,96,28,0.6); }
-.login-btn:disabled { opacity:0.6;cursor:default; }
-@keyframes nt-pulse-b { 0%,100%{opacity:0.7} 50%{opacity:1} }
-@keyframes nt-pulse-p { 0%,100%{opacity:0.5} 50%{opacity:0.9} }
-.nt-led-b { animation:nt-pulse-b 2s ease-in-out infinite; }
-.nt-led-p { animation:nt-pulse-p 2.5s ease-in-out infinite;animation-delay:0.5s; }
-.nt-light { animation:nt-pulse-b 1.4s ease-in-out infinite; }
+#loginOverlay {
+  position:fixed;inset:0;z-index:9999;display:flex;
+  background:#05090f;
+}
+.login-left {
+  flex:1;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,#05090f 0%,#0c1a2e 40%,#091428 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+}
+.login-left-content {
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.login-brand {
+  text-align:center;margin-bottom:18px;
+}
+.login-brand .brand-title {
+  font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;
+  color:#fff;letter-spacing:6px;line-height:1;
+  text-shadow:0 0 40px rgba(232,96,28,0.6),0 0 80px rgba(232,96,28,0.2);
+}
+.login-brand .brand-sub {
+  font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;
+  color:rgba(255,255,255,0.45);letter-spacing:4px;text-transform:uppercase;margin-top:4px;
+}
+.login-right {
+  width:420px;min-width:360px;max-width:100%;
+  background:#0a0f1a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 44px;
+  border-left:1px solid rgba(232,96,28,0.15);
+  box-shadow:-20px 0 60px rgba(0,0,0,0.5);
+}
+.login-right .login-logo {
+  margin-bottom:32px;text-align:center;
+}
+.login-right .login-logo .logo-title {
+  font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;letter-spacing:2px;
+}
+.login-right .login-logo .logo-sub {
+  font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:3px;text-transform:uppercase;margin-top:2px;
+}
+.login-form-title {
+  font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;
+  color:var(--orange);letter-spacing:1px;margin-bottom:24px;text-align:center;
+  text-transform:uppercase;
+}
+.login-field { margin-bottom:18px;width:100%; }
+.login-field label { display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px; }
+.login-field input { width:100%;padding:13px 16px;background:rgba(255,255,255,0.05);border:1.5px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;font-family:'Barlow',sans-serif;font-size:15px;box-sizing:border-box;transition:all 0.2s; }
+.login-field input::placeholder { color:rgba(255,255,255,0.2); }
+.login-field input:focus { outline:none;border-color:var(--orange);background:rgba(232,96,28,0.06);box-shadow:0 0 0 3px rgba(232,96,28,0.1); }
+.login-error { display:none;background:rgba(248,113,113,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.2);font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;width:100%; }
+.login-btn { width:100%;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.2s;box-shadow:0 4px 24px rgba(232,96,28,0.35);text-transform:uppercase; }
+.login-btn:hover { background:var(--orange-dark);box-shadow:0 6px 32px rgba(232,96,28,0.55);transform:translateY(-1px); }
+.login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
+/* Road animation */
+@keyframes road-move { from{stroke-dashoffset:0} to{stroke-dashoffset:-80} }
+@keyframes truck-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes headlight { 0%,100%{opacity:0.9} 50%{opacity:1} }
+@keyframes exhaust { 0%{opacity:0.6;transform:translateY(0) scaleX(1)} 100%{opacity:0;transform:translateY(-20px) scaleX(2)} }
+@keyframes wheel-spin { from{transform-origin:center;transform:rotate(0deg)} to{transform-origin:center;transform:rotate(360deg)} }
+.truck-group { animation:truck-float 3s ease-in-out infinite; }
+.road-dash { animation:road-move 0.8s linear infinite; }
+.truck-headlight { animation:headlight 1.5s ease-in-out infinite; }
+@media (max-width:700px) {
+  #loginOverlay { flex-direction:column; }
+  .login-left { min-height:260px;flex:none; }
+  .login-right { width:100%;padding:32px 24px;border-left:none;border-top:1px solid rgba(232,96,28,0.15); }
+}
 
 /* ROL VIEWER — oculta elementos de escritura */
 body.rol-viewer .write-only { display:none !important; }
@@ -448,144 +499,204 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
-  <div class="login-card">
-    <!-- Hero: camión futurista nIA -->
-    <svg width="100%" viewBox="0 0 420 200" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;border-radius:18px 18px 0 0;">
-      <defs>
-        <filter id="nt-gb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feFlood flood-color="#00d4ff" flood-opacity="0.8" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="nt-gp" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feFlood flood-color="#9933ff" flood-opacity="0.7" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="nt-go" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feFlood flood-color="#ff6600" flood-opacity="0.8" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="nt-gs" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <linearGradient id="nt-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#060c1e"/><stop offset="100%" stop-color="#04080f"/></linearGradient>
-        <linearGradient id="nt-ts" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d1e42"/><stop offset="100%" stop-color="#060e24"/></linearGradient>
-        <linearGradient id="nt-tt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1c3368"/><stop offset="100%" stop-color="#0f2245"/></linearGradient>
-        <linearGradient id="nt-cs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1050"/><stop offset="100%" stop-color="#0a0820"/></linearGradient>
-        <linearGradient id="nt-ct" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#301878"/><stop offset="100%" stop-color="#1c0c50"/></linearGradient>
-        <linearGradient id="nt-cf" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#100830"/><stop offset="100%" stop-color="#060412"/></linearGradient>
-        <linearGradient id="nt-ug" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8822ff" stop-opacity="0.35"/><stop offset="100%" stop-color="#8822ff" stop-opacity="0"/></linearGradient>
-        <radialGradient id="nt-wg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#00d4ff" stop-opacity="0.2"/><stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/></radialGradient>
-      </defs>
 
-      <!-- Fondo -->
-      <rect width="420" height="200" fill="url(#nt-bg)"/>
-      <!-- Suelo -->
-      <rect x="0" y="183" width="420" height="17" fill="#04080f"/>
-      <line x1="0" y1="183" x2="420" y2="183" stroke="#0d1c3a" stroke-width="1"/>
-      <ellipse cx="210" cy="186" rx="195" ry="7" fill="url(#nt-ug)"/>
+  <!-- LADO IZQUIERDO: Camión impactante -->
+  <div class="login-left">
+    <div class="login-left-content">
+      <div class="login-brand">
+        <div class="brand-title">BOOM</div>
+        <div class="brand-sub">Logistics Colombia S.A.S.</div>
+      </div>
 
-      <!-- Líneas de velocidad (izq) -->
-      <line x1="0" y1="80" x2="12" y2="80" stroke="#00d4ff" stroke-width="1.5" opacity="0.5"/>
-      <line x1="0" y1="94" x2="20" y2="94" stroke="#9933ff" stroke-width="1" opacity="0.4"/>
-      <line x1="0" y1="107" x2="14" y2="107" stroke="#00d4ff" stroke-width="1.2" opacity="0.35"/>
-      <line x1="0" y1="120" x2="22" y2="120" stroke="#9933ff" stroke-width="1.5" opacity="0.45"/>
-      <line x1="0" y1="133" x2="10" y2="133" stroke="#00d4ff" stroke-width="0.8" opacity="0.3"/>
+      <!-- SVG Camión grande -->
+      <svg viewBox="0 0 780 360" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="width:90%;max-width:720px;filter:drop-shadow(0 20px 60px rgba(232,96,28,0.25));">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#050d1a"/>
+            <stop offset="100%" stop-color="#0c1e35"/>
+          </linearGradient>
+          <linearGradient id="trailerBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1a3a6e"/>
+            <stop offset="40%" stop-color="#1e3f75"/>
+            <stop offset="100%" stop-color="#0d1f3c"/>
+          </linearGradient>
+          <linearGradient id="cabBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1c3568"/>
+            <stop offset="100%" stop-color="#0e1e3a"/>
+          </linearGradient>
+          <linearGradient id="roadGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#111a28"/>
+            <stop offset="100%" stop-color="#0a1018"/>
+          </linearGradient>
+          <linearGradient id="wheelG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#2a2a2a"/>
+            <stop offset="100%" stop-color="#111"/>
+          </linearGradient>
+          <radialGradient id="headlightGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fffde0" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#ff9900" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="glow-orange" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="6" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-white" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="8" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
 
-      <!-- ══ CARA SUPERIOR TRAILER (parallelogram — perspectiva 3D) ══ -->
-      <polygon points="18,62 265,62 283,40 36,40" fill="url(#nt-tt)" stroke="#00d4ff" stroke-width="1.4" opacity="0.95"/>
-      <!-- Studs Lego en techo trailer -->
-      <ellipse cx="60" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="97" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="134" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="171" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="208" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="245" cy="51" rx="7" ry="3.5" fill="rgba(20,48,110,0.65)" stroke="#00d4ff" stroke-width="0.9" opacity="0.7"/>
+        <!-- Fondo -->
+        <rect width="780" height="360" fill="url(#sky)"/>
 
-      <!-- ══ CARA SUPERIOR CABINA ══ -->
-      <polygon points="265,38 375,38 393,16 283,16" fill="url(#nt-ct)" stroke="#9933ff" stroke-width="1.4" opacity="0.95"/>
-      <!-- Studs Lego en techo cabina -->
-      <ellipse cx="302" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="332" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
-      <ellipse cx="362" cy="27" rx="6" ry="3" fill="rgba(45,14,95,0.65)" stroke="#9933ff" stroke-width="0.9" opacity="0.7"/>
-      <!-- Escapes de aire (salen del techo cabina) -->
-      <rect x="346" y="4" width="7" height="14" rx="3.5" fill="#0d1535" stroke="#9933ff" stroke-width="1" opacity="0.85"/>
-      <rect x="357" y="6" width="6" height="12" rx="3" fill="#0d1535" stroke="#00d4ff" stroke-width="0.8" opacity="0.7"/>
-      <ellipse cx="349" cy="4" rx="3.5" ry="1.5" fill="rgba(153,51,255,0.25)" stroke="#9933ff" stroke-width="0.6" opacity="0.5"/>
+        <!-- Estrellas -->
+        <circle cx="80" cy="30" r="1" fill="#fff" opacity="0.4"/>
+        <circle cx="180" cy="15" r="1.5" fill="#fff" opacity="0.5"/>
+        <circle cx="320" cy="25" r="1" fill="#fff" opacity="0.3"/>
+        <circle cx="460" cy="10" r="1.2" fill="#fff" opacity="0.4"/>
+        <circle cx="580" cy="35" r="1" fill="#fff" opacity="0.3"/>
+        <circle cx="700" cy="18" r="1.5" fill="#fff" opacity="0.5"/>
+        <circle cx="140" cy="45" r="0.8" fill="#fff" opacity="0.3"/>
 
-      <!-- ══ RUEDAS (dibujadas antes del cuerpo para que el cuerpo las tape arriba) ══ -->
-      <ellipse cx="82"  cy="181" rx="22" ry="5" fill="rgba(0,180,255,0.12)"/>
-      <ellipse cx="205" cy="181" rx="22" ry="5" fill="rgba(0,180,255,0.12)"/>
-      <ellipse cx="347" cy="181" rx="18" ry="4" fill="rgba(0,180,255,0.12)"/>
-      <!-- Trasera trailer -->
-      <circle cx="82" cy="162" r="20" fill="url(#nt-wg)"/>
-      <circle cx="82" cy="162" r="18" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="82" cy="162" r="12" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="82" cy="162" r="7"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="82" cy="162" r="3"  fill="#00d4ff" opacity="0.7"/>
-      <line x1="82" y1="144" x2="82"  y2="180" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="64" y1="162" x2="100" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="69" y1="149" x2="95"  y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="95" y1="149" x2="69"  y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <!-- Media trailer -->
-      <circle cx="205" cy="162" r="20" fill="url(#nt-wg)"/>
-      <circle cx="205" cy="162" r="18" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="205" cy="162" r="12" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="205" cy="162" r="7"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="205" cy="162" r="3"  fill="#00d4ff" opacity="0.7"/>
-      <line x1="205" y1="144" x2="205" y2="180" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="187" y1="162" x2="223" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="192" y1="149" x2="218" y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="218" y1="149" x2="192" y2="175" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <!-- Cabina -->
-      <circle cx="347" cy="162" r="17" fill="url(#nt-wg)"/>
-      <circle cx="347" cy="162" r="15" fill="#07111e" stroke="#00d4ff" stroke-width="2" filter="url(#nt-gs)"/>
-      <circle cx="347" cy="162" r="10" fill="none" stroke="#9933ff" stroke-width="1.5" opacity="0.65"/>
-      <circle cx="347" cy="162" r="6"  fill="#0a1020" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="347" cy="162" r="2.5" fill="#00d4ff" opacity="0.7"/>
-      <line x1="347" y1="147" x2="347" y2="177" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="332" y1="162" x2="362" y2="162" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="336" y1="151" x2="358" y2="173" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
-      <line x1="358" y1="151" x2="336" y2="173" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+        <!-- Carretera -->
+        <rect x="0" y="278" width="780" height="82" fill="url(#roadGrad)"/>
+        <line x1="0" y1="278" x2="780" y2="278" stroke="#1e3050" stroke-width="2"/>
+        <line class="road-dash" x1="0" y1="318" x2="780" y2="318" stroke="#E8601C" stroke-width="3" stroke-dasharray="40 40" opacity="0.4"/>
 
-      <!-- ══ CARA LATERAL TRAILER ══ -->
-      <rect x="18" y="62" width="247" height="90" rx="9" fill="url(#nt-ts)" stroke="#00d4ff" stroke-width="1.8"/>
-      <!-- LED superior -->
-      <line class="nt-led-b" x1="20" y1="73" x2="263" y2="73" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)"/>
-      <!-- LED inferior -->
-      <line class="nt-led-p" x1="20" y1="143" x2="263" y2="143" stroke="#9933ff" stroke-width="2.5" opacity="0.8" filter="url(#nt-gp)"/>
-      <!-- Texto BOOM -->
-      <text x="140" y="118" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="38" fill="none" stroke="#00d4ff" stroke-width="1" text-anchor="middle" opacity="0.6" filter="url(#nt-gb)">BOOM</text>
-      <text x="140" y="118" font-family="'Exo 2',Arial Black,sans-serif" font-weight="900" font-size="38" fill="#0d1535" text-anchor="middle" opacity="0.9">BOOM</text>
-      <text x="140" y="131" font-family="'Exo 2',Arial,sans-serif" font-weight="600" font-size="9" fill="#9933ff" text-anchor="middle" opacity="0.65" letter-spacing="4">LOGISTICS</text>
-      <!-- Luz trasera -->
-      <rect x="17" y="75" width="4" height="16" rx="2" fill="#ff2222" opacity="0.9" filter="url(#nt-go)"/>
-      <rect x="17" y="120" width="4" height="12" rx="2" fill="#ff5500" opacity="0.8" filter="url(#nt-go)"/>
-      <!-- Conector -->
-      <rect x="261" y="128" width="12" height="8" rx="2" fill="#0a1228" stroke="rgba(0,212,255,0.45)" stroke-width="0.8"/>
+        <!-- Grupo camión flotante -->
+        <g class="truck-group">
 
-      <!-- ══ CARA FRONTAL CABINA (parallelogram — en sombra) ══ -->
-      <polygon points="375,38 393,16 393,152 375,152" fill="url(#nt-cf)" stroke="rgba(0,212,255,0.55)" stroke-width="1.2"/>
-      <!-- Faros delanteros -->
-      <rect class="nt-light" x="377" y="54" width="12" height="8" rx="2.5" fill="#fffce0" opacity="0.95" filter="url(#nt-gb)"/>
-      <rect class="nt-light" x="377" y="67" width="11" height="5" rx="1.5" fill="#00ffcc" opacity="0.88" filter="url(#nt-gb)" style="animation-delay:0.2s"/>
-      <!-- Bumper naranja -->
-      <line x1="378" y1="130" x2="392" y2="130" stroke="#E8601C" stroke-width="3" opacity="0.85" filter="url(#nt-go)"/>
+          <!-- Sombra trailer -->
+          <ellipse cx="265" cy="294" rx="230" ry="12" fill="rgba(0,0,0,0.5)"/>
 
-      <!-- ══ CARA LATERAL CABINA ══ -->
-      <rect x="265" y="38" width="110" height="114" rx="11" fill="url(#nt-cs)" stroke="#9933ff" stroke-width="1.8"/>
-      <!-- LED superior cabina -->
-      <line class="nt-led-b" x1="267" y1="49" x2="373" y2="49" stroke="#00d4ff" stroke-width="2.5" opacity="0.85" filter="url(#nt-gb)" style="animation-delay:0.3s"/>
-      <!-- Parabrisas (curvilíneo) -->
-      <rect x="292" y="52" width="76" height="55" rx="7" fill="rgba(0,150,255,0.06)" stroke="rgba(0,212,255,0.28)" stroke-width="1.2"/>
-      <line x1="294" y1="55" x2="285" y2="105" stroke="rgba(0,180,255,0.18)" stroke-width="2"/>
-      <line x1="316" y1="54" x2="307" y2="106" stroke="rgba(255,255,255,0.05)" stroke-width="0.8"/>
-      <line x1="340" y1="54" x2="330" y2="106" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
-      <!-- Línea de puerta -->
-      <line x1="292" y1="47" x2="292" y2="150" stroke="rgba(0,212,255,0.13)" stroke-width="1.2"/>
-      <!-- Manija -->
-      <rect x="268" y="100" width="16" height="3" rx="1.5" fill="#4488cc" opacity="0.5"/>
-      <!-- Franja naranja BOOM en cabina -->
-      <rect x="267" y="120" width="106" height="5" rx="2" fill="rgba(232,96,28,0.18)" stroke="#E8601C" stroke-width="0.9" opacity="0.75"/>
+          <!-- Cuerpo trailer -->
+          <rect x="40" y="60" width="450" height="218" rx="6" fill="url(#trailerBody)" stroke="#2a5298" stroke-width="1.5"/>
 
-      <!-- ══ ARCOS DE GUARDABARROS (detalle curvilíneo) ══ -->
-      <path d="M 58,152 Q 82,136 106,152" fill="none" stroke="#00d4ff" stroke-width="1.6" opacity="0.55"/>
-      <path d="M 181,152 Q 205,136 229,152" fill="none" stroke="#00d4ff" stroke-width="1.6" opacity="0.55"/>
-      <path d="M 327,152 Q 347,137 367,152" fill="none" stroke="#9933ff" stroke-width="1.6" opacity="0.55"/>
-    </svg>
-    <!-- nIA title -->
-    <div style="text-align:center;padding:10px 0 14px;border-bottom:1px solid rgba(0,212,255,0.1);margin-bottom:16px;">
-      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;color:#fff;line-height:1;margin-bottom:2px;">n<span style="color:#E8601C;text-shadow:0 0 12px rgba(232,96,28,0.7);">IA</span></div>
-      <div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;">BOOM Logistics Colombia S.A.S.</div>
+          <!-- Franjas naranjas trailer -->
+          <rect x="40" y="60" width="450" height="18" fill="#E8601C" opacity="0.9"/>
+          <rect x="40" y="248" width="450" height="14" fill="#E8601C" opacity="0.85"/>
+
+          <!-- Logo en trailer -->
+          <rect x="200" y="118" width="130" height="66" rx="4" fill="rgba(232,96,28,0.12)" stroke="rgba(232,96,28,0.3)" stroke-width="1"/>
+          <text x="265" y="157" font-family="Arial Black,sans-serif" font-weight="900" font-size="28" fill="#E8601C" text-anchor="middle" opacity="0.95">BOOM</text>
+          <text x="265" y="174" font-family="Arial,sans-serif" font-weight="600" font-size="8" fill="rgba(232,96,28,0.7)" text-anchor="middle" letter-spacing="4">LOGISTICS</text>
+
+          <!-- Ribete cromado -->
+          <rect x="40" y="58" width="450" height="4" rx="2" fill="#c8d8f0" opacity="0.3"/>
+          <rect x="40" y="260" width="450" height="4" rx="2" fill="#c8d8f0" opacity="0.25"/>
+
+          <!-- Luces traseras -->
+          <rect x="40" y="80" width="10" height="28" rx="3" fill="#ff2200" filter="url(#glow-orange)" opacity="0.95"/>
+          <rect x="40" y="220" width="10" height="24" rx="3" fill="#ff2200" filter="url(#glow-orange)" opacity="0.9"/>
+
+          <!-- Línea puerta trasera -->
+          <line x1="263" y1="78" x2="263" y2="262" stroke="rgba(255,255,255,0.07)" stroke-width="2"/>
+
+          <!-- Ruedas traseras -->
+          <circle cx="130" cy="280" r="36" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
+          <circle cx="130" cy="280" r="26" fill="none" stroke="#444" stroke-width="8"/>
+          <circle cx="130" cy="280" r="14" fill="#222" stroke="#555" stroke-width="2"/>
+          <circle cx="130" cy="280" r="5" fill="#666"/>
+          <line x1="130" y1="252" x2="130" y2="308" stroke="#555" stroke-width="2"/>
+          <line x1="105" y1="265" x2="155" y2="295" stroke="#555" stroke-width="2"/>
+          <line x1="155" y1="265" x2="105" y2="295" stroke="#555" stroke-width="2"/>
+          <circle cx="130" cy="280" r="36" fill="none" stroke="#788aaa" stroke-width="1.5" opacity="0.5"/>
+
+          <circle cx="230" cy="280" r="36" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
+          <circle cx="230" cy="280" r="26" fill="none" stroke="#444" stroke-width="8"/>
+          <circle cx="230" cy="280" r="14" fill="#222" stroke="#555" stroke-width="2"/>
+          <circle cx="230" cy="280" r="5" fill="#666"/>
+          <line x1="230" y1="252" x2="230" y2="308" stroke="#555" stroke-width="2"/>
+          <line x1="205" y1="265" x2="255" y2="295" stroke="#555" stroke-width="2"/>
+          <line x1="255" y1="265" x2="205" y2="295" stroke="#555" stroke-width="2"/>
+          <circle cx="230" cy="280" r="36" fill="none" stroke="#788aaa" stroke-width="1.5" opacity="0.5"/>
+
+          <!-- Quinta rueda -->
+          <rect x="468" y="240" width="60" height="22" rx="4" fill="#1a2a40" stroke="#3a5080" stroke-width="1"/>
+
+          <!-- Sombra cabina -->
+          <ellipse cx="580" cy="294" rx="115" ry="10" fill="rgba(0,0,0,0.45)"/>
+
+          <!-- Cuerpo cabina -->
+          <rect x="490" y="80" width="200" height="188" rx="12" fill="url(#cabBody)" stroke="#2a4a88" stroke-width="1.5"/>
+
+          <!-- Franjas naranjas cabina -->
+          <rect x="490" y="80" width="200" height="16" fill="#E8601C" opacity="0.9"/>
+          <rect x="490" y="252" width="200" height="12" fill="#E8601C" opacity="0.85"/>
+
+          <!-- Parabrisas -->
+          <rect x="510" y="108" width="160" height="95" rx="8" fill="rgba(100,160,255,0.08)" stroke="rgba(150,190,255,0.4)" stroke-width="1.5"/>
+          <line x1="520" y1="115" x2="545" y2="195" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+
+          <!-- Espejo -->
+          <rect x="476" y="108" width="14" height="30" rx="4" fill="#233a5a" stroke="#4a6a90" stroke-width="1"/>
+
+          <!-- Parrilla -->
+          <rect x="492" y="202" width="194" height="52" rx="4" fill="#0e1c30" stroke="#2a4070" stroke-width="1"/>
+          <line x1="492" y1="215" x2="686" y2="215" stroke="#1a3050" stroke-width="1.5"/>
+          <line x1="492" y1="228" x2="686" y2="228" stroke="#1a3050" stroke-width="1.5"/>
+          <line x1="492" y1="241" x2="686" y2="241" stroke="#1a3050" stroke-width="1.5"/>
+          <line x1="540" y1="202" x2="540" y2="254" stroke="#1a3050" stroke-width="1"/>
+          <line x1="588" y1="202" x2="588" y2="254" stroke="#1a3050" stroke-width="1"/>
+          <line x1="636" y1="202" x2="636" y2="254" stroke="#1a3050" stroke-width="1"/>
+
+          <!-- Logo cabina -->
+          <rect x="538" y="210" width="104" height="32" rx="3" fill="rgba(232,96,28,0.15)" stroke="rgba(232,96,28,0.4)" stroke-width="1"/>
+          <text x="590" y="231" font-family="Arial Black,sans-serif" font-weight="900" font-size="14" fill="#E8601C" text-anchor="middle">BOOM</text>
+
+          <!-- Faros LED -->
+          <rect x="684" y="100" width="6" height="28" rx="2" fill="#fffde0" class="truck-headlight" filter="url(#glow-white)" opacity="0.95"/>
+          <rect x="684" y="136" width="6" height="16" rx="2" fill="#aaddff" class="truck-headlight" filter="url(#glow-white)" opacity="0.8"/>
+          <ellipse cx="720" cy="118" rx="55" ry="22" fill="url(#headlightGlow)" opacity="0.18"/>
+
+          <!-- Bumper -->
+          <rect x="488" y="256" width="204" height="14" rx="4" fill="#E8601C" filter="url(#glow-orange)" opacity="0.9"/>
+
+          <!-- Escape -->
+          <rect x="670" y="42" width="10" height="38" rx="5" fill="#1a2a40" stroke="#3a5070" stroke-width="1"/>
+
+          <!-- Luces techo cabina -->
+          <rect x="505" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.9"/>
+          <rect x="520" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.85"/>
+          <rect x="535" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.8"/>
+
+          <!-- Rueda cabina -->
+          <circle cx="600" cy="280" r="38" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
+          <circle cx="600" cy="280" r="28" fill="none" stroke="#444" stroke-width="9"/>
+          <circle cx="600" cy="280" r="15" fill="#222" stroke="#555" stroke-width="2"/>
+          <circle cx="600" cy="280" r="5.5" fill="#777"/>
+          <line x1="600" y1="250" x2="600" y2="310" stroke="#555" stroke-width="2.5"/>
+          <line x1="574" y1="263" x2="626" y2="297" stroke="#555" stroke-width="2.5"/>
+          <line x1="626" y1="263" x2="574" y2="297" stroke="#555" stroke-width="2.5"/>
+          <circle cx="600" cy="280" r="38" fill="none" stroke="#8898b8" stroke-width="2" opacity="0.5"/>
+
+        </g>
+
+        <!-- Líneas de velocidad -->
+        <line x1="0" y1="150" x2="30" y2="150" stroke="#E8601C" stroke-width="2" opacity="0.5"/>
+        <line x1="0" y1="170" x2="50" y2="170" stroke="#E8601C" stroke-width="1.5" opacity="0.35"/>
+        <line x1="0" y1="210" x2="40" y2="210" stroke="#E8601C" stroke-width="2" opacity="0.4"/>
+      </svg>
+
+      <div style="text-align:center;margin-top:12px;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:3px;text-transform:uppercase;">Transporte Especializado de Colombia</div>
+      </div>
     </div>
+  </div>
+
+  <!-- LADO DERECHO: Formulario login -->
+  <div class="login-right">
+    <div class="login-logo">
+      <div style="width:56px;height:56px;background:var(--orange);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 6px 24px rgba(232,96,28,0.4);">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><circle cx="5.5" cy="18.5" r="2.5" stroke="#fff" stroke-width="2"/><circle cx="18.5" cy="18.5" r="2.5" stroke="#fff" stroke-width="2"/></svg>
+      </div>
+      <div class="logo-title">nIA</div>
+      <div class="logo-sub">BOOM Logistics Colombia</div>
+    </div>
+
+    <div class="login-form-title">Iniciar Sesión</div>
+
     <div class="login-field">
       <label>Usuario</label>
       <input type="text" id="loginUser" placeholder="Ingresa tu usuario" autocomplete="username"
@@ -593,12 +704,14 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
     <div class="login-field">
       <label>Contraseña</label>
-      <input type="password" id="loginPass" placeholder="Ingresa tu contraseña" autocomplete="current-password"
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
         onkeydown="if(event.key==='Enter') doLogin()">
     </div>
     <div class="login-error" id="loginError"></div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">INGRESAR</button>
+    <div style="margin-top:24px;font-size:11px;color:rgba(255,255,255,0.15);text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
   </div>
+
 </div>
 
 <!-- SELECTOR DE MÓDULOS -->
