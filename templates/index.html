@@ -376,71 +376,66 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 /* LOGIN OVERLAY */
 #loginOverlay {
   position:fixed;inset:0;z-index:9999;display:flex;
-  background:#05090f;
 }
 .login-left {
   flex:1;position:relative;overflow:hidden;
-  background:linear-gradient(160deg,#05090f 0%,#0c1a2e 40%,#091428 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
 }
-.login-left-content {
-  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+.login-left img.login-photo {
+  width:100%;height:100%;object-fit:cover;object-position:center;display:block;
 }
-.login-brand {
-  text-align:center;margin-bottom:18px;
+.login-left-overlay {
+  position:absolute;inset:0;
+  background:linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.35) 100%);
 }
-.login-brand .brand-title {
-  font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;
-  color:#fff;letter-spacing:6px;line-height:1;
-  text-shadow:0 0 40px rgba(232,96,28,0.6),0 0 80px rgba(232,96,28,0.2);
+.login-left-brand {
+  position:absolute;bottom:40px;left:44px;
 }
-.login-brand .brand-sub {
-  font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;
-  color:rgba(255,255,255,0.45);letter-spacing:4px;text-transform:uppercase;margin-top:4px;
+.login-left-brand .brand-name {
+  font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;
+  color:#fff;letter-spacing:4px;line-height:1;
+  text-shadow:0 2px 20px rgba(0,0,0,0.5);
+}
+.login-left-brand .brand-sub {
+  font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:4px;
+  text-transform:uppercase;margin-top:4px;
+  text-shadow:0 1px 8px rgba(0,0,0,0.6);
 }
 .login-right {
-  width:420px;min-width:360px;max-width:100%;
-  background:#0a0f1a;
+  width:440px;min-width:360px;max-width:100%;
+  background:#ffffff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:48px 44px;
-  border-left:1px solid rgba(232,96,28,0.15);
-  box-shadow:-20px 0 60px rgba(0,0,0,0.5);
+  padding:56px 48px;
 }
-.login-right .login-logo {
-  margin-bottom:32px;text-align:center;
+.login-logo-wrap { margin-bottom:40px;text-align:center; }
+.login-field {
+  margin-bottom:0;width:100%;
+  border-bottom:1.5px solid #dde1e7;
+  padding:14px 4px;
+  position:relative;
 }
-.login-right .login-logo .logo-title {
-  font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;letter-spacing:2px;
+.login-field + .login-field { margin-top:4px; }
+.login-field input {
+  width:100%;border:none;outline:none;
+  font-family:'Barlow',sans-serif;font-size:15px;color:#222;
+  background:transparent;padding:0;
 }
-.login-right .login-logo .logo-sub {
-  font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:3px;text-transform:uppercase;margin-top:2px;
+.login-field input::placeholder { color:#aab0bb; }
+.login-field input:focus { outline:none; }
+.login-fields-wrap { width:100%;margin-bottom:32px; }
+.login-error { display:none;background:#fff2f2;color:#d63031;border:1px solid #ffb3b3;font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;width:100%; }
+.login-btn {
+  width:100%;background:var(--orange);color:#fff;border:none;
+  border-radius:6px;padding:15px;
+  font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;
+  cursor:pointer;letter-spacing:1.5px;transition:all 0.2s;
+  text-transform:uppercase;box-shadow:0 4px 18px rgba(232,96,28,0.3);
 }
-.login-form-title {
-  font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;
-  color:var(--orange);letter-spacing:1px;margin-bottom:24px;text-align:center;
-  text-transform:uppercase;
-}
-.login-field { margin-bottom:18px;width:100%; }
-.login-field label { display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px; }
-.login-field input { width:100%;padding:13px 16px;background:rgba(255,255,255,0.05);border:1.5px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;font-family:'Barlow',sans-serif;font-size:15px;box-sizing:border-box;transition:all 0.2s; }
-.login-field input::placeholder { color:rgba(255,255,255,0.2); }
-.login-field input:focus { outline:none;border-color:var(--orange);background:rgba(232,96,28,0.06);box-shadow:0 0 0 3px rgba(232,96,28,0.1); }
-.login-error { display:none;background:rgba(248,113,113,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.2);font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;width:100%; }
-.login-btn { width:100%;background:var(--orange);color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.2s;box-shadow:0 4px 24px rgba(232,96,28,0.35);text-transform:uppercase; }
-.login-btn:hover { background:var(--orange-dark);box-shadow:0 6px 32px rgba(232,96,28,0.55);transform:translateY(-1px); }
+.login-btn:hover { background:var(--orange-dark);box-shadow:0 6px 28px rgba(232,96,28,0.45);transform:translateY(-1px); }
 .login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
-/* Road animation */
-@keyframes road-move { from{stroke-dashoffset:0} to{stroke-dashoffset:-100} }
-@keyframes truck-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-@keyframes headlight { 0%,100%{opacity:0.88} 50%{opacity:1} }
-@keyframes rain-fall { from{transform:translateY(-20px)} to{transform:translateY(20px)} }
-.truck-group { animation:truck-float 4s ease-in-out infinite; }
-.road-dash { animation:road-move 1.2s linear infinite; }
-.truck-headlight { animation:headlight 2.5s ease-in-out infinite; }
 @media (max-width:700px) {
   #loginOverlay { flex-direction:column; }
-  .login-left { min-height:260px;flex:none; }
-  .login-right { width:100%;padding:32px 24px;border-left:none;border-top:1px solid rgba(232,96,28,0.15); }
+  .login-left { min-height:220px;flex:none; }
+  .login-right { width:100%;padding:36px 28px; }
 }
 
 /* ROL VIEWER — oculta elementos de escritura */
@@ -499,13 +494,52 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
 
-  <!-- LADO IZQUIERDO: Camión impactante -->
+  <!-- LADO IZQUIERDO: Foto camión -->
   <div class="login-left">
-    <div class="login-left-content">
+    <img class="login-photo"
+         src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=1400&q=85&fit=crop"
+         alt="BOOM Logistics">
+    <div class="login-left-overlay"></div>
+    <div class="login-left-brand">
+      <div class="brand-name">BOOM</div>
+      <div class="brand-sub">Logistics Colombia S.A.S.</div>
+    </div>
+  </div>
 
-      <!-- Logo BOOM recreado en SVG -->
-      <div style="margin-bottom:24px;text-align:center;">
-        <svg viewBox="0 0 340 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:280px;filter:drop-shadow(0 4px 24px rgba(232,96,28,0.35));">
+  <!-- LADO DERECHO: Formulario -->
+  <div class="login-right">
+    <!-- Logo BOOM SVG -->
+    <div class="login-logo-wrap">
+      <svg viewBox="0 0 260 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:200px;">
+        <text x="4" y="64" font-family="Arial Black,sans-serif" font-weight="900" font-size="70" fill="#1a2e50" letter-spacing="-2">B</text>
+        <circle cx="116" cy="36" r="32" fill="#E8601C"/>
+        <circle cx="116" cy="36" r="19" fill="#fff"/>
+        <text x="142" y="64" font-family="Arial Black,sans-serif" font-weight="900" font-size="70" fill="#1a2e50" letter-spacing="-2">OM</text>
+      </svg>
+      <div style="font-size:10px;color:#aab0bb;letter-spacing:4px;text-transform:uppercase;margin-top:6px;">Logistics Colombia</div>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+
+    <div class="login-fields-wrap">
+      <div class="login-field">
+        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username"
+          onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+      </div>
+      <div class="login-field">
+        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+    </div>
+
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
+    <div style="margin-top:28px;font-size:11px;color:#ccd0d6;text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
+  </div>
+
+  <!-- HTML original oculto para mantener compatibilidad con JS -->
+  <div style="display:none">
+    <div class="login-left-content">
+      <svg viewBox="0 0 340 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:280px;filter:drop-shadow(0 4px 24px rgba(232,96,28,0.35));">
           <!-- B -->
           <text x="8" y="78" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="82" fill="#fff" letter-spacing="-2">B</text>
           <!-- OO como letra con la primera O siendo el círculo naranja -->
@@ -663,33 +697,6 @@ body.rol-viewer .write-only { display:none !important; }
       </svg>
 
     </div>
-  </div>
-
-  <!-- LADO DERECHO: Formulario login -->
-  <div class="login-right">
-    <div class="login-logo">
-      <div style="width:56px;height:56px;background:var(--orange);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 6px 24px rgba(232,96,28,0.4);">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><circle cx="5.5" cy="18.5" r="2.5" stroke="#fff" stroke-width="2"/><circle cx="18.5" cy="18.5" r="2.5" stroke="#fff" stroke-width="2"/></svg>
-      </div>
-      <div class="logo-title">nIA</div>
-      <div class="logo-sub">BOOM Logistics Colombia</div>
-    </div>
-
-    <div class="login-form-title">Iniciar Sesión</div>
-
-    <div class="login-field">
-      <label>Usuario</label>
-      <input type="text" id="loginUser" placeholder="Ingresa tu usuario" autocomplete="username"
-        onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
-    </div>
-    <div class="login-field">
-      <label>Contraseña</label>
-      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter') doLogin()">
-    </div>
-    <div class="login-error" id="loginError"></div>
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">INGRESAR</button>
-    <div style="margin-top:24px;font-size:11px;color:rgba(255,255,255,0.15);text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
   </div>
 
 </div>
