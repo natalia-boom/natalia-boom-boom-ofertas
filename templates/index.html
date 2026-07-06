@@ -510,13 +510,43 @@ body.rol-viewer .write-only { display:none !important; }
   <div class="login-right">
     <!-- Logo BOOM SVG -->
     <div class="login-logo-wrap">
-      <svg viewBox="0 0 260 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:200px;">
-        <text x="4" y="64" font-family="Arial Black,sans-serif" font-weight="900" font-size="70" fill="#1a2e50" letter-spacing="-2">B</text>
-        <circle cx="116" cy="36" r="32" fill="#E8601C"/>
-        <circle cx="116" cy="36" r="19" fill="#fff"/>
-        <text x="142" y="64" font-family="Arial Black,sans-serif" font-weight="900" font-size="70" fill="#1a2e50" letter-spacing="-2">OM</text>
+      <!-- Logo BOOM fiel al original: letras negras itálicas + O naranja + líneas velocidad -->
+      <svg viewBox="0 0 420 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:240px;">
+        <defs>
+          <!-- Forma orgánica de la O naranja (círculo ligeramente irregular) -->
+          <clipPath id="oClip">
+            <ellipse cx="210" cy="70" rx="62" ry="68"/>
+          </clipPath>
+        </defs>
+
+        <!-- ── LETRAS BOOM en negro itálico ── -->
+        <!-- B -->
+        <text x="8" y="118"
+              font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="110" fill="#1a1a1a"
+              font-style="italic" letter-spacing="-4">B</text>
+        <!-- OOM (las dos O y la M, la primera O parcialmente cubierta por la naranja) -->
+        <text x="148" y="118"
+              font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="110" fill="#1a1a1a"
+              font-style="italic" letter-spacing="-4">OOM</text>
+
+        <!-- ── O NARANJA (encima de las letras, entre B y segunda O) ── -->
+        <!-- Aro naranja exterior -->
+        <ellipse cx="208" cy="68" rx="64" ry="66" fill="#E8601C"/>
+        <!-- Hueco interior blanco -->
+        <ellipse cx="208" cy="68" rx="38" ry="40" fill="#ffffff"/>
+
+        <!-- ── LÍNEAS DE VELOCIDAD (debajo, diagonales) ── -->
+        <!-- Línea principal izquierda -->
+        <polygon points="18,138 80,138 72,148 10,148" fill="#1a1a1a"/>
+        <!-- Línea principal derecha (larga) -->
+        <polygon points="92,138 400,138 392,148 84,148" fill="#1a1a1a"/>
+        <!-- Segunda línea más delgada debajo -->
+        <polygon points="18,152 80,152 74,158 12,158" fill="#1a1a1a" opacity="0.5"/>
+        <polygon points="92,152 400,152 394,158 86,158" fill="#1a1a1a" opacity="0.5"/>
       </svg>
-      <div style="font-size:10px;color:#aab0bb;letter-spacing:4px;text-transform:uppercase;margin-top:6px;">Logistics Colombia</div>
+      <div style="font-size:10px;color:#aab0bb;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">Logistics Colombia S.A.S.</div>
     </div>
 
     <div class="login-error" id="loginError"></div>
