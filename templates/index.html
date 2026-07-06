@@ -503,185 +503,247 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- LADO IZQUIERDO: Camión impactante -->
   <div class="login-left">
     <div class="login-left-content">
-      <div class="login-brand">
-        <div class="brand-title">BOOM</div>
-        <div class="brand-sub">Logistics Colombia S.A.S.</div>
+
+      <!-- Logo BOOM recreado en SVG -->
+      <div style="margin-bottom:24px;text-align:center;">
+        <svg viewBox="0 0 340 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:280px;filter:drop-shadow(0 4px 24px rgba(232,96,28,0.35));">
+          <!-- B -->
+          <text x="8" y="78" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="82" fill="#fff" letter-spacing="-2">B</text>
+          <!-- OO como letra con la primera O siendo el círculo naranja -->
+          <!-- Primera O: círculo naranja grande -->
+          <circle cx="138" cy="44" r="38" fill="#E8601C"/>
+          <circle cx="138" cy="44" r="22" fill="#0a0f1a"/>
+          <!-- Segunda O en blanco -->
+          <text x="168" y="78" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="82" fill="#fff" letter-spacing="-2">OM</text>
+          <!-- Líneas de velocidad debajo -->
+          <rect x="8" y="88" width="200" height="6" rx="3" fill="#E8601C" opacity="0.9"/>
+          <rect x="8" y="88" width="80" height="6" rx="3" fill="#E8601C" transform="skewX(-15) translate(10,0)"/>
+          <rect x="30" y="88" width="180" height="6" rx="3" fill="#fff" opacity="0.15" transform="skewX(-15)"/>
+        </svg>
+        <div style="font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:5px;text-transform:uppercase;margin-top:6px;">Logistics Colombia S.A.S.</div>
       </div>
 
-      <!-- SVG Camión grande -->
-      <svg viewBox="0 0 780 360" fill="none" xmlns="http://www.w3.org/2000/svg"
-           style="width:90%;max-width:720px;filter:drop-shadow(0 20px 60px rgba(232,96,28,0.25));">
+      <!-- SVG Camión ergonómico mejorado -->
+      <svg viewBox="0 0 820 300" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="width:92%;max-width:740px;filter:drop-shadow(0 16px 48px rgba(232,96,28,0.2));">
         <defs>
-          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#050d1a"/>
-            <stop offset="100%" stop-color="#0c1e35"/>
+          <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#04080f"/>
+            <stop offset="100%" stop-color="#0a1828"/>
           </linearGradient>
-          <linearGradient id="trailerBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#1a3a6e"/>
-            <stop offset="40%" stop-color="#1e3f75"/>
-            <stop offset="100%" stop-color="#0d1f3c"/>
+          <linearGradient id="trailTop" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#22457a"/>
+            <stop offset="100%" stop-color="#0d1f40"/>
           </linearGradient>
-          <linearGradient id="cabBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#1c3568"/>
-            <stop offset="100%" stop-color="#0e1e3a"/>
+          <linearGradient id="cabTop" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e3a6e"/>
+            <stop offset="100%" stop-color="#0b1830"/>
           </linearGradient>
-          <linearGradient id="roadGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#111a28"/>
-            <stop offset="100%" stop-color="#0a1018"/>
+          <linearGradient id="roadG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#101820"/>
+            <stop offset="100%" stop-color="#080e16"/>
           </linearGradient>
-          <linearGradient id="wheelG" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#2a2a2a"/>
-            <stop offset="100%" stop-color="#111"/>
+          <linearGradient id="whl" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#252525"/>
+            <stop offset="100%" stop-color="#0e0e0e"/>
           </linearGradient>
-          <radialGradient id="headlightGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#fffde0" stop-opacity="1"/>
-            <stop offset="100%" stop-color="#ff9900" stop-opacity="0"/>
+          <radialGradient id="hlGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fff8d0" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#E8601C" stop-opacity="0"/>
           </radialGradient>
-          <filter id="glow-orange" x="-40%" y="-40%" width="180%" height="180%">
+          <filter id="fOrange" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="fWhite" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="b"/>
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
-          <filter id="glow-white" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="8" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <filter id="fSoft" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="2"/>
           </filter>
         </defs>
 
-        <!-- Fondo -->
-        <rect width="780" height="360" fill="url(#sky)"/>
+        <!-- Fondo noche -->
+        <rect width="820" height="300" fill="url(#skyG)"/>
 
-        <!-- Estrellas -->
-        <circle cx="80" cy="30" r="1" fill="#fff" opacity="0.4"/>
-        <circle cx="180" cy="15" r="1.5" fill="#fff" opacity="0.5"/>
-        <circle cx="320" cy="25" r="1" fill="#fff" opacity="0.3"/>
-        <circle cx="460" cy="10" r="1.2" fill="#fff" opacity="0.4"/>
-        <circle cx="580" cy="35" r="1" fill="#fff" opacity="0.3"/>
-        <circle cx="700" cy="18" r="1.5" fill="#fff" opacity="0.5"/>
-        <circle cx="140" cy="45" r="0.8" fill="#fff" opacity="0.3"/>
+        <!-- Estrellas sutiles -->
+        <circle cx="60" cy="20" r="0.8" fill="#fff" opacity="0.5"/>
+        <circle cx="160" cy="12" r="1.2" fill="#fff" opacity="0.4"/>
+        <circle cx="300" cy="18" r="0.9" fill="#fff" opacity="0.35"/>
+        <circle cx="500" cy="8" r="1.1" fill="#fff" opacity="0.45"/>
+        <circle cx="680" cy="22" r="0.8" fill="#fff" opacity="0.4"/>
+        <circle cx="750" cy="14" r="1" fill="#fff" opacity="0.3"/>
 
         <!-- Carretera -->
-        <rect x="0" y="278" width="780" height="82" fill="url(#roadGrad)"/>
-        <line x1="0" y1="278" x2="780" y2="278" stroke="#1e3050" stroke-width="2"/>
-        <line class="road-dash" x1="0" y1="318" x2="780" y2="318" stroke="#E8601C" stroke-width="3" stroke-dasharray="40 40" opacity="0.4"/>
+        <rect x="0" y="232" width="820" height="68" fill="url(#roadG)"/>
+        <line x1="0" y1="232" x2="820" y2="232" stroke="#162030" stroke-width="2"/>
+        <!-- Línea central animada -->
+        <line class="road-dash" x1="0" y1="264" x2="820" y2="264" stroke="#E8601C" stroke-width="2.5" stroke-dasharray="50 35" opacity="0.35"/>
+        <!-- Bordes carretera -->
+        <line x1="0" y1="290" x2="820" y2="290" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
 
-        <!-- Grupo camión flotante -->
+        <!-- Reflejo suelo bajo camión -->
+        <ellipse cx="410" cy="244" rx="340" ry="10" fill="rgba(232,96,28,0.06)"/>
+
         <g class="truck-group">
 
-          <!-- Sombra trailer -->
-          <ellipse cx="265" cy="294" rx="230" ry="12" fill="rgba(0,0,0,0.5)"/>
+          <!-- ══ TRAILER (más largo y bajo) ══ -->
+          <!-- Sombra -->
+          <ellipse cx="245" cy="247" rx="220" ry="9" fill="rgba(0,0,0,0.55)"/>
 
-          <!-- Cuerpo trailer -->
-          <rect x="40" y="60" width="450" height="218" rx="6" fill="url(#trailerBody)" stroke="#2a5298" stroke-width="1.5"/>
+          <!-- Cuerpo principal trailer — proporciones más bajas y largas -->
+          <rect x="28" y="82" width="440" height="162" rx="4" fill="url(#trailTop)" stroke="#1e4080" stroke-width="1.2"/>
 
-          <!-- Franjas naranjas trailer -->
-          <rect x="40" y="60" width="450" height="18" fill="#E8601C" opacity="0.9"/>
-          <rect x="40" y="248" width="450" height="14" fill="#E8601C" opacity="0.85"/>
+          <!-- Franja naranja superior -->
+          <rect x="28" y="82" width="440" height="14" rx="0" fill="#E8601C" opacity="0.92"/>
+          <!-- Franja naranja inferior -->
+          <rect x="28" y="232" width="440" height="12" fill="#E8601C" opacity="0.88"/>
 
-          <!-- Logo en trailer -->
-          <rect x="200" y="118" width="130" height="66" rx="4" fill="rgba(232,96,28,0.12)" stroke="rgba(232,96,28,0.3)" stroke-width="1"/>
-          <text x="265" y="157" font-family="Arial Black,sans-serif" font-weight="900" font-size="28" fill="#E8601C" text-anchor="middle" opacity="0.95">BOOM</text>
-          <text x="265" y="174" font-family="Arial,sans-serif" font-weight="600" font-size="8" fill="rgba(232,96,28,0.7)" text-anchor="middle" letter-spacing="4">LOGISTICS</text>
+          <!-- Línea de división lateral (detalle paneles) -->
+          <line x1="28" y1="148" x2="468" y2="148" stroke="rgba(255,255,255,0.05)" stroke-width="1.5"/>
 
-          <!-- Ribete cromado -->
-          <rect x="40" y="58" width="450" height="4" rx="2" fill="#c8d8f0" opacity="0.3"/>
-          <rect x="40" y="260" width="450" height="4" rx="2" fill="#c8d8f0" opacity="0.25"/>
+          <!-- Logo BOOM en trailer — recreado en SVG -->
+          <rect x="148" y="104" width="172" height="76" rx="4" fill="rgba(0,0,0,0.18)" stroke="rgba(232,96,28,0.25)" stroke-width="1"/>
+          <!-- B -->
+          <text x="156" y="164" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="54" fill="rgba(255,255,255,0.12)">B</text>
+          <!-- Círculo O naranja -->
+          <circle cx="222" cy="140" r="22" fill="rgba(232,96,28,0.35)"/>
+          <circle cx="222" cy="140" r="13" fill="rgba(0,0,0,0.3)"/>
+          <!-- OM -->
+          <text x="238" y="164" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="54" fill="rgba(255,255,255,0.12)">OM</text>
+
+          <!-- Texto LOGISTICS pequeño -->
+          <text x="234" y="178" font-family="Arial,sans-serif" font-weight="700" font-size="8" fill="rgba(232,96,28,0.5)" text-anchor="middle" letter-spacing="4">LOGISTICS</text>
+
+          <!-- Ribete cromado superior -->
+          <rect x="28" y="80" width="440" height="3" rx="1.5" fill="rgba(200,220,255,0.25)"/>
+          <!-- Ribete cromado inferior -->
+          <rect x="28" y="243" width="440" height="3" rx="1.5" fill="rgba(200,220,255,0.2)"/>
 
           <!-- Luces traseras -->
-          <rect x="40" y="80" width="10" height="28" rx="3" fill="#ff2200" filter="url(#glow-orange)" opacity="0.95"/>
-          <rect x="40" y="220" width="10" height="24" rx="3" fill="#ff2200" filter="url(#glow-orange)" opacity="0.9"/>
+          <rect x="28" y="96" width="8" height="24" rx="2.5" fill="#ff1a00" filter="url(#fOrange)" opacity="0.95"/>
+          <rect x="28" y="128" width="8" height="14" rx="2" fill="#ff4400" filter="url(#fOrange)" opacity="0.75"/>
+          <rect x="28" y="210" width="8" height="20" rx="2.5" fill="#ff1a00" filter="url(#fOrange)" opacity="0.9"/>
 
-          <!-- Línea puerta trasera -->
-          <line x1="263" y1="78" x2="263" y2="262" stroke="rgba(255,255,255,0.07)" stroke-width="2"/>
+          <!-- Conector trasero -->
+          <rect x="456" y="196" width="16" height="10" rx="2" fill="#0a1525" stroke="rgba(100,150,220,0.3)" stroke-width="0.8"/>
 
-          <!-- Ruedas traseras -->
-          <circle cx="130" cy="280" r="36" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
-          <circle cx="130" cy="280" r="26" fill="none" stroke="#444" stroke-width="8"/>
-          <circle cx="130" cy="280" r="14" fill="#222" stroke="#555" stroke-width="2"/>
-          <circle cx="130" cy="280" r="5" fill="#666"/>
-          <line x1="130" y1="252" x2="130" y2="308" stroke="#555" stroke-width="2"/>
-          <line x1="105" y1="265" x2="155" y2="295" stroke="#555" stroke-width="2"/>
-          <line x1="155" y1="265" x2="105" y2="295" stroke="#555" stroke-width="2"/>
-          <circle cx="130" cy="280" r="36" fill="none" stroke="#788aaa" stroke-width="1.5" opacity="0.5"/>
+          <!-- Rueda trasera izquierda -->
+          <circle cx="112" cy="238" r="30" fill="url(#whl)" stroke="#2a2a2a" stroke-width="1.5"/>
+          <circle cx="112" cy="238" r="22" fill="none" stroke="#333" stroke-width="7"/>
+          <circle cx="112" cy="238" r="12" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+          <circle cx="112" cy="238" r="4.5" fill="#555"/>
+          <line x1="112" y1="214" x2="112" y2="262" stroke="#444" stroke-width="1.8"/>
+          <line x1="90" y1="225" x2="134" y2="251" stroke="#444" stroke-width="1.8"/>
+          <line x1="134" y1="225" x2="90" y2="251" stroke="#444" stroke-width="1.8"/>
+          <circle cx="112" cy="238" r="30" fill="none" stroke="#5a6a88" stroke-width="1.2" opacity="0.4"/>
 
-          <circle cx="230" cy="280" r="36" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
-          <circle cx="230" cy="280" r="26" fill="none" stroke="#444" stroke-width="8"/>
-          <circle cx="230" cy="280" r="14" fill="#222" stroke="#555" stroke-width="2"/>
-          <circle cx="230" cy="280" r="5" fill="#666"/>
-          <line x1="230" y1="252" x2="230" y2="308" stroke="#555" stroke-width="2"/>
-          <line x1="205" y1="265" x2="255" y2="295" stroke="#555" stroke-width="2"/>
-          <line x1="255" y1="265" x2="205" y2="295" stroke="#555" stroke-width="2"/>
-          <circle cx="230" cy="280" r="36" fill="none" stroke="#788aaa" stroke-width="1.5" opacity="0.5"/>
+          <!-- Rueda trasera derecha -->
+          <circle cx="200" cy="238" r="30" fill="url(#whl)" stroke="#2a2a2a" stroke-width="1.5"/>
+          <circle cx="200" cy="238" r="22" fill="none" stroke="#333" stroke-width="7"/>
+          <circle cx="200" cy="238" r="12" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+          <circle cx="200" cy="238" r="4.5" fill="#555"/>
+          <line x1="200" y1="214" x2="200" y2="262" stroke="#444" stroke-width="1.8"/>
+          <line x1="178" y1="225" x2="222" y2="251" stroke="#444" stroke-width="1.8"/>
+          <line x1="222" y1="225" x2="178" y2="251" stroke="#444" stroke-width="1.8"/>
+          <circle cx="200" cy="238" r="30" fill="none" stroke="#5a6a88" stroke-width="1.2" opacity="0.4"/>
 
-          <!-- Quinta rueda -->
-          <rect x="468" y="240" width="60" height="22" rx="4" fill="#1a2a40" stroke="#3a5080" stroke-width="1"/>
-
+          <!-- ══ CABINA (sleeper cab — más ergonómica) ══ -->
           <!-- Sombra cabina -->
-          <ellipse cx="580" cy="294" rx="115" ry="10" fill="rgba(0,0,0,0.45)"/>
+          <ellipse cx="630" cy="247" rx="110" ry="9" fill="rgba(0,0,0,0.5)"/>
 
-          <!-- Cuerpo cabina -->
-          <rect x="490" y="80" width="200" height="188" rx="12" fill="url(#cabBody)" stroke="#2a4a88" stroke-width="1.5"/>
+          <!-- Quinta rueda / acople -->
+          <rect x="462" y="208" width="58" height="26" rx="4" fill="#121e30" stroke="#223350" stroke-width="1"/>
+          <rect x="470" y="214" width="42" height="12" rx="2" fill="#1a2a40"/>
 
-          <!-- Franjas naranjas cabina -->
-          <rect x="490" y="80" width="200" height="16" fill="#E8601C" opacity="0.9"/>
-          <rect x="490" y="252" width="200" height="12" fill="#E8601C" opacity="0.85"/>
+          <!-- Cuerpo cabina — silueta más aerodínmica -->
+          <!-- Panel trasero cabina -->
+          <rect x="490" y="82" width="26" height="162" rx="0" fill="#0e1c35" stroke="#1a3060" stroke-width="1"/>
+          <!-- Cuerpo principal -->
+          <rect x="514" y="82" width="196" height="162" rx="0" fill="url(#cabTop)" stroke="#1e3870" stroke-width="1.2"/>
+          <!-- Techo redondeado -->
+          <rect x="490" y="72" width="220" height="18" rx="8" fill="#1a3468" stroke="#2a4a88" stroke-width="1"/>
+          <!-- Spoiler aerodinámico del techo -->
+          <rect x="490" y="65" width="220" height="10" rx="5" fill="#152a55" stroke="#1e3870" stroke-width="0.8"/>
 
-          <!-- Parabrisas -->
-          <rect x="510" y="108" width="160" height="95" rx="8" fill="rgba(100,160,255,0.08)" stroke="rgba(150,190,255,0.4)" stroke-width="1.5"/>
-          <line x1="520" y1="115" x2="545" y2="195" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+          <!-- Franja naranja cabina -->
+          <rect x="490" y="230" width="220" height="12" fill="#E8601C" opacity="0.88"/>
+          <!-- Franja naranja techo -->
+          <rect x="490" y="72" width="220" height="6" fill="#E8601C" opacity="0.7"/>
 
-          <!-- Espejo -->
-          <rect x="476" y="108" width="14" height="30" rx="4" fill="#233a5a" stroke="#4a6a90" stroke-width="1"/>
+          <!-- Ventanas cabina -->
+          <!-- Ventana principal -->
+          <rect x="524" y="96" width="110" height="80" rx="6" fill="rgba(60,120,200,0.1)" stroke="rgba(120,170,255,0.35)" stroke-width="1.2"/>
+          <!-- Reflejo ventana -->
+          <polygon points="530,100 545,100 530,175" fill="rgba(255,255,255,0.04)"/>
+          <!-- Ventana durmiente -->
+          <rect x="642" y="104" width="58" height="56" rx="5" fill="rgba(60,120,200,0.08)" stroke="rgba(120,170,255,0.25)" stroke-width="1"/>
 
-          <!-- Parrilla -->
-          <rect x="492" y="202" width="194" height="52" rx="4" fill="#0e1c30" stroke="#2a4070" stroke-width="1"/>
-          <line x1="492" y1="215" x2="686" y2="215" stroke="#1a3050" stroke-width="1.5"/>
-          <line x1="492" y1="228" x2="686" y2="228" stroke="#1a3050" stroke-width="1.5"/>
-          <line x1="492" y1="241" x2="686" y2="241" stroke="#1a3050" stroke-width="1.5"/>
-          <line x1="540" y1="202" x2="540" y2="254" stroke="#1a3050" stroke-width="1"/>
-          <line x1="588" y1="202" x2="588" y2="254" stroke="#1a3050" stroke-width="1"/>
-          <line x1="636" y1="202" x2="636" y2="254" stroke="#1a3050" stroke-width="1"/>
+          <!-- Limpiaparabrisas -->
+          <line x1="534" y1="174" x2="624" y2="174" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round"/>
 
-          <!-- Logo cabina -->
-          <rect x="538" y="210" width="104" height="32" rx="3" fill="rgba(232,96,28,0.15)" stroke="rgba(232,96,28,0.4)" stroke-width="1"/>
-          <text x="590" y="231" font-family="Arial Black,sans-serif" font-weight="900" font-size="14" fill="#E8601C" text-anchor="middle">BOOM</text>
+          <!-- Espejo izquierdo -->
+          <rect x="474" y="100" width="18" height="36" rx="4" fill="#162540" stroke="#2a4060" stroke-width="1"/>
+          <rect x="466" y="96" width="12" height="44" rx="3" fill="#1c2e48" stroke="#304868" stroke-width="1"/>
 
-          <!-- Faros LED -->
-          <rect x="684" y="100" width="6" height="28" rx="2" fill="#fffde0" class="truck-headlight" filter="url(#glow-white)" opacity="0.95"/>
-          <rect x="684" y="136" width="6" height="16" rx="2" fill="#aaddff" class="truck-headlight" filter="url(#glow-white)" opacity="0.8"/>
-          <ellipse cx="720" cy="118" rx="55" ry="22" fill="url(#headlightGlow)" opacity="0.18"/>
+          <!-- Detalle puerta cabina (línea) -->
+          <line x1="638" y1="90" x2="638" y2="242" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+
+          <!-- Parrilla frontal -->
+          <rect x="704" y="148" width="6" height="96" rx="2" fill="#0c1628" stroke="#1a2f50" stroke-width="0.8"/>
+          <!-- Barras parrilla -->
+          <line x1="704" y1="162" x2="710" y2="162" stroke="#1e3258" stroke-width="2"/>
+          <line x1="704" y1="176" x2="710" y2="176" stroke="#1e3258" stroke-width="2"/>
+          <line x1="704" y1="190" x2="710" y2="190" stroke="#1e3258" stroke-width="2"/>
+          <line x1="704" y1="204" x2="710" y2="204" stroke="#1e3258" stroke-width="2"/>
+          <line x1="704" y1="218" x2="710" y2="218" stroke="#1e3258" stroke-width="2"/>
+
+          <!-- Faros principales LED -->
+          <rect x="702" y="92" width="8" height="38" rx="3" fill="#fffce0" class="truck-headlight" filter="url(#fWhite)" opacity="0.95"/>
+          <!-- DRL (luz diurna) -->
+          <rect x="702" y="136" width="8" height="10" rx="2" fill="#b8d8ff" class="truck-headlight" filter="url(#fWhite)" opacity="0.85"/>
+          <!-- Halo del faro en carretera -->
+          <ellipse cx="760" cy="118" rx="60" ry="18" fill="url(#hlGlow)" opacity="0.15"/>
+
+          <!-- Luces de posición techo -->
+          <rect x="500" y="67" width="5" height="5" rx="1" fill="#E8601C" filter="url(#fOrange)" opacity="0.9"/>
+          <rect x="514" y="67" width="5" height="5" rx="1" fill="#E8601C" filter="url(#fOrange)" opacity="0.85"/>
+          <rect x="528" y="67" width="5" height="5" rx="1" fill="#E8601C" filter="url(#fOrange)" opacity="0.8"/>
 
           <!-- Bumper -->
-          <rect x="488" y="256" width="204" height="14" rx="4" fill="#E8601C" filter="url(#glow-orange)" opacity="0.9"/>
+          <rect x="488" y="242" width="224" height="12" rx="3" fill="#E8601C" filter="url(#fOrange)" opacity="0.88"/>
+          <!-- Estribo -->
+          <rect x="492" y="198" width="214" height="8" rx="2" fill="#0e1c30" stroke="#1a2e50" stroke-width="0.8"/>
 
-          <!-- Escape -->
-          <rect x="670" y="42" width="10" height="38" rx="5" fill="#1a2a40" stroke="#3a5070" stroke-width="1"/>
+          <!-- Escapes verticales -->
+          <rect x="688" y="30" width="9" height="44" rx="4.5" fill="#101e32" stroke="#1e3258" stroke-width="1"/>
+          <rect x="700" y="36" width="7" height="38" rx="3.5" fill="#101e32" stroke="#162845" stroke-width="0.8"/>
+          <!-- Tapas escape -->
+          <ellipse cx="692" cy="30" rx="4.5" ry="2" fill="rgba(232,96,28,0.15)" stroke="#2a4060" stroke-width="0.7"/>
+          <ellipse cx="703" cy="36" rx="3.5" ry="1.8" fill="rgba(232,96,28,0.1)" stroke="#2a4060" stroke-width="0.7"/>
 
-          <!-- Luces techo cabina -->
-          <rect x="505" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.9"/>
-          <rect x="520" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.85"/>
-          <rect x="535" y="82" width="6" height="6" rx="1.5" fill="#E8601C" filter="url(#glow-orange)" opacity="0.8"/>
-
-          <!-- Rueda cabina -->
-          <circle cx="600" cy="280" r="38" fill="url(#wheelG)" stroke="#333" stroke-width="2"/>
-          <circle cx="600" cy="280" r="28" fill="none" stroke="#444" stroke-width="9"/>
-          <circle cx="600" cy="280" r="15" fill="#222" stroke="#555" stroke-width="2"/>
-          <circle cx="600" cy="280" r="5.5" fill="#777"/>
-          <line x1="600" y1="250" x2="600" y2="310" stroke="#555" stroke-width="2.5"/>
-          <line x1="574" y1="263" x2="626" y2="297" stroke="#555" stroke-width="2.5"/>
-          <line x1="626" y1="263" x2="574" y2="297" stroke="#555" stroke-width="2.5"/>
-          <circle cx="600" cy="280" r="38" fill="none" stroke="#8898b8" stroke-width="2" opacity="0.5"/>
+          <!-- Rueda cabina delantera -->
+          <circle cx="592" cy="238" r="32" fill="url(#whl)" stroke="#2a2a2a" stroke-width="1.5"/>
+          <circle cx="592" cy="238" r="24" fill="none" stroke="#333" stroke-width="8"/>
+          <circle cx="592" cy="238" r="13" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+          <circle cx="592" cy="238" r="5" fill="#666"/>
+          <line x1="592" y1="212" x2="592" y2="264" stroke="#444" stroke-width="2"/>
+          <line x1="567" y1="224" x2="617" y2="252" stroke="#444" stroke-width="2"/>
+          <line x1="617" y1="224" x2="567" y2="252" stroke="#444" stroke-width="2"/>
+          <circle cx="592" cy="238" r="32" fill="none" stroke="#6070a0" stroke-width="1.5" opacity="0.45"/>
 
         </g>
 
-        <!-- Líneas de velocidad -->
-        <line x1="0" y1="150" x2="30" y2="150" stroke="#E8601C" stroke-width="2" opacity="0.5"/>
-        <line x1="0" y1="170" x2="50" y2="170" stroke="#E8601C" stroke-width="1.5" opacity="0.35"/>
-        <line x1="0" y1="210" x2="40" y2="210" stroke="#E8601C" stroke-width="2" opacity="0.4"/>
+        <!-- Líneas de velocidad / movimiento -->
+        <line x1="0" y1="130" x2="18" y2="130" stroke="#E8601C" stroke-width="2" opacity="0.55"/>
+        <line x1="0" y1="148" x2="32" y2="148" stroke="#E8601C" stroke-width="1.5" opacity="0.4"/>
+        <line x1="0" y1="165" x2="14" y2="165" stroke="#fff" stroke-width="1" opacity="0.15"/>
+        <line x1="0" y1="182" x2="28" y2="182" stroke="#E8601C" stroke-width="2" opacity="0.45"/>
+        <line x1="0" y1="198" x2="12" y2="198" stroke="#fff" stroke-width="1" opacity="0.1"/>
+
       </svg>
 
-      <div style="text-align:center;margin-top:12px;">
-        <div style="font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:3px;text-transform:uppercase;">Transporte Especializado de Colombia</div>
-      </div>
     </div>
   </div>
 
