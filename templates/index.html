@@ -376,65 +376,57 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 /* LOGIN OVERLAY */
 #loginOverlay {
   position:fixed;inset:0;z-index:9999;display:flex;
+  background:#0b1628;
 }
 .login-left {
-  flex:1;position:relative;overflow:hidden;
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(145deg,#0b1628 0%,#112040 50%,#0d1a30 100%);
+  padding:48px;gap:32px;
 }
-.login-left img.login-photo {
-  width:100%;height:100%;object-fit:cover;object-position:center;display:block;
+.login-left-tagline {
+  text-align:center;
 }
-.login-left-overlay {
-  position:absolute;inset:0;
-  background:linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.35) 100%);
+.login-left-tagline h2 {
+  font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:600;
+  color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;margin:0 0 8px;
 }
-.login-left-brand {
-  position:absolute;bottom:40px;left:44px;
-}
-.login-left-brand .brand-name {
-  font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;
-  color:#fff;letter-spacing:4px;line-height:1;
-  text-shadow:0 2px 20px rgba(0,0,0,0.5);
-}
-.login-left-brand .brand-sub {
-  font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:4px;
-  text-transform:uppercase;margin-top:4px;
-  text-shadow:0 1px 8px rgba(0,0,0,0.6);
+.login-left-tagline p {
+  font-size:13px;color:rgba(255,255,255,0.3);max-width:340px;line-height:1.6;
 }
 .login-right {
-  width:440px;min-width:360px;max-width:100%;
+  width:460px;min-width:360px;max-width:100%;
   background:#ffffff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:56px 48px;
+  padding:60px 52px;
+  box-shadow:-8px 0 40px rgba(0,0,0,0.3);
 }
-.login-logo-wrap { margin-bottom:40px;text-align:center; }
+.login-logo-wrap { margin-bottom:44px;text-align:center; }
+.login-fields-wrap { width:100%;margin-bottom:28px; }
 .login-field {
-  margin-bottom:0;width:100%;
+  width:100%;
   border-bottom:1.5px solid #dde1e7;
   padding:14px 4px;
-  position:relative;
 }
-.login-field + .login-field { margin-top:4px; }
+.login-field + .login-field { margin-top:6px; }
 .login-field input {
   width:100%;border:none;outline:none;
-  font-family:'Barlow',sans-serif;font-size:15px;color:#222;
-  background:transparent;padding:0;
+  font-family:'Barlow',sans-serif;font-size:15px;color:#1a1a1a;
+  background:transparent;
 }
-.login-field input::placeholder { color:#aab0bb; }
-.login-field input:focus { outline:none; }
-.login-fields-wrap { width:100%;margin-bottom:32px; }
+.login-field input::placeholder { color:#b0b8c4; }
 .login-error { display:none;background:#fff2f2;color:#d63031;border:1px solid #ffb3b3;font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;width:100%; }
 .login-btn {
   width:100%;background:var(--orange);color:#fff;border:none;
-  border-radius:6px;padding:15px;
-  font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;
-  cursor:pointer;letter-spacing:1.5px;transition:all 0.2s;
-  text-transform:uppercase;box-shadow:0 4px 18px rgba(232,96,28,0.3);
+  border-radius:6px;padding:16px;
+  font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;
+  cursor:pointer;letter-spacing:2px;transition:all 0.2s;
+  text-transform:uppercase;box-shadow:0 4px 20px rgba(232,96,28,0.35);
 }
-.login-btn:hover { background:var(--orange-dark);box-shadow:0 6px 28px rgba(232,96,28,0.45);transform:translateY(-1px); }
+.login-btn:hover { background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 28px rgba(232,96,28,0.5); }
 .login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
 @media (max-width:700px) {
   #loginOverlay { flex-direction:column; }
-  .login-left { min-height:220px;flex:none; }
+  .login-left { min-height:200px;flex:none;padding:32px 24px; }
   .login-right { width:100%;padding:36px 28px; }
 }
 
@@ -494,59 +486,40 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
 
-  <!-- LADO IZQUIERDO: Foto camión -->
+  <!-- LADO IZQUIERDO: Marca -->
   <div class="login-left">
-    <img class="login-photo"
-         src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=1400&q=85&fit=crop"
-         alt="BOOM Logistics">
-    <div class="login-left-overlay"></div>
-    <div class="login-left-brand">
-      <div class="brand-name">BOOM</div>
-      <div class="brand-sub">Logistics Colombia S.A.S.</div>
+    <!-- Logo BOOM en blanco para fondo oscuro -->
+    <svg viewBox="0 0 420 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:280px;">
+      <text x="8" y="118" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+            font-weight="900" font-size="110" fill="#ffffff" font-style="italic" letter-spacing="-4">B</text>
+      <text x="148" y="118" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+            font-weight="900" font-size="110" fill="#ffffff" font-style="italic" letter-spacing="-4">OOM</text>
+      <ellipse cx="208" cy="68" rx="64" ry="66" fill="#E8601C"/>
+      <ellipse cx="208" cy="68" rx="38" ry="40" fill="#0d1a30"/>
+      <polygon points="18,138 80,138 72,148 10,148" fill="#ffffff" opacity="0.7"/>
+      <polygon points="92,138 400,138 392,148 84,148" fill="#ffffff" opacity="0.7"/>
+    </svg>
+    <div class="login-left-tagline">
+      <h2>Logistics Colombia S.A.S.</h2>
+      <p>Sistema de gestión de ofertas, operaciones y rentabilidad para el equipo BOOM.</p>
     </div>
   </div>
 
   <!-- LADO DERECHO: Formulario -->
   <div class="login-right">
-    <!-- Logo BOOM SVG -->
     <div class="login-logo-wrap">
-      <!-- Logo BOOM fiel al original: letras negras itálicas + O naranja + líneas velocidad -->
-      <svg viewBox="0 0 420 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:240px;">
-        <defs>
-          <!-- Forma orgánica de la O naranja (círculo ligeramente irregular) -->
-          <clipPath id="oClip">
-            <ellipse cx="210" cy="70" rx="62" ry="68"/>
-          </clipPath>
-        </defs>
-
-        <!-- ── LETRAS BOOM en negro itálico ── -->
-        <!-- B -->
-        <text x="8" y="118"
-              font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
-              font-weight="900" font-size="110" fill="#1a1a1a"
-              font-style="italic" letter-spacing="-4">B</text>
-        <!-- OOM (las dos O y la M, la primera O parcialmente cubierta por la naranja) -->
-        <text x="148" y="118"
-              font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
-              font-weight="900" font-size="110" fill="#1a1a1a"
-              font-style="italic" letter-spacing="-4">OOM</text>
-
-        <!-- ── O NARANJA (encima de las letras, entre B y segunda O) ── -->
-        <!-- Aro naranja exterior -->
+      <!-- Logo BOOM en negro para fondo blanco -->
+      <svg viewBox="0 0 420 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:220px;">
+        <text x="8" y="118" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="110" fill="#1a1a1a" font-style="italic" letter-spacing="-4">B</text>
+        <text x="148" y="118" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="110" fill="#1a1a1a" font-style="italic" letter-spacing="-4">OOM</text>
         <ellipse cx="208" cy="68" rx="64" ry="66" fill="#E8601C"/>
-        <!-- Hueco interior blanco -->
         <ellipse cx="208" cy="68" rx="38" ry="40" fill="#ffffff"/>
-
-        <!-- ── LÍNEAS DE VELOCIDAD (debajo, diagonales) ── -->
-        <!-- Línea principal izquierda -->
         <polygon points="18,138 80,138 72,148 10,148" fill="#1a1a1a"/>
-        <!-- Línea principal derecha (larga) -->
         <polygon points="92,138 400,138 392,148 84,148" fill="#1a1a1a"/>
-        <!-- Segunda línea más delgada debajo -->
-        <polygon points="18,152 80,152 74,158 12,158" fill="#1a1a1a" opacity="0.5"/>
-        <polygon points="92,152 400,152 394,158 86,158" fill="#1a1a1a" opacity="0.5"/>
       </svg>
-      <div style="font-size:10px;color:#aab0bb;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">Logistics Colombia S.A.S.</div>
+      <div style="font-size:10px;color:#b0b8c4;letter-spacing:4px;text-transform:uppercase;margin-top:6px;">Control de Ofertas</div>
     </div>
 
     <div class="login-error" id="loginError"></div>
@@ -563,13 +536,12 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
 
     <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
-    <div style="margin-top:28px;font-size:11px;color:#ccd0d6;text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
+    <div style="margin-top:28px;font-size:11px;color:#c8cdd4;text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
   </div>
 
-  <!-- HTML original oculto para mantener compatibilidad con JS -->
   <div style="display:none">
-    <div class="login-left-content">
-      <svg viewBox="0 0 340 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:280px;filter:drop-shadow(0 4px 24px rgba(232,96,28,0.35));">
+    <div>
+      <svg viewBox="0 0 340 100">
           <!-- B -->
           <text x="8" y="78" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-size="82" fill="#fff" letter-spacing="-2">B</text>
           <!-- OO como letra con la primera O siendo el círculo naranja -->
