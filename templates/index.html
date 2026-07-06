@@ -424,6 +424,13 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .login-btn:hover { background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 28px rgba(232,96,28,0.5); }
 .login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
+@keyframes o-bounce {
+  0%,100% { transform:translateY(0);    animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
+  40%     { transform:translateY(-20px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  70%     { transform:translateY(-9px);  animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
+  85%     { transform:translateY(-4px); }
+}
+.o-bounce { animation:o-bounce 1.8s ease-in-out infinite; transform-box:fill-box; transform-origin:center bottom; }
 @media (max-width:700px) {
   #loginOverlay { flex-direction:column; }
   .login-left { min-height:200px;flex:none;padding:32px 24px; }
@@ -494,8 +501,10 @@ body.rol-viewer .write-only { display:none !important; }
       <text x="6" y="112" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
             font-weight="900" font-size="105" fill="#ffffff" font-style="italic" letter-spacing="-6">BOOM</text>
       <!-- O naranja encima de la segunda O (posición ~155px desde inicio) -->
-      <ellipse cx="168" cy="62" rx="58" ry="60" fill="#E8601C"/>
-      <ellipse cx="168" cy="62" rx="34" ry="36" fill="#112040"/>
+      <g class="o-bounce">
+        <ellipse cx="168" cy="62" rx="58" ry="60" fill="#E8601C"/>
+        <ellipse cx="168" cy="62" rx="34" ry="36" fill="#112040"/>
+      </g>
       <!-- Líneas de velocidad -->
       <polygon points="10,130 62,130 55,140 3,140" fill="#ffffff" opacity="0.6"/>
       <polygon points="74,130 346,130 339,140 67,140" fill="#ffffff" opacity="0.6"/>
