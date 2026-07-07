@@ -424,10 +424,42 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .login-btn:hover { background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 28px rgba(232,96,28,0.5); }
 .login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
+.boom-letters-wrap {
+  display:flex;
+  align-items:center;
+  overflow:visible;
+  line-height:1;
+  gap:0;
+}
+.boom-letter {
+  font-family:'Arial Black','Franklin Gothic Heavy',Impact,sans-serif;
+  font-weight:900;
+  font-style:italic;
+  font-size:88px;
+  color:#ffffff;
+  line-height:0.9;
+  letter-spacing:-2px;
+}
+.boom-speed-lines {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-top:6px;
+  padding-left:4px;
+}
+.boom-line {
+  height:5px;
+  background:#ffffff;
+  opacity:0.6;
+  border-radius:2px;
+  clip-path:polygon(0 0, 100% 0, calc(100% - 8px) 100%, 8px 100%);
+}
+.boom-line-short { width:52px; }
+.boom-line-long  { width:240px; }
 .boom-o-standalone {
-  width:120px; height:120px;
+  width:95px; height:95px;
   border-radius:50%;
-  border:20px solid #E8601C;
+  border:16px solid #E8601C;
   box-sizing:border-box;
   background:transparent;
   display:block;
@@ -518,7 +550,15 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- LADO IZQUIERDO: Marca -->
   <div class="login-left">
     <!-- Logo BOOM oficial - blanco para fondo oscuro -->
-    <div class="boom-o-standalone o-bounce"></div>
+    <div class="boom-letters-wrap">
+      <span class="boom-letter">B</span>
+      <div class="boom-o-standalone o-bounce"></div>
+      <span class="boom-letter">OM</span>
+    </div>
+    <div class="boom-speed-lines">
+      <div class="boom-line boom-line-short"></div>
+      <div class="boom-line boom-line-long"></div>
+    </div>
     <div class="login-left-tagline">
       <h2>Logistics Colombia S.A.S.</h2>
       <p>El equipo BOOM tiene su propia inteligencia, nIAP.</p>
