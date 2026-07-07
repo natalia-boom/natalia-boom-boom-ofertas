@@ -2409,6 +2409,7 @@ async function loadAll() {
     const res = await fetch('/api/ofertas');
     if (!res.ok) throw new Error('Error cargando ofertas');
     allOfertas = await res.json();
+    populateControlFilters();
     renderDashboard();
     filterControl();
     filterAprobadas();
@@ -2622,6 +2623,21 @@ function renderModernBar(id, data) {
 function renderBarChart(id, data, orange) { renderModernBar(id, data); }
 
 // ========== CONTROL ==========
+function populateControlFilters() {
+  const llenar = (id, campo, textoTodos) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    const vals = [...new Set(allOfertas.map(o => (o[campo]||'').trim()).filter(Boolean))]
+      .sort((a,b) => a.localeCompare(b, 'es'));
+    sel.innerHTML = `<option value="">${textoTodos}</option>` +
+      vals.map(v => `<option${v===prev?' selected':''}>${v}</option>`).join('');
+  };
+  llenar('fUnidad', 'unidad', 'Todas');
+  llenar('fRespuesta', 'respuesta', 'Todas');
+  llenar('fComercial', 'realizada', 'Todos');
+}
+
 function filterControl() {
   const buscar = document.getElementById('fBuscar').value.toLowerCase();
   const mes = document.getElementById('fMes').value;
