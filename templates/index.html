@@ -437,13 +437,16 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
   pointer-events:none;
 }
 @keyframes o-bounce {
-  0%,100% { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
-  35%     { transform:translateY(-80px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
-  65%     { transform:translateY(-35px); animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
-  82%     { transform:translateY(-14px); }
-  92%     { transform:translateY(-5px);  }
+  0%   { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
+  10%  { transform:translateY(-65px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  20%  { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
+  28%  { transform:translateY(-38px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  36%  { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
+  42%  { transform:translateY(-18px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  48%  { transform:translateY(0); }
+  100% { transform:translateY(0); }
 }
-.o-bounce { animation:o-bounce 2s cubic-bezier(0.280,0.840,0.420,1) infinite; transform-box:fill-box; transform-origin:center bottom; }
+.o-bounce { animation:o-bounce 2.8s ease-in-out infinite; transform-origin:center bottom; }
 @media (max-width:700px) {
   #loginOverlay { flex-direction:column; }
   .login-left { min-height:200px;flex:none;padding:32px 24px; }
