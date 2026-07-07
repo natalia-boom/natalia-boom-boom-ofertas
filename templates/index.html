@@ -551,15 +551,28 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- LADO IZQUIERDO: Marca -->
   <div class="login-left">
     <!-- Logo BOOM oficial - blanco para fondo oscuro -->
-    <div class="boom-letters-wrap">
-      <span class="boom-letter">B</span>
-      <div class="boom-o-standalone o-bounce"></div>
-      <span class="boom-letter">OM</span>
-    </div>
-    <div class="boom-speed-lines">
-      <div class="boom-line boom-line-short"></div>
-      <div class="boom-line boom-line-long"></div>
-    </div>
+    <svg viewBox="0 0 340 175" fill="none" xmlns="http://www.w3.org/2000/svg"
+         style="width:300px;overflow:visible;">
+      <!-- B -->
+      <text x="2" y="148"
+            font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+            font-weight="900" font-size="100" fill="#ffffff" font-style="italic">B</text>
+      <!-- O naranja animada con skew italic para coincidir con la fuente -->
+      <g class="o-bounce">
+        <g transform="translate(118,104) skewX(-12) translate(-118,-104)">
+          <ellipse cx="118" cy="104" rx="35" ry="37"
+                   fill="none" stroke="#E8601C" stroke-width="22"
+                   stroke-linecap="round"/>
+        </g>
+      </g>
+      <!-- OM -->
+      <text x="164" y="148"
+            font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+            font-weight="900" font-size="100" fill="#ffffff" font-style="italic">OM</text>
+      <!-- Líneas de velocidad -->
+      <polygon points="6,164 50,164 45,173 2,173"   fill="#ffffff" opacity="0.5"/>
+      <polygon points="60,164 332,164 327,173 55,173" fill="#ffffff" opacity="0.5"/>
+    </svg>
     <div class="login-left-tagline">
       <h2>Logistics Colombia S.A.S.</h2>
       <p>El equipo BOOM tiene su propia inteligencia, nIAP.</p>
