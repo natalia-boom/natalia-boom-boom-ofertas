@@ -183,6 +183,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .seg-enejecucion  { background:#dbeafe; color:#1d4ed8; }
 .seg-ejecutado    { background:#dcfce7; color:#15803d; }
 .seg-cancelado    { background:#fee2e2; color:#b91c1c; }
+.seg-facturada    { background:#ede9fe; color:#6d28d9; }
 .seg-           { background:#f1f5fb; color:#64748b; }
 .tr-vencida td  { background:#fff5f5 !important; }
 .tr-vencida:hover td { background:#fee2e2 !important; }
@@ -1088,21 +1089,13 @@ body.rol-viewer .write-only { display:none !important; }
         </select>
       </div>
       <div class="form-group">
-        <label>Comercial</label>
-        <select id="aComercial" onchange="filterAprobadas()">
-          <option value="">Todos</option>
-          <option>Natalia Vargas</option>
-          <option>Boris Borrego</option>
-          <option>Willington Ortiz</option>
-        </select>
-      </div>
-      <div class="form-group">
         <label>Seguimiento</label>
         <select id="aSeguimiento" onchange="filterAprobadas()">
           <option value="">Todos</option>
           <option value="Por ejecutar">Por ejecutar</option>
           <option value="En ejecución">En ejecución</option>
           <option value="Ejecutado">Ejecutado</option>
+          <option value="Facturada">Facturada</option>
           <option value="Cancelado">Cancelado</option>
         </select>
       </div>
@@ -2804,7 +2797,6 @@ function esVencida(o) {
 function filterAprobadas() {
   const buscar      = document.getElementById('aBuscar').value.toLowerCase();
   const mes         = document.getElementById('aMes').value;
-  const comercial   = document.getElementById('aComercial').value;
   const seguimiento = document.getElementById('aSeguimiento').value;
   const facturacion = document.getElementById('aFacturacion').value;
   const fechaDesde  = document.getElementById('aFechaDesde').value;
@@ -2814,7 +2806,6 @@ function filterAprobadas() {
     if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return false;
     if (buscar && !`${o.num} ${o.cliente}`.toLowerCase().includes(buscar)) return false;
     if (mes && o.mes !== mes) return false;
-    if (comercial && (o.realizada||'') !== comercial) return false;
     if (seguimiento && (o.seguimiento||'') !== seguimiento) return false;
     if (facturacion === 'facturada'   && !o.no_factura) return false;
     if (facturacion === 'sin_facturar' && o.no_factura) return false;
@@ -2866,11 +2857,12 @@ function filterAprobadas() {
           <option value="Por ejecutar" ${o.seguimiento==='Por ejecutar'?'selected':''}>Por ejecutar</option>
           <option value="En ejecución" ${o.seguimiento==='En ejecución'?'selected':''}>En ejecución</option>
           <option value="Ejecutado" ${o.seguimiento==='Ejecutado'?'selected':''}>Ejecutado</option>
+          <option value="Facturada" ${o.seguimiento==='Facturada'?'selected':''}>Facturada</option>
           <option value="Cancelado" ${o.seguimiento==='Cancelado'?'selected':''}>Cancelado</option>
         </select>
       </td>
       <td style="text-align:center;">
-        ${o.seguimiento === 'Ejecutado' ? `<button onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">✏️ Facturación</button>` : ''}
+        ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">✏️ Facturación</button>` : ''}
       </td>
     </tr>
   `;
