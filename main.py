@@ -515,6 +515,26 @@ def generar_html_oferta(data: dict) -> str:
   </table>
   </div>"""
 
+    # ── Fotos de referencia de la carga (embebidas en Sección 1) ──────────────
+    fotos = data.get("fotos", []) or []
+    valid_fotos = [f for f in fotos if isinstance(f, str) and f.strip().startswith("data:image")]
+    if valid_fotos:
+        fotos_imgs = "".join(
+            f'<img src="{src}" alt="Foto de referencia de la carga" '
+            'style="width:100%;height:170px;object-fit:cover;border-radius:6px;'
+            'border:1px solid #e0e0e0;">'
+            for src in valid_fotos
+        )
+        fotos_grid = ('<div style="display:grid;grid-template-columns:repeat(auto-fill,'
+                      'minmax(180px,1fr));gap:8px;margin-top:8px;">' + fotos_imgs + '</div>')
+        if cargo_section_html:
+            cargo_section_html += (
+                '<p style="font-size:12px;font-weight:bold;color:#1B2A4A;'
+                'margin:16px 0 6px 0;">Fotos de referencia de la carga</p>' + fotos_grid)
+        else:
+            cargo_section_html = ('<div class="section-title">1. FOTOS DE REFERENCIA '
+                                  'DE LA CARGA</div>' + fotos_grid)
+
     # ── Dynamic section numbering ─────────────────────────────────────────────
     sec = 2 if cargo_section_html else 1
 
@@ -2109,6 +2129,7 @@ class OfertaHtml(BaseModel):
         "Permisos de tránsito, operación y pólizas asociadas (a cargo del cliente)\n"
         "Servicios, recursos o actividades no descritos explícitamente en esta oferta"
     )
+    fotos: Optional[List[str]] = []  # data URIs (base64) de fotos de la carga
 
 
 class LoginBody(BaseModel):
