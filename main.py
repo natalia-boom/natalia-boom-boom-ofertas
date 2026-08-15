@@ -1541,6 +1541,21 @@ def _ensure_db():
         """)
         print("[DB] Tabla 'ofertas_2025' lista.")
 
+        # Tabla SEPARADA para los contratos (facturas sin número de oferta),
+        # agrupados por cliente. Fuente: hoja "Facturación".
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS contratos (
+                id bigint generated always as identity primary key,
+                cliente text unique not null,
+                valor_facturado bigint DEFAULT 0,
+                n_facturas int DEFAULT 0,
+                no_factura text,
+                fecha_facturacion date,
+                created_at timestamptz DEFAULT now()
+            )
+        """)
+        print("[DB] Tabla 'contratos' lista.")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2293,10 +2308,23 @@ def list_ofertas_2025():
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/contratos")
+def list_contratos():
+    """Contratos (facturas sin número de oferta), agrupados por cliente."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM contratos ORDER BY valor_facturado DESC")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/facturacion/resumen")
 def facturacion_resumen():
     """Resumen general de facturación que concilia con el Excel:
-    Ofertas 2026 (app) + Ofertas 2025 (histórico) + Contratos (línea resumen)."""
+    Ofertas 2026 (app) + Ofertas 2025 (histórico) + Contratos (por cliente)."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -2306,13 +2334,18 @@ def facturacion_resumen():
             cur.execute("SELECT COALESCE(SUM(valor_facturado),0), COUNT(*) FROM ofertas_2025")
             row = cur.fetchone()
             fact_2025, n_2025 = (row[0] or 0), (row[1] or 0)
-        contratos = CONTRATOS_FACTURADO_2026
+            cur.execute("SELECT COALESCE(SUM(valor_facturado),0), COUNT(*) FROM contratos")
+            crow = cur.fetchone()
+            c_sum, c_n = (crow[0] or 0), (crow[1] or 0)
+        # Si ya se detallaron los contratos, usar el dato real; si no, el resumen fijo.
+        contratos = int(c_sum) if c_n > 0 else CONTRATOS_FACTURADO_2026
         return {
             "ofertas_2026": int(fact_2026),
             "ofertas_2025": int(fact_2025),
             "contratos": int(contratos),
             "total": int(fact_2026) + int(fact_2025) + int(contratos),
             "n_ofertas_2025": int(n_2025),
+            "n_contratos": int(c_n),
         }
     except Exception as e:
         traceback.print_exc()

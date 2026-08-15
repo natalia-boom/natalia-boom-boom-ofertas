@@ -1153,6 +1153,27 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- ── CONTRATOS (por cliente) ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div class="section-title" style="margin:0 0 4px;">📄 Contratos
+      <span style="font-weight:400;font-size:12px;color:var(--text-muted);">— facturación por cliente/contrato (sin número de oferta: SACYR, Cerrejón, GM&amp;M…)</span>
+    </div>
+    <p id="contratosSummary" style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Cargando…</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente / Contrato</th>
+            <th style="text-align:right;">Valor Facturado</th>
+            <th style="text-align:center;"># Facturas</th>
+            <th>Última Facturación</th><th>Facturas</th>
+          </tr>
+        </thead>
+        <tbody id="contratosBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ── INFORME MENSUAL DE FACTURACIÓN ── -->
   <div class="section-card" style="margin-top:20px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
@@ -2463,7 +2484,7 @@ function switchTab(name) {
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
-  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadResumenFacturacion(); }
+  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadResumenFacturacion(); }
 }
 
 // ========== USER ==========
@@ -2934,6 +2955,34 @@ async function loadResumenFacturacion() {
     set('frContratos', r.contratos);
     set('frTotal', r.total);
   } catch(e) { /* silencioso */ }
+}
+
+async function loadContratos() {
+  try {
+    const res = await fetch('/api/contratos');
+    const rows = await res.json();
+    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
+    const summary = document.getElementById('contratosSummary');
+    if (summary) summary.textContent =
+      `${rows.length} contratos · Total facturado: ${formatCOP(total)}`;
+    const tbody = document.getElementById('contratosBody');
+    if (!tbody) return;
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay contratos cargados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(o => `
+      <tr>
+        <td><strong>${o.cliente || ''}</strong></td>
+        <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+        <td style="text-align:center">${o.n_facturas || 0}</td>
+        <td>${o.fecha_facturacion || ''}</td>
+        <td style="font-size:11px">${o.no_factura || ''}</td>
+      </tr>`).join('');
+  } catch(e) {
+    const tbody = document.getElementById('contratosBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Error cargando contratos</td></tr>';
+  }
 }
 
 // ========== NUEVA OFERTA ==========
