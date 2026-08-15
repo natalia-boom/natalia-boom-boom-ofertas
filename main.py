@@ -2355,6 +2355,21 @@ def get_logo():
     return {"src": _logo_src()}
 
 
+@app.get("/api/ai-health")
+def ai_health():
+    """Diagnóstico: indica si el paquete de IA y la llave están disponibles.
+    No expone la llave; solo su longitud y prefijo para verificar formato."""
+    key = ANTHROPIC_API_KEY or ""
+    return {
+        "anthropic_ok": ANTHROPIC_OK,
+        "key_present": bool(key.strip()),
+        "key_len": len(key),
+        "key_stripped_len": len(key.strip()),
+        "key_prefix": key[:7] if key else "",
+        "model": "claude-haiku-4-5-20251001",
+    }
+
+
 @app.get("/api/consecutivo")
 def get_consecutivo():
     try:
