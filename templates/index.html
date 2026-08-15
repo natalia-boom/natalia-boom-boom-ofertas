@@ -1133,6 +1133,51 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- ── RESUMEN GENERAL DE FACTURACIÓN (concilia con el Excel) ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div class="section-title" style="margin:0 0 14px;">💰 Resumen General de Facturación
+      <span style="font-weight:400;font-size:12px;color:var(--text-muted);">— concilia con el último Excel</span>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi-card">
+        <div class="kpi-label">Ofertas 2026</div>
+        <div class="kpi-value" id="fr2026" style="font-size:17px">—</div>
+      </div>
+      <div class="kpi-card success">
+        <div class="kpi-label">Ofertas 2025</div>
+        <div class="kpi-value" id="fr2025" style="font-size:17px">—</div>
+      </div>
+      <div class="kpi-card warning">
+        <div class="kpi-label">Contratos (pendiente detallar)</div>
+        <div class="kpi-value" id="frContratos" style="font-size:17px">—</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">TOTAL FACTURADO</div>
+        <div class="kpi-value" id="frTotal" style="font-size:18px">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FACTURACIÓN 2025 (histórico) ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div class="section-title" style="margin:0 0 4px;">📄 Facturación 2025
+      <span style="font-weight:400;font-size:12px;color:var(--text-muted);">— ofertas de 2025 facturadas (histórico)</span>
+    </div>
+    <p id="f2025Summary" style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Cargando…</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>No. Oferta</th><th>Cliente</th><th>Mes</th>
+            <th style="text-align:right;">Valor Facturado</th>
+            <th>Fecha Facturación</th><th>No. Factura</th>
+          </tr>
+        </thead>
+        <tbody id="ofertas2025Body"><tr><td colspan="6" class="empty-state">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ── INFORME MENSUAL DE FACTURACIÓN ── -->
   <div class="section-card" style="margin-top:20px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
@@ -2438,7 +2483,7 @@ function switchTab(name) {
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
-  if (name === 'aprobadas')  initInformeFact();
+  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadResumenFacturacion(); }
 }
 
 // ========== USER ==========
@@ -2867,6 +2912,48 @@ function filterAprobadas() {
     </tr>
   `;
   }).join('');
+}
+
+// ========== FACTURACIÓN 2025 (histórico) ==========
+async function loadFacturacion2025() {
+  try {
+    const res = await fetch('/api/ofertas_2025');
+    const rows = await res.json();
+    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
+    const summary = document.getElementById('f2025Summary');
+    if (summary) summary.textContent =
+      `${rows.length} ofertas 2025 · Total facturado: ${formatCOP(total)}`;
+    const tbody = document.getElementById('ofertas2025Body');
+    if (!tbody) return;
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay ofertas 2025 cargadas</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(o => `
+      <tr>
+        <td><span class="num-badge">${o.num_orig || o.num || ''}</span></td>
+        <td>${o.cliente || ''}</td>
+        <td>${o.mes || ''}</td>
+        <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+        <td>${o.fecha_facturacion || ''}</td>
+        <td style="font-size:11px">${o.no_factura || ''}</td>
+      </tr>`).join('');
+  } catch(e) {
+    const tbody = document.getElementById('ofertas2025Body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Error cargando 2025</td></tr>';
+  }
+}
+
+async function loadResumenFacturacion() {
+  try {
+    const res = await fetch('/api/facturacion/resumen');
+    const r = await res.json();
+    const set = (id,v) => { const el = document.getElementById(id); if (el) el.textContent = formatCOP(v); };
+    set('fr2026', r.ofertas_2026);
+    set('fr2025', r.ofertas_2025);
+    set('frContratos', r.contratos);
+    set('frTotal', r.total);
+  } catch(e) { /* silencioso */ }
 }
 
 // ========== NUEVA OFERTA ==========

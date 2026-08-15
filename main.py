@@ -1521,6 +1521,26 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS costo_proyecto bigint DEFAULT NULL")
         print("[DB] Tabla 'ofertas' lista.")
 
+        # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
+        # No se mezcla con 'ofertas' (2026) para no afectar la operación viva.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ofertas_2025 (
+                id bigint generated always as identity primary key,
+                num text unique not null,
+                num_orig text,
+                mes text,
+                cliente text,
+                responsable text,
+                descripcion text,
+                valor_facturado bigint DEFAULT 0,
+                no_factura text,
+                fecha_facturacion date,
+                seguimiento text DEFAULT 'Facturada',
+                created_at timestamptz DEFAULT now()
+            )
+        """)
+        print("[DB] Tabla 'ofertas_2025' lista.")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2250,6 +2270,50 @@ def list_ofertas():
             cur = conn.cursor()
             cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# Facturación de CONTRATOS (sin número de oferta) según hoja "Facturación"
+# del Excel de agosto. Es una línea resumen; el detalle se cargará después.
+CONTRATOS_FACTURADO_2026 = 2_623_851_133
+
+
+@app.get("/api/ofertas_2025")
+def list_ofertas_2025():
+    """Ofertas 2025 (histórico facturado), tabla separada."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM ofertas_2025 ORDER BY valor_facturado DESC")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/facturacion/resumen")
+def facturacion_resumen():
+    """Resumen general de facturación que concilia con el Excel:
+    Ofertas 2026 (app) + Ofertas 2025 (histórico) + Contratos (línea resumen)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COALESCE(SUM(valor_facturado),0) FROM ofertas "
+                        "WHERE UPPER(respuesta)='ACEPTADA'")
+            fact_2026 = cur.fetchone()[0] or 0
+            cur.execute("SELECT COALESCE(SUM(valor_facturado),0), COUNT(*) FROM ofertas_2025")
+            row = cur.fetchone()
+            fact_2025, n_2025 = (row[0] or 0), (row[1] or 0)
+        contratos = CONTRATOS_FACTURADO_2026
+        return {
+            "ofertas_2026": int(fact_2026),
+            "ofertas_2025": int(fact_2025),
+            "contratos": int(contratos),
+            "total": int(fact_2026) + int(fact_2025) + int(contratos),
+            "n_ofertas_2025": int(n_2025),
+        }
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
