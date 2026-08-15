@@ -2878,10 +2878,11 @@ def get_stats():
                 "seguimiento": seguim,
                 "valor_total": valor,
                 "este_mes": este_mes,
-                "por_tipo":      q("SELECT tipo, COUNT(*) AS cnt FROM ofertas GROUP BY tipo ORDER BY cnt DESC"),
-                "por_cliente":   q("SELECT cliente, COUNT(*) AS cnt FROM ofertas GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
+                "aceptadas_por_cliente": q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE UPPER(respuesta)='ACEPTADA' AND cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
+                "por_tipo":      q("SELECT tipo, COUNT(*) AS cnt FROM ofertas WHERE tipo IS NOT NULL AND tipo<>'' GROUP BY tipo ORDER BY cnt DESC"),
+                "por_cliente":   q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
+                "por_unidad":    q("SELECT unidad, COUNT(*) AS cnt FROM ofertas WHERE unidad IS NOT NULL AND unidad<>'' GROUP BY unidad ORDER BY cnt DESC"),
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE mes IS NOT NULL GROUP BY mes"),
-                "por_comercial": q("SELECT realizada, COUNT(*) AS cnt FROM ofertas WHERE realizada IS NOT NULL GROUP BY realizada ORDER BY cnt DESC"),
                 "ultimas":       q("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
             }
     except Exception as e:

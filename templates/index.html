@@ -936,7 +936,7 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
     </div>
     <div class="d-card">
-      <div class="d-chart-title">TIPO DE CLIENTES</div>
+      <div class="d-chart-title">CLIENTES CON MÁS ACEPTADAS</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
         <svg id="svgDonutSector" viewBox="0 0 280 280" width="210" height="210"></svg>
         <div id="legendDonutSector" style="display:flex;flex-direction:column;gap:8px;min-width:150px;"></div>
@@ -959,15 +959,15 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
-  <!-- Fila 3: Por Mes + Por Comercial -->
+  <!-- Fila 3: Por Mes + Unidad de Negocio -->
   <div class="dash-grid dash-grid-2">
     <div class="d-card">
       <div class="d-chart-title">OFERTAS POR MES</div>
       <div id="chartMes"></div>
     </div>
     <div class="d-card">
-      <div class="d-chart-title">POR COMERCIAL</div>
-      <div id="chartComercial"></div>
+      <div class="d-chart-title">UNIDAD DE NEGOCIO</div>
+      <div id="chartUnidad"></div>
     </div>
   </div>
 
@@ -2624,26 +2624,27 @@ function renderDashboard() {
     { label: 'RECIBIDO', val: stats.total - stats.aceptadas,      color: '#f97316' },
   ], false);
 
-  // Donut: Tipo de Clientes (sector)
-  const sectores = ['MINERO','INDUSTRIAL','ENERGÉTICO','AGENTES DE CARGA','CONSTRUCCIÓN','PUERTOS','EMP. TRANSP','NAVIERA','ADUANAS'];
-  const sectorData = sectores.map((s, i) => ({
-    label: s,
-    val: allOfertas.filter(o => (o.sector||'').toUpperCase() === s.toUpperCase()).length,
-    color: CHART_COLORS[i],
-  })).filter(d => d.val > 0);
-  renderSVGPie('svgDonutSector', 'legendDonutSector', sectorData, true);
+  // Donut: Clientes con más ofertas ACEPTADAS
+  const acCliMap = {};
+  allOfertas.forEach(o => {
+    if ((o.respuesta||'').toUpperCase() === 'ACEPTADA' && o.cliente)
+      acCliMap[o.cliente] = (acCliMap[o.cliente]||0) + 1;
+  });
+  const acCliData = Object.entries(acCliMap).sort((a,b)=>b[1]-a[1]).slice(0,7)
+    .map(([k,v],i) => ({ label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length] }));
+  renderSVGPie('svgDonutSector', 'legendDonutSector', acCliData, true);
 
-  // Bar: Tipo de Negocio
-  const tipos = ['SPOT TRANSPORTE','SPOT IZAJE','SPOT MIXTO','PROYECTO TRANSPORTE','PROYECTO IZAJE','PROYECTO MIXTO'];
-  const tipoData = tipos.map((t, i) => ({
-    label: t, val: allOfertas.filter(o => (o.tipo||'').toUpperCase() === t).length, color: CHART_COLORS[i],
-  })).filter(d => d.val > 0);
+  // Bar: Tipo de Negocio (agrupa dinámicamente el campo 'tipo')
+  const tipoMap = {};
+  allOfertas.forEach(o => { if(o.tipo) tipoMap[o.tipo] = (tipoMap[o.tipo]||0)+1; });
+  const tipoData = Object.entries(tipoMap).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    .map(([k,v],i) => ({label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length]}));
   renderModernBar('chartTipoNegocio', tipoData);
 
-  // Pie: Ranking Clientes por valor
-  const clienteValMap = {};
-  allOfertas.forEach(o => { if (o.cliente && o.valor) clienteValMap[o.cliente] = (clienteValMap[o.cliente]||0) + o.valor; });
-  const clienteData = Object.entries(clienteValMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
+  // Pie: Ranking Clientes por CANTIDAD de ofertas (a quién más se le oferta)
+  const clienteCntMap = {};
+  allOfertas.forEach(o => { if (o.cliente) clienteCntMap[o.cliente] = (clienteCntMap[o.cliente]||0) + 1; });
+  const clienteData = Object.entries(clienteCntMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
     .map(([k,v],i) => ({ label:k, val:v, color:CHART_COLORS[i] }));
   const svgPC = document.getElementById('svgPieClientes');
   const legPC = document.getElementById('legendPieClientes');
@@ -2652,7 +2653,7 @@ function renderDashboard() {
     legPC.innerHTML = clienteData.map(d => `
       <div style="display:flex;align-items:center;gap:7px;">
         <span style="width:11px;height:11px;border-radius:3px;background:${d.color};flex-shrink:0;"></span>
-        <span style="font-size:10px;color:#475569;line-height:1.35;">${d.label}<br><b style="color:#1e293b;">${formatCOP(d.val)}</b></span>
+        <span style="font-size:10px;color:#475569;line-height:1.35;">${d.label}<br><b style="color:#1e293b;">${d.val} ofertas</b></span>
       </div>`).join('');
   }
 
@@ -2663,12 +2664,12 @@ function renderDashboard() {
   const porMes = months.filter(m => mesMap[m]).map((m,i) => ({label:m.substring(0,3), val:mesMap[m], color:CHART_COLORS[i%CHART_COLORS.length]}));
   renderModernBar('chartMes', porMes);
 
-  // Bar: Por Comercial
-  const comMap = {};
-  allOfertas.forEach(o => { if(o.realizada) comMap[o.realizada] = (comMap[o.realizada]||0)+1; });
-  const porCom = Object.entries(comMap).sort((a,b)=>b[1]-a[1])
+  // Bar: Unidad de Negocio
+  const uniMap = {};
+  allOfertas.forEach(o => { if(o.unidad) uniMap[o.unidad] = (uniMap[o.unidad]||0)+1; });
+  const porUni = Object.entries(uniMap).sort((a,b)=>b[1]-a[1])
     .map(([k,v],i) => ({label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length]}));
-  renderModernBar('chartComercial', porCom);
+  renderModernBar('chartUnidad', porUni);
 }
 
 function computeStats() {
