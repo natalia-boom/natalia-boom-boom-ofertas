@@ -109,6 +109,16 @@ def _logo_src() -> str:
         return ""
 
 
+def _sello_src() -> str:
+    """Sello 'Construimos País' (PNG transparente, líneas blancas)."""
+    try:
+        sello_path = os.path.join(os.path.dirname(__file__), "templates", "sello_pais.b64")
+        with open(sello_path, "r") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
 def _fmt_cop(v) -> str:
     try:
         return "${:,}".format(int(v)).replace(",", ".")
@@ -157,6 +167,29 @@ def _logo_for_pdf(height_cm: float = 1.1, max_width_cm: float = 3.5):
         return RLImage(BytesIO(img_bytes), width=target_w, height=target_h)
     except Exception as exc:
         print(f"[PDF] logo error: {exc}")
+        return None
+
+
+def _sello_for_pdf(height_cm: float = 1.5, max_width_cm: float = 2.6):
+    """Return a reportlab Image for the 'Construimos País' seal sized for the header."""
+    if not REPORTLAB_OK:
+        return None
+    try:
+        from reportlab.lib.utils import ImageReader
+        sello_path = os.path.join(os.path.dirname(__file__), "templates", "sello_pais.b64")
+        with open(sello_path, "r") as f:
+            b64_str = f.read().strip()
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        img_bytes = base64.b64decode(b64_str)
+        iw, ih = ImageReader(BytesIO(img_bytes)).getSize()
+        aspect = iw / ih if ih else 1
+        target_h = height_cm * cm
+        target_w = min(target_h * aspect, max_width_cm * cm)
+        target_h = target_w / aspect
+        return RLImage(BytesIO(img_bytes), width=target_w, height=target_h)
+    except Exception as exc:
+        print(f"[PDF] sello error: {exc}")
         return None
 
 
@@ -381,6 +414,10 @@ def generar_html_oferta(data: dict) -> str:
     logo_html = (f'<img src="{logo_src}" alt="BOOM Logistics" style="height:42px;width:auto;">'
                  if logo_src else
                  '<span style="color:white;font-weight:bold;font-size:18px;letter-spacing:1px;">BOOM</span>')
+
+    sello_src = _sello_src()
+    sello_html = (f'<img src="{sello_src}" alt="Construimos Pais - Boom Logistics" style="height:90px;width:auto;">'
+                  if sello_src else "")
 
     # ── Ref-bar components ────────────────────────────────────────────────────
     ruta = ""
@@ -633,9 +670,12 @@ table.cond td:first-child{{font-weight:bold;width:40%;background:#f5f5f5;}}
 <div class="wrapper">
 <div class="header-bar">
   {logo_html}
-  <div class="header-info">
-    <strong>BOOM LOGISTICS COLOMBIA S.A.S.</strong>
-    Soluciones de Transporte Especializado
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="header-info">
+      <strong>BOOM LOGISTICS COLOMBIA S.A.S.</strong>
+      Soluciones de Transporte Especializado
+    </div>
+    {sello_html}
   </div>
 </div>
 <div class="ref-bar">
@@ -911,12 +951,19 @@ def generar_pdf_oferta(data: dict) -> bytes:
     )
     left_cell = logo if logo else Paragraph("<b>BOOM</b>",
         ps("boom_fb", textColor=white, fontName="Helvetica-Bold", fontSize=15))
-    hdr = Table([[left_cell, company_p]], colWidths=[W * 0.22, W * 0.78])
+    sello = _sello_for_pdf(1.5, max_width_cm=2.6)
+    if sello:
+        hdr = Table([[left_cell, company_p, sello]], colWidths=[W * 0.20, W * 0.62, W * 0.18])
+        hdr_align = ("ALIGN", (2, 0), (2, 0), "RIGHT")
+    else:
+        hdr = Table([[left_cell, company_p]], colWidths=[W * 0.22, W * 0.78])
+        hdr_align = ("ALIGN", (1, 0), (1, 0), "RIGHT")
     hdr.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), NAVY),
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN",         (0, 0), (0,  0),  "LEFT"),
         ("ALIGN",         (1, 0), (1,  0),  "RIGHT"),
+        hdr_align,
         ("LEFTPADDING",   (0, 0), (-1, -1), 12),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
         ("TOPPADDING",    (0, 0), (-1, -1), 9),
