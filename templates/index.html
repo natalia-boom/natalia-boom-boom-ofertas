@@ -1050,17 +1050,17 @@ body.rol-viewer .write-only { display:none !important; }
   </div>
 
   <div class="kpi-grid" style="grid-template-columns: repeat(5,1fr);">
-    <div class="kpi-card">
-      <div class="kpi-label">🚚 Ofertas 2026</div>
-      <div class="kpi-value" id="fr2026" style="font-size:17px">—</div>
-    </div>
     <div class="kpi-card success">
-      <div class="kpi-label">📅 Año Anterior (2025)</div>
-      <div class="kpi-value" id="fr2025" style="font-size:17px">—</div>
+      <div class="kpi-label">Total Aprobadas</div>
+      <div class="kpi-value" id="aTotal">—</div>
     </div>
-    <div class="kpi-card warning">
-      <div class="kpi-label">📄 Contratos</div>
-      <div class="kpi-value" id="frContratos" style="font-size:17px">—</div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Valor Esperado</div>
+      <div class="kpi-value" id="aValorEsperado" style="font-size:18px">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Valor Facturado (2026)</div>
+      <div class="kpi-value" id="aValorFacturado" style="font-size:18px">—</div>
     </div>
     <div class="kpi-card orange">
       <div class="kpi-label">💰 Total Facturado</div>
@@ -2843,6 +2843,9 @@ function filterAprobadas() {
   const vencidas = todas.filter(o => esVencida(o)).length;
 
   const setKpi = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setKpi('aTotal', aprobadas.length);
+  setKpi('aValorEsperado', formatCOP(valEsp));
+  setKpi('aValorFacturado', formatCOP(valFact));
   setKpi('aVencidas', vencidas);
   document.getElementById('aprobSummary').textContent =
     `${aprobadas.length} ofertas aceptadas · ${conFact} con factura · Valor esperado: ${formatCOP(valEsp)} · Facturado 2026: ${formatCOP(valFact)}`;
