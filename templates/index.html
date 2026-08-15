@@ -1151,6 +1151,23 @@ body.rol-viewer .write-only { display:none !important; }
         <tbody id="ofertas2025Body"><tr><td colspan="6" class="empty-state">Cargando…</td></tr></tbody>
       </table>
     </div>
+
+    <div style="margin-top:16px;font-size:13px;font-weight:700;color:var(--text-muted);">
+      2025 sin número de oferta (año pasado) — por cliente
+    </div>
+    <div class="table-wrap" style="margin-top:6px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th style="text-align:right;">Valor Facturado</th>
+            <th style="text-align:center;"># Facturas</th>
+            <th>Última Facturación</th><th>Facturas</th>
+          </tr>
+        </thead>
+        <tbody id="anoPasadoBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ── CONTRATOS (por cliente) ── -->
@@ -1170,6 +1187,27 @@ body.rol-viewer .write-only { display:none !important; }
           </tr>
         </thead>
         <tbody id="contratosBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── OTROS (postes, favores, WP, misc) ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div class="section-title" style="margin:0 0 4px;">❓ Otros
+      <span style="font-weight:400;font-size:12px;color:var(--text-muted);">— facturación sin oferta ni contrato (postes, adicionales, favores, WP)</span>
+    </div>
+    <p id="otrosSummary" style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Cargando…</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th style="text-align:right;">Valor Facturado</th>
+            <th style="text-align:center;"># Facturas</th>
+            <th>Última Facturación</th><th>Facturas</th>
+          </tr>
+        </thead>
+        <tbody id="otrosBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1210,7 +1248,7 @@ body.rol-viewer .write-only { display:none !important; }
 
   <!-- ── NOTA ACLARATORIA ── -->
   <div style="margin-top:16px;padding:12px 16px;background:#fff8ec;border-left:4px solid var(--orange);border-radius:8px;font-size:13px;color:#5a4a2a;">
-    📝 <strong>Nota:</strong> El <strong>Total Facturado</strong> incluye lo pendiente por ejecutar del <strong>2025</strong> y, sumados además, los <strong>contratos</strong> (como SACYR y Carbones del Cerrejón).
+    📝 <strong>Nota:</strong> El <strong>Total Facturado</strong> concilia con el Excel e incluye 4 categorías: <strong>Ofertas 2026</strong>, <strong>Año Anterior 2025</strong> (numeradas + año pasado), <strong>Contratos</strong> (SACYR, Cerrejón, GM&amp;M…) y <strong>Otros</strong> (postes, adicionales, favores).
   </div>
 </section>
 
@@ -2484,7 +2522,7 @@ function switchTab(name) {
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
-  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadResumenFacturacion(); }
+  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); }
 }
 
 // ========== USER ==========
@@ -2915,22 +2953,24 @@ function filterAprobadas() {
   }).join('');
 }
 
-// ========== FACTURACIÓN 2025 (histórico) ==========
+// ========== FACTURACIÓN 2025 / CONTRATOS / OTROS ==========
+function _fmtCliRows(rows) {
+  return rows.map(o => `
+    <tr>
+      <td><strong>${o.cliente || ''}</strong></td>
+      <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+      <td style="text-align:center">${o.n_facturas || 0}</td>
+      <td>${o.fecha_facturacion || ''}</td>
+      <td style="font-size:11px">${o.no_factura || ''}</td>
+    </tr>`).join('');
+}
+
 async function loadFacturacion2025() {
+  // Ofertas 2025 numeradas
   try {
-    const res = await fetch('/api/ofertas_2025');
-    const rows = await res.json();
-    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
-    const summary = document.getElementById('f2025Summary');
-    if (summary) summary.textContent =
-      `${rows.length} ofertas 2025 · Total facturado: ${formatCOP(total)}`;
-    const tbody = document.getElementById('ofertas2025Body');
-    if (!tbody) return;
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay ofertas 2025 cargadas</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map(o => `
+    const rows = await (await fetch('/api/ofertas_2025')).json();
+    const tb = document.getElementById('ofertas2025Body');
+    if (tb) tb.innerHTML = rows.length ? rows.map(o => `
       <tr>
         <td><span class="num-badge">${o.num_orig || o.num || ''}</span></td>
         <td>${o.cliente || ''}</td>
@@ -2938,51 +2978,62 @@ async function loadFacturacion2025() {
         <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
         <td>${o.fecha_facturacion || ''}</td>
         <td style="font-size:11px">${o.no_factura || ''}</td>
-      </tr>`).join('');
+      </tr>`).join('') : '<tr><td colspan="6" class="empty-state">Sin datos</td></tr>';
   } catch(e) {
-    const tbody = document.getElementById('ofertas2025Body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Error cargando 2025</td></tr>';
+    const tb = document.getElementById('ofertas2025Body');
+    if (tb) tb.innerHTML = '<tr><td colspan="6" class="empty-state">Error cargando 2025</td></tr>';
+  }
+  // 2025 sin número de oferta (año pasado), por cliente
+  try {
+    const rows = await (await fetch('/api/facturacion_cat?categoria=2025_ANO_PASADO')).json();
+    const tb = document.getElementById('anoPasadoBody');
+    if (tb) tb.innerHTML = rows.length ? _fmtCliRows(rows) : '<tr><td colspan="5" class="empty-state">Sin datos</td></tr>';
+  } catch(e) {
+    const tb = document.getElementById('anoPasadoBody');
+    if (tb) tb.innerHTML = '<tr><td colspan="5" class="empty-state">Error</td></tr>';
+  }
+}
+
+async function loadContratos() {
+  try {
+    const rows = await (await fetch('/api/contratos')).json();
+    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
+    const s = document.getElementById('contratosSummary');
+    if (s) s.textContent = `${rows.length} contratos · Total: ${formatCOP(total)}`;
+    const tb = document.getElementById('contratosBody');
+    if (tb) tb.innerHTML = rows.length ? _fmtCliRows(rows) : '<tr><td colspan="5" class="empty-state">Sin datos</td></tr>';
+  } catch(e) {
+    const tb = document.getElementById('contratosBody');
+    if (tb) tb.innerHTML = '<tr><td colspan="5" class="empty-state">Error cargando contratos</td></tr>';
+  }
+}
+
+async function loadOtros() {
+  try {
+    const rows = await (await fetch('/api/facturacion_cat?categoria=OTROS')).json();
+    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
+    const s = document.getElementById('otrosSummary');
+    if (s) s.textContent = `${rows.length} clientes · Total: ${formatCOP(total)}`;
+    const tb = document.getElementById('otrosBody');
+    if (tb) tb.innerHTML = rows.length ? _fmtCliRows(rows) : '<tr><td colspan="5" class="empty-state">Sin datos</td></tr>';
+  } catch(e) {
+    const tb = document.getElementById('otrosBody');
+    if (tb) tb.innerHTML = '<tr><td colspan="5" class="empty-state">Error cargando otros</td></tr>';
   }
 }
 
 async function loadResumenFacturacion() {
   try {
-    const res = await fetch('/api/facturacion/resumen');
-    const r = await res.json();
+    const r = await (await fetch('/api/facturacion/resumen')).json();
     const set = (id,v) => { const el = document.getElementById(id); if (el) el.textContent = formatCOP(v); };
     set('fr2026', r.ofertas_2026);
     set('fr2025', r.ofertas_2025);
     set('frContratos', r.contratos);
     set('frTotal', r.total);
+    const s = document.getElementById('f2025Summary');
+    if (s) s.textContent =
+      `Total 2025: ${formatCOP(r.ofertas_2025)}  ·  numeradas ${formatCOP(r.ofertas_2025_numeradas)} + año pasado ${formatCOP(r.ofertas_2025_ano_pasado)}`;
   } catch(e) { /* silencioso */ }
-}
-
-async function loadContratos() {
-  try {
-    const res = await fetch('/api/contratos');
-    const rows = await res.json();
-    const total = rows.reduce((s,o) => s+(o.valor_facturado||0), 0);
-    const summary = document.getElementById('contratosSummary');
-    if (summary) summary.textContent =
-      `${rows.length} contratos · Total facturado: ${formatCOP(total)}`;
-    const tbody = document.getElementById('contratosBody');
-    if (!tbody) return;
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay contratos cargados</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map(o => `
-      <tr>
-        <td><strong>${o.cliente || ''}</strong></td>
-        <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
-        <td style="text-align:center">${o.n_facturas || 0}</td>
-        <td>${o.fecha_facturacion || ''}</td>
-        <td style="font-size:11px">${o.no_factura || ''}</td>
-      </tr>`).join('');
-  } catch(e) {
-    const tbody = document.getElementById('contratosBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Error cargando contratos</td></tr>';
-  }
 }
 
 // ========== NUEVA OFERTA ==========

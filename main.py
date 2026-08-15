@@ -1556,6 +1556,23 @@ def _ensure_db():
         """)
         print("[DB] Tabla 'contratos' lista.")
 
+        # Facturas SIN número de oferta, categorizadas y agrupadas por cliente:
+        # CONTRATO / 2025_ANO_PASADO / OTROS. Reemplaza el uso de 'contratos'.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS facturacion_cat (
+                id bigint generated always as identity primary key,
+                categoria text NOT NULL,
+                cliente text NOT NULL,
+                valor_facturado bigint DEFAULT 0,
+                n_facturas int DEFAULT 0,
+                no_factura text,
+                fecha_facturacion date,
+                created_at timestamptz DEFAULT now(),
+                UNIQUE (categoria, cliente)
+            )
+        """)
+        print("[DB] Tabla 'facturacion_cat' lista.")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2310,11 +2327,31 @@ def list_ofertas_2025():
 
 @app.get("/api/contratos")
 def list_contratos():
-    """Contratos (facturas sin número de oferta), agrupados por cliente."""
+    """Contratos reales (mensuales), por cliente."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM contratos ORDER BY valor_facturado DESC")
+            cur.execute("SELECT * FROM facturacion_cat WHERE categoria='CONTRATO' "
+                        "ORDER BY valor_facturado DESC")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/facturacion_cat")
+def list_facturacion_cat(categoria: Optional[str] = Query(None)):
+    """Facturas sin número de oferta, categorizadas por cliente.
+    categoria opcional: CONTRATO | 2025_ANO_PASADO | OTROS."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            if categoria:
+                cur.execute("SELECT * FROM facturacion_cat WHERE categoria=%s "
+                            "ORDER BY valor_facturado DESC", (categoria,))
+            else:
+                cur.execute("SELECT * FROM facturacion_cat "
+                            "ORDER BY categoria, valor_facturado DESC")
             return fetchall(cur)
     except Exception as e:
         traceback.print_exc()
@@ -2323,8 +2360,8 @@ def list_contratos():
 
 @app.get("/api/facturacion/resumen")
 def facturacion_resumen():
-    """Resumen general de facturación que concilia con el Excel:
-    Ofertas 2026 (app) + Ofertas 2025 (histórico) + Contratos (por cliente)."""
+    """Resumen general que concilia con el Excel, en 4 categorías:
+    Ofertas 2026 + Año Anterior 2025 (numeradas + año pasado) + Contratos + Otros."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -2333,19 +2370,26 @@ def facturacion_resumen():
             fact_2026 = cur.fetchone()[0] or 0
             cur.execute("SELECT COALESCE(SUM(valor_facturado),0), COUNT(*) FROM ofertas_2025")
             row = cur.fetchone()
-            fact_2025, n_2025 = (row[0] or 0), (row[1] or 0)
-            cur.execute("SELECT COALESCE(SUM(valor_facturado),0), COUNT(*) FROM contratos")
-            crow = cur.fetchone()
-            c_sum, c_n = (crow[0] or 0), (crow[1] or 0)
-        # Si ya se detallaron los contratos, usar el dato real; si no, el resumen fijo.
-        contratos = int(c_sum) if c_n > 0 else CONTRATOS_FACTURADO_2026
+            f2025_num, n_2025 = (row[0] or 0), (row[1] or 0)
+            cur.execute("SELECT categoria, COALESCE(SUM(valor_facturado),0) "
+                        "FROM facturacion_cat GROUP BY categoria")
+            cat = {r[0]: (r[1] or 0) for r in cur.fetchall()}
+        contratos = int(cat.get("CONTRATO", 0))
+        ano_pasado = int(cat.get("2025_ANO_PASADO", 0))
+        otros = int(cat.get("OTROS", 0))
+        fact_2025 = int(f2025_num) + ano_pasado
+        # Respaldo: si aún no se cargó facturacion_cat, usar el valor fijo.
+        if contratos == 0 and ano_pasado == 0 and otros == 0:
+            contratos = CONTRATOS_FACTURADO_2026
         return {
             "ofertas_2026": int(fact_2026),
-            "ofertas_2025": int(fact_2025),
-            "contratos": int(contratos),
-            "total": int(fact_2026) + int(fact_2025) + int(contratos),
+            "ofertas_2025": fact_2025,
+            "ofertas_2025_numeradas": int(f2025_num),
+            "ofertas_2025_ano_pasado": ano_pasado,
+            "contratos": contratos,
+            "otros": otros,
+            "total": int(fact_2026) + fact_2025 + contratos + otros,
             "n_ofertas_2025": int(n_2025),
-            "n_contratos": int(c_n),
         }
     except Exception as e:
         traceback.print_exc()
