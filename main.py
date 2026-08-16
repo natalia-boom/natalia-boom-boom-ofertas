@@ -2537,39 +2537,52 @@ def get_oferta(oferta_id: int):
 
 @app.post("/api/ofertas", status_code=201)
 def create_oferta(oferta: OfertaCreate):
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            if not oferta.num:
-                cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
-                oferta.num = str(fetchone(cur)["next"])
-            pdf_json = json.dumps(oferta.pdf_data) if oferta.pdf_data else None
-            cur.execute(
-                """INSERT INTO ofertas
-                   (num,mes,fecha,cliente,realizada,formalizada,unidad,tipo,sector,
-                    valor,estado,respuesta,facturacion,general,seguimiento,mes_aceptado,
-                    fecha_facturacion,valor_facturado,no_factura,pdf_data)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                   RETURNING *""",
-                (oferta.num, oferta.mes, oferta.fecha or None, oferta.cliente,
-                 oferta.realizada, oferta.formalizada, oferta.unidad, oferta.tipo,
-                 oferta.sector,
-                 oferta.valor or 0, oferta.estado or "ENVIADO", oferta.respuesta,
-                 oferta.facturacion,
-                 oferta.general, oferta.seguimiento, oferta.mes_aceptado,
-                 oferta.fecha_facturacion or None, oferta.valor_facturado, oferta.no_factura,
-                 pdf_json),
-            )
-            return fetchone(cur)
-    except pgdb.DatabaseError as e:
-        msg = str(e)
-        if "unique" in msg.lower() or "duplicate" in msg.lower():
-            raise HTTPException(409, "El número de oferta ya existe")
-        traceback.print_exc()
-        raise HTTPException(500, msg)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
+    """Crea una oferta asignando el consecutivo de forma segura ante varios
+    usuarios simultáneos: si el número choca con uno ya existente, el servidor
+    calcula el siguiente número disponible y reintenta, para que nunca se pierda
+    la oferta ni se repita el consecutivo."""
+    pdf_json = json.dumps(oferta.pdf_data) if oferta.pdf_data else None
+    MAX_INTENTOS = 10
+    for intento in range(MAX_INTENTOS):
+        try:
+            with get_conn() as conn:
+                cur = conn.cursor()
+                # Primer intento: respeta el número que envió el cliente (si vino).
+                # Si no vino, o si un intento anterior chocó, recalcula el siguiente
+                # consecutivo disponible en este preciso momento.
+                if not oferta.num or intento > 0:
+                    cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
+                    oferta.num = str(fetchone(cur)["next"])
+                cur.execute(
+                    """INSERT INTO ofertas
+                       (num,mes,fecha,cliente,realizada,formalizada,unidad,tipo,sector,
+                        valor,estado,respuesta,facturacion,general,seguimiento,mes_aceptado,
+                        fecha_facturacion,valor_facturado,no_factura,pdf_data)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                       RETURNING *""",
+                    (oferta.num, oferta.mes, oferta.fecha or None, oferta.cliente,
+                     oferta.realizada, oferta.formalizada, oferta.unidad, oferta.tipo,
+                     oferta.sector,
+                     oferta.valor or 0, oferta.estado or "ENVIADO", oferta.respuesta,
+                     oferta.facturacion,
+                     oferta.general, oferta.seguimiento, oferta.mes_aceptado,
+                     oferta.fecha_facturacion or None, oferta.valor_facturado, oferta.no_factura,
+                     pdf_json),
+                )
+                return fetchone(cur)
+        except pgdb.DatabaseError as e:
+            msg = str(e).lower()
+            if "unique" in msg or "duplicate" in msg:
+                # Choque de consecutivo (otro usuario tomó ese número casi al
+                # mismo tiempo): reintenta con el siguiente número disponible.
+                oferta.num = None
+                continue
+            traceback.print_exc()
+            raise HTTPException(500, str(e))
+        except Exception as e:
+            traceback.print_exc()
+            raise HTTPException(500, str(e))
+    raise HTTPException(409, "No se pudo asignar un consecutivo único; intenta guardar de nuevo")
 
 
 @app.patch("/api/ofertas/{oferta_id}")

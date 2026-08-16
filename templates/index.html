@@ -3991,7 +3991,14 @@ async function submitGenerar() {
         body: JSON.stringify(payload)
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Error guardando oferta'); }
-      showToast('✅ Oferta ' + payload.num + ' guardada exitosamente', 'success');
+      const guardada = await res.json();
+      const numFinal = (guardada && guardada.num) ? guardada.num : payload.num;
+      if (numFinal !== payload.num) {
+        showToast('✅ Oferta guardada con el consecutivo ' + numFinal +
+                  ' (el ' + payload.num + ' ya estaba tomado)', 'success');
+      } else {
+        showToast('✅ Oferta ' + numFinal + ' guardada exitosamente', 'success');
+      }
     }
     const eraNueva = (editingGenerarId === null);
     await loadAll();
