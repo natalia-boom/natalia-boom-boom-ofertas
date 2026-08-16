@@ -1870,6 +1870,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <div style="display:flex;gap:8px;align-items:center;">
         <input type="text" id="crmBuscar" placeholder="Buscar cliente..." oninput="filterClientes()"
           style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:220px;">
+        <button type="button" onclick="abrirNuevoClienteCRM()" title="Registrar cliente nuevo en el catálogo oficial"
+          style="border:1.5px solid var(--orange);background:var(--orange);color:#fff;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">➕ Nuevo cliente</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -3286,9 +3288,22 @@ function validarClienteCatalogo() {
   }
 }
 
+let nuevoClienteOrigen = 'generar';   // 'generar' | 'crm'
+
 function abrirNuevoCliente() {
+  nuevoClienteOrigen = 'generar';
   // Precarga lo que ya escribió en el campo de cliente.
   document.getElementById('ncNombre').value = document.getElementById('gCliente').value.trim();
+  document.getElementById('ncRazon').value = '';
+  document.getElementById('ncNit').value = '';
+  document.getElementById('ncError').style.display = 'none';
+  document.getElementById('modalNuevoCliente').style.display = 'flex';
+  document.getElementById('ncNombre').focus();
+}
+
+function abrirNuevoClienteCRM() {
+  nuevoClienteOrigen = 'crm';
+  document.getElementById('ncNombre').value = '';
   document.getElementById('ncRazon').value = '';
   document.getElementById('ncNit').value = '';
   document.getElementById('ncError').style.display = 'none';
@@ -3325,9 +3340,15 @@ async function guardarNuevoCliente() {
       return;
     }
     await cargarCatalogoClientes();
-    // Selecciona el cliente recién creado en la oferta.
-    document.getElementById('gCliente').value = data.nombre_corto || nombre;
-    document.getElementById('gClienteAviso').style.display = 'none';
+    if (nuevoClienteOrigen === 'crm') {
+      // Registrado desde la pestaña Clientes: refresca la lista.
+      if (typeof cargarClientes === 'function') cargarClientes();
+      alert('✅ Cliente "' + (data.nombre_corto || nombre) + '" registrado en el catálogo oficial.\n\nYa está disponible al generar ofertas. Aparecerá en este resumen cuando tenga su primera oferta.');
+    } else {
+      // Selecciona el cliente recién creado en la oferta.
+      document.getElementById('gCliente').value = data.nombre_corto || nombre;
+      document.getElementById('gClienteAviso').style.display = 'none';
+    }
     cerrarNuevoCliente();
   } catch (e) {
     errBox.textContent = 'Error de conexión. Intenta de nuevo.';
