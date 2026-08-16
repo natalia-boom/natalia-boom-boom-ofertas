@@ -2360,12 +2360,21 @@ def ai_health():
     """Diagnóstico: indica si el paquete de IA y la llave están disponibles.
     No expone la llave; solo su longitud y prefijo para verificar formato."""
     key = ANTHROPIC_API_KEY or ""
+    try:
+        key.encode("ascii")
+        is_ascii = True
+    except UnicodeEncodeError:
+        is_ascii = False
+    bad = [{"pos": i, "ord": ord(ch)} for i, ch in enumerate(key) if ord(ch) > 127][:8]
     return {
         "anthropic_ok": ANTHROPIC_OK,
         "key_present": bool(key.strip()),
         "key_len": len(key),
         "key_stripped_len": len(key.strip()),
         "key_prefix": key[:7] if key else "",
+        "key_is_ascii": is_ascii,
+        "non_ascii_count": sum(1 for ch in key if ord(ch) > 127),
+        "non_ascii_sample": bad,
         "model": "claude-haiku-4-5-20251001",
     }
 
