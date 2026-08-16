@@ -2012,7 +2012,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/ai-health"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
