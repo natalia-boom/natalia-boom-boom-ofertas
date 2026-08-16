@@ -3993,10 +3993,15 @@ async function submitGenerar() {
       if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Error guardando oferta'); }
       showToast('✅ Oferta ' + payload.num + ' guardada exitosamente', 'success');
     }
+    const eraNueva = (editingGenerarId === null);
     await loadAll();
-    await loadConsecutivo();
-    if (editingGenerarId === null) {
-      switchTab('control');
+    if (eraNueva) {
+      // Oferta nueva: limpiar el generador y dejarlo listo con el siguiente
+      // consecutivo, y mostrar la oferta recién guardada en el Control.
+      resetGenerar();            // limpia el formulario y carga el nuevo consecutivo
+      switchTab('control');      // la oferta ya aparece en el Control de Ofertas
+    } else {
+      await loadConsecutivo();
     }
   } catch(e) {
     showToast('❌ ' + e.message, 'error');
