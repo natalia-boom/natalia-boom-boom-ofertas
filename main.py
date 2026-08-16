@@ -2189,6 +2189,12 @@ class ClienteCreate(BaseModel):
     nit: Optional[str] = None
 
 
+class ClienteUpdate(BaseModel):
+    nombre_corto: Optional[str] = None
+    razon_social: Optional[str] = None
+    nit: Optional[str] = None
+
+
 class TextoCliente(BaseModel):
     texto: str
 
@@ -3497,6 +3503,61 @@ def create_cliente(body: ClienteCreate):
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(409, f'El cliente "{nombre}" ya existe')
+        raise HTTPException(500, str(e))
+
+
+@app.put("/api/clientes/{cid}")
+def update_cliente(cid: int, body: ClienteUpdate):
+    """Edita un cliente del catálogo. Si cambia el NOMBRE CORTO, el cambio se
+    propaga a TODAS las ofertas y tablas para que nada quede desligado
+    (auditoría 'cero errores'). NIT y razón social se pueden completar aquí."""
+    TABLAS = ["ofertas", "contratos", "facturacion_cat", "notificaciones", "ofertas_2025", "osi"]
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nombre_corto FROM clientes WHERE id = %s", (cid,))
+            actual = fetchone(cur)
+            if not actual:
+                raise HTTPException(404, "Cliente no encontrado")
+            viejo = actual["nombre_corto"]
+
+            sets, params = [], []
+            nuevo_nombre = None
+            if body.nombre_corto is not None:
+                nuevo_nombre = re.sub(r"\s+", " ", body.nombre_corto.strip())
+                if not nuevo_nombre:
+                    raise HTTPException(400, "El nombre del cliente no puede quedar vacío")
+                # ¿Choca con OTRO cliente distinto?
+                cur.execute(
+                    "SELECT id FROM clientes WHERE lower(nombre_corto) = lower(%s) AND id <> %s",
+                    (nuevo_nombre, cid),
+                )
+                if fetchone(cur):
+                    raise HTTPException(409, f'Ya existe otro cliente llamado "{nuevo_nombre}"')
+                sets.append("nombre_corto = %s"); params.append(nuevo_nombre)
+            if body.razon_social is not None:
+                sets.append("razon_social = %s"); params.append(body.razon_social.strip() or None)
+            if body.nit is not None:
+                sets.append("nit = %s"); params.append(body.nit.strip() or None)
+            if not sets:
+                raise HTTPException(400, "Nada que actualizar")
+
+            params.append(cid)
+            cur.execute(f"UPDATE clientes SET {', '.join(sets)} WHERE id = %s", params)
+
+            # Propaga el cambio de nombre a todas las tablas.
+            filas_afectadas = 0
+            if nuevo_nombre and nuevo_nombre != viejo:
+                for t in TABLAS:
+                    cur.execute(f"UPDATE {t} SET cliente = %s WHERE cliente = %s", (nuevo_nombre, viejo))
+                    filas_afectadas += cur.rowcount
+            return {"ok": True, "nombre_anterior": viejo, "nombre_nuevo": nuevo_nombre or viejo,
+                    "ofertas_actualizadas": filas_afectadas}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(409, "Ese nombre de cliente ya existe")
         raise HTTPException(500, str(e))
 
 

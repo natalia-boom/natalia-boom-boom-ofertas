@@ -2064,6 +2064,37 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </div>
 
+<!-- MODAL EDITAR CLIENTE (catálogo oficial) -->
+<div id="modalEditarCliente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h3 style="margin:0;color:var(--petrol);font-size:16px;">✏️ Editar cliente</h3>
+      <button onclick="cerrarEditarCliente()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;">&times;</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 18px;">Si cambias el <b>nombre corto</b>, se actualiza automáticamente en todas las ofertas de este cliente.</p>
+    <input type="hidden" id="ecId">
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NOMBRE CORTO (COMERCIAL) *</label>
+        <input id="ecNombre" type="text" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">RAZÓN SOCIAL OFICIAL</label>
+        <input id="ecRazon" type="text" placeholder="Ej: TIBA COLOMBIA S.A.S." style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NIT</label>
+        <input id="ecNit" type="text" placeholder="Ej: 900123456-7" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div id="ecError" style="display:none;font-size:12px;color:#dc2626;font-weight:600;"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="cerrarEditarCliente()" style="padding:8px 18px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Cancelar</button>
+      <button id="ecGuardarBtn" onclick="guardarEdicionCliente()" style="padding:8px 18px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== INFORMES DE FACTURACIÓN (sub-sección en Aprobadas) ==================== -->
 <!-- Nota: se muestra como sección dentro de tab-aprobadas al final -->
 
@@ -4882,6 +4913,7 @@ let allClientes = [];
 
 async function cargarClientes() {
   try {
+    await cargarCatalogoClientes();   // para poder editar NIT/razón por fila
     const res = await fetch('/api/clientes/stats');
     allClientes = await res.json();
     renderClientesKPIs();
@@ -4931,12 +4963,73 @@ function filterClientes() {
       <td style="text-align:right;font-size:12px;">${formatCOP(c.valor_total_ofertado)}</td>
       <td style="text-align:right;font-size:12px;font-weight:600;">${formatCOP(c.valor_total_facturado)}</td>
       <td style="text-align:center;font-size:12px;">${c.ultima_oferta || '—'}</td>
-      <td style="text-align:center;">
+      <td style="text-align:center;white-space:nowrap;">
         <button onclick="filtrarControlPorCliente(${JSON.stringify(c.cliente).replace(/"/g,'&quot;')})"
           class="btn btn-outline btn-sm">Ver Ofertas</button>
+        <button onclick="editarClienteCRM(${JSON.stringify(c.cliente).replace(/"/g,'&quot;')})"
+          class="btn btn-outline btn-sm" title="Editar NIT / razón social / nombre">✏️</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+function editarClienteCRM(nombre) {
+  const cat = catalogoClientes.find(c => (c.nombre_corto||'').trim().toLowerCase() === (nombre||'').trim().toLowerCase());
+  if (!cat) {
+    alert('No encuentro "' + nombre + '" en el catálogo. Recarga la pestaña e intenta de nuevo.');
+    return;
+  }
+  document.getElementById('ecId').value = cat.id;
+  document.getElementById('ecNombre').value = cat.nombre_corto || '';
+  document.getElementById('ecRazon').value = cat.razon_social || '';
+  document.getElementById('ecNit').value = cat.nit || '';
+  document.getElementById('ecError').style.display = 'none';
+  document.getElementById('modalEditarCliente').style.display = 'flex';
+}
+
+function cerrarEditarCliente() {
+  document.getElementById('modalEditarCliente').style.display = 'none';
+}
+
+async function guardarEdicionCliente() {
+  const id     = document.getElementById('ecId').value;
+  const nombre = document.getElementById('ecNombre').value.trim();
+  const razon  = document.getElementById('ecRazon').value.trim();
+  const nit    = document.getElementById('ecNit').value.trim();
+  const errBox = document.getElementById('ecError');
+  const btn    = document.getElementById('ecGuardarBtn');
+  errBox.style.display = 'none';
+  if (!nombre) {
+    errBox.textContent = 'El nombre corto es obligatorio.';
+    errBox.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const res = await fetch('/api/clientes/' + id, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nombre_corto: nombre, razon_social: razon, nit: nit })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errBox.textContent = data.detail || 'No se pudo guardar.';
+      errBox.style.display = 'block';
+      return;
+    }
+    await cargarCatalogoClientes();
+    cargarClientes();
+    cerrarEditarCliente();
+    if (data.ofertas_actualizadas > 0) {
+      showToast('Cliente actualizado. Se renombraron ' + data.ofertas_actualizadas + ' registros.', 'success');
+    } else {
+      showToast('Cliente actualizado.', 'success');
+    }
+  } catch (e) {
+    errBox.textContent = 'Error de conexión. Intenta de nuevo.';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  }
 }
 
 function filtrarControlPorCliente(cliente) {
