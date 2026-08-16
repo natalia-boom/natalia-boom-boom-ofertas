@@ -1640,6 +1640,36 @@ def _ensure_db():
         """)
         print("[DB] Tabla 'facturacion_cat' lista.")
 
+        # Catálogo maestro de CLIENTES: fuente única de verdad para el nombre
+        # con el que se guardan las ofertas. Evita duplicados/errores de tipeo
+        # (auditoría "cero errores"). 'nombre_corto' es el nombre comercial que
+        # se muestra y se guarda en ofertas.cliente; razon_social + nit son los
+        # datos oficiales (hoja Facturación).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS clientes (
+                id bigint generated always as identity primary key,
+                nombre_corto text unique not null,
+                razon_social text,
+                nit text,
+                activo boolean not null default true,
+                created_at timestamptz DEFAULT now()
+            )
+        """)
+        # Índice único case-insensitive para que "Tiba" y "TIBA" no coexistan.
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS clientes_nombre_lower_idx
+            ON clientes (lower(nombre_corto))
+        """)
+        # Semilla idempotente: todo cliente que ya exista en ofertas queda en el
+        # catálogo. Así el selector siempre tiene la lista real y unificada.
+        cur.execute("""
+            INSERT INTO clientes (nombre_corto)
+            SELECT DISTINCT TRIM(cliente) FROM ofertas
+            WHERE cliente IS NOT NULL AND TRIM(cliente) <> ''
+            ON CONFLICT DO NOTHING
+        """)
+        print("[DB] Tabla 'clientes' lista y sembrada.")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2153,6 +2183,12 @@ class UsuarioUpdate(BaseModel):
     modulos: Optional[List[str]] = None
 
 
+class ClienteCreate(BaseModel):
+    nombre_corto: str
+    razon_social: Optional[str] = None
+    nit: Optional[str] = None
+
+
 class TextoCliente(BaseModel):
     texto: str
 
@@ -2518,6 +2554,10 @@ def create_oferta(oferta: OfertaCreate):
     calcula el siguiente número disponible y reintenta, para que nunca se pierda
     la oferta ni se repita el consecutivo."""
     pdf_json = json.dumps(oferta.pdf_data) if oferta.pdf_data else None
+    # Normaliza el nombre del cliente (quita espacios dobles/extremos) para que
+    # coincida con el catálogo oficial y no se creen duplicados por tipeo.
+    if oferta.cliente:
+        oferta.cliente = re.sub(r"\s+", " ", oferta.cliente.strip())
     MAX_INTENTOS = 10
     for intento in range(MAX_INTENTOS):
         try:
@@ -2545,7 +2585,19 @@ def create_oferta(oferta: OfertaCreate):
                      oferta.fecha_facturacion or None, oferta.valor_facturado, oferta.no_factura,
                      pdf_json),
                 )
-                return fetchone(cur)
+                nueva = fetchone(cur)
+                # Mantiene el catálogo sincronizado: si el cliente de esta oferta
+                # aún no está registrado, lo agrega (así nunca queda por fuera).
+                if oferta.cliente:
+                    cur.execute(
+                        """INSERT INTO clientes (nombre_corto)
+                           SELECT %s
+                           WHERE NOT EXISTS (
+                               SELECT 1 FROM clientes WHERE lower(nombre_corto) = lower(%s)
+                           )""",
+                        (oferta.cliente, oferta.cliente),
+                    )
+                return nueva
         except pgdb.DatabaseError as e:
             msg = str(e).lower()
             if "unique" in msg or "duplicate" in msg:
@@ -3393,6 +3445,58 @@ def get_oferta_historial(oferta_id: int):
             return fetchall(cur)
     except Exception as e:
         traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# ── Catálogo maestro de clientes (fuente única para generar ofertas) ──────────
+@app.get("/api/clientes/catalogo")
+def get_clientes_catalogo():
+    """Lista oficial de clientes para el selector del generador de ofertas."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, nombre_corto, razon_social, nit
+                FROM clientes
+                WHERE activo = TRUE
+                ORDER BY nombre_corto
+            """)
+            return fetchall(cur)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/clientes", status_code=201)
+def create_cliente(body: ClienteCreate):
+    """Registra un cliente nuevo en el catálogo oficial (nombre corto + datos
+    oficiales). Bloquea duplicados sin importar mayúsculas/espacios."""
+    nombre = re.sub(r"\s+", " ", (body.nombre_corto or "").strip())
+    if not nombre:
+        raise HTTPException(400, "El nombre del cliente es obligatorio")
+    razon = (body.razon_social or "").strip() or None
+    nit   = (body.nit or "").strip() or None
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            # ¿Ya existe (ignorando mayúsculas/espacios)?
+            cur.execute(
+                "SELECT nombre_corto FROM clientes WHERE lower(nombre_corto) = lower(%s)",
+                (nombre,),
+            )
+            ya = fetchone(cur)
+            if ya:
+                raise HTTPException(409, f'El cliente "{ya["nombre_corto"]}" ya existe en el catálogo')
+            cur.execute(
+                "INSERT INTO clientes (nombre_corto, razon_social, nit) VALUES (%s,%s,%s) RETURNING id",
+                (nombre, razon, nit),
+            )
+            row = fetchone(cur)
+            return {"id": row["id"], "nombre_corto": nombre, "razon_social": razon, "nit": nit}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(409, f'El cliente "{nombre}" ya existe')
         raise HTTPException(500, str(e))
 
 

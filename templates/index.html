@@ -1463,7 +1463,14 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
         <div class="form-group">
           <label>Cliente / Empresa *</label>
-          <input type="text" id="gCliente" required placeholder="Nombre del cliente">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="gCliente" required placeholder="Escribe y elige de la lista" list="clientesCatalogo"
+                   autocomplete="off" oninput="onClienteInput()" onblur="validarClienteCatalogo()" style="flex:1;">
+            <button type="button" id="btnNuevoCliente" onclick="abrirNuevoCliente()" title="Registrar cliente nuevo"
+                    style="flex:none;border:1.5px solid var(--orange);background:#fff7ed;color:#c2410c;border-radius:6px;padding:8px 10px;font-weight:700;cursor:pointer;white-space:nowrap;">➕ Nuevo</button>
+          </div>
+          <datalist id="clientesCatalogo"></datalist>
+          <div id="gClienteAviso" style="display:none;font-size:11px;color:#c2410c;margin-top:4px;"></div>
         </div>
         <div class="form-group">
           <label>Contacto (nombre) ✏️</label>
@@ -2021,6 +2028,36 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button onclick="cerrarModalOSI()" style="padding:8px 18px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Cancelar</button>
       <button onclick="guardarOSI()" style="padding:8px 18px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO CLIENTE (catálogo oficial) -->
+<div id="modalNuevoCliente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h3 style="margin:0;color:var(--petrol);font-size:16px;">➕ Registrar cliente nuevo</h3>
+      <button onclick="cerrarNuevoCliente()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;">&times;</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 18px;">Queda en el catálogo oficial para que todos coticen con el mismo nombre. Así no se duplican clientes.</p>
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NOMBRE CORTO (COMERCIAL) *</label>
+        <input id="ncNombre" type="text" placeholder="Ej: TIBA GROUP" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">RAZÓN SOCIAL OFICIAL</label>
+        <input id="ncRazon" type="text" placeholder="Ej: TIBA COLOMBIA S.A.S." style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NIT</label>
+        <input id="ncNit" type="text" placeholder="Ej: 900123456-7" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div id="ncError" style="display:none;font-size:12px;color:#dc2626;font-weight:600;"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button onclick="cerrarNuevoCliente()" style="padding:8px 18px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Cancelar</button>
+      <button id="ncGuardarBtn" onclick="guardarNuevoCliente()" style="padding:8px 18px;background:var(--orange);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Guardar cliente</button>
     </div>
   </div>
 </div>
@@ -3206,11 +3243,106 @@ function onGComercialChange() {
   _setComercial(document.getElementById('gComercial').value);
 }
 
+// ========== CATÁLOGO OFICIAL DE CLIENTES ==========
+let catalogoClientes = [];   // [{nombre_corto, razon_social, nit}]
+
+async function cargarCatalogoClientes() {
+  try {
+    const res = await fetch('/api/clientes/catalogo');
+    if (!res.ok) return;
+    catalogoClientes = await res.json();
+    const dl = document.getElementById('clientesCatalogo');
+    if (dl) {
+      dl.innerHTML = catalogoClientes.map(c => {
+        const extra = c.nit ? (' — NIT ' + c.nit) : (c.razon_social ? (' — ' + c.razon_social) : '');
+        return `<option value="${(c.nombre_corto||'').replace(/"/g,'&quot;')}">${extra}</option>`;
+      }).join('');
+    }
+  } catch (e) { /* silencioso: no bloquea generar */ }
+}
+
+function _clienteEnCatalogo(nombre) {
+  const n = (nombre||'').trim().replace(/\s+/g,' ').toLowerCase();
+  return catalogoClientes.some(c => (c.nombre_corto||'').trim().toLowerCase() === n);
+}
+
+function onClienteInput() {
+  // Si ya coincide con un cliente oficial, ocultamos el aviso.
+  const aviso = document.getElementById('gClienteAviso');
+  const val = document.getElementById('gCliente').value;
+  if (!aviso) return;
+  if (!val.trim() || _clienteEnCatalogo(val)) aviso.style.display = 'none';
+}
+
+function validarClienteCatalogo() {
+  const aviso = document.getElementById('gClienteAviso');
+  const val = document.getElementById('gCliente').value.trim();
+  if (!aviso) return;
+  if (val && !_clienteEnCatalogo(val)) {
+    aviso.innerHTML = '⚠️ "' + val + '" no está en el catálogo. Elígelo de la lista o pulsa <b>➕ Nuevo</b> para registrarlo y evitar duplicados.';
+    aviso.style.display = 'block';
+  } else {
+    aviso.style.display = 'none';
+  }
+}
+
+function abrirNuevoCliente() {
+  // Precarga lo que ya escribió en el campo de cliente.
+  document.getElementById('ncNombre').value = document.getElementById('gCliente').value.trim();
+  document.getElementById('ncRazon').value = '';
+  document.getElementById('ncNit').value = '';
+  document.getElementById('ncError').style.display = 'none';
+  document.getElementById('modalNuevoCliente').style.display = 'flex';
+  document.getElementById('ncNombre').focus();
+}
+
+function cerrarNuevoCliente() {
+  document.getElementById('modalNuevoCliente').style.display = 'none';
+}
+
+async function guardarNuevoCliente() {
+  const nombre = document.getElementById('ncNombre').value.trim();
+  const razon  = document.getElementById('ncRazon').value.trim();
+  const nit    = document.getElementById('ncNit').value.trim();
+  const errBox = document.getElementById('ncError');
+  const btn    = document.getElementById('ncGuardarBtn');
+  errBox.style.display = 'none';
+  if (!nombre) {
+    errBox.textContent = 'El nombre corto es obligatorio.';
+    errBox.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const res = await fetch('/api/clientes', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nombre_corto: nombre, razon_social: razon, nit: nit })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errBox.textContent = data.detail || 'No se pudo guardar el cliente.';
+      errBox.style.display = 'block';
+      return;
+    }
+    await cargarCatalogoClientes();
+    // Selecciona el cliente recién creado en la oferta.
+    document.getElementById('gCliente').value = data.nombre_corto || nombre;
+    document.getElementById('gClienteAviso').style.display = 'none';
+    cerrarNuevoCliente();
+  } catch (e) {
+    errBox.textContent = 'Error de conexión. Intenta de nuevo.';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cliente';
+  }
+}
+
 async function initGenerar() {
   // Only load consecutive if not in edit mode
   if (!editingGenerarId) {
     await loadConsecutivo();
   }
+  cargarCatalogoClientes();
 
   // Month/year display from gMes field
   const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
