@@ -1072,6 +1072,14 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- 🔔 Alarma: ofertas ejecutadas pendientes por facturar (solo la ve el admin / Natalia) -->
+  <div id="alarmaEjecutadas" onclick="document.getElementById('aSeguimiento').value='Ejecutado';filterAprobadas();"
+       style="display:none;align-items:center;gap:12px;background:#fef2f2;border:1.5px solid #dc2626;border-left:6px solid #dc2626;color:#991b1b;border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer;font-weight:600;box-shadow:0 2px 6px rgba(220,38,38,.15);">
+    <span style="font-size:22px;">🔔</span>
+    <span id="alarmaEjecutadasTxt">Tienes ofertas ejecutadas pendientes por facturar</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:600;text-decoration:underline;white-space:nowrap;">Ver pendientes ▸</span>
+  </div>
+
   <div class="section-card">
     <div class="filters-bar">
       <div class="form-group" style="flex:2;min-width:200px;">
@@ -2925,6 +2933,22 @@ function filterAprobadas() {
   setKpi('aValorEsperado', formatCOP(valEsp));
   setKpi('aValorFacturado', formatCOP(valFact));
   setKpi('aVencidas', vencidas);
+
+  // 🔔 Alarma de ejecutadas pendientes por facturar — SOLO para el admin (Natalia).
+  // Los demás usuarios ven la tabla y pueden filtrar, pero no ven este banner.
+  const ejecutadasPend = todas.filter(o => o.seguimiento === 'Ejecutado').length;
+  const alarma = document.getElementById('alarmaEjecutadas');
+  if (alarma) {
+    const esAdmin = currentUser && currentUser.username === 'admin';
+    if (esAdmin && ejecutadasPend > 0) {
+      const plural = ejecutadasPend === 1 ? '' : 's';
+      document.getElementById('alarmaEjecutadasTxt').textContent =
+        `Tienes ${ejecutadasPend} oferta${plural} ejecutada${plural} pendiente${plural} por facturar`;
+      alarma.style.display = 'flex';
+    } else {
+      alarma.style.display = 'none';
+    }
+  }
   document.getElementById('aprobSummary').textContent =
     `${aprobadas.length} ofertas aceptadas · ${conFact} con factura · Valor esperado: ${formatCOP(valEsp)} · Facturado 2026: ${formatCOP(valFact)}`;
 
