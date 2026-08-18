@@ -1049,7 +1049,7 @@ body.rol-viewer .write-only { display:none !important; }
     <button class="btn btn-success" onclick="exportExcel('aprobadas')">⬇ Exportar Excel</button>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns: repeat(5,1fr);">
+  <div class="kpi-grid" style="grid-template-columns: repeat(4,1fr);">
     <div class="kpi-card success">
       <div class="kpi-label">Total Aprobadas</div>
       <div class="kpi-value" id="aTotal">—</div>
@@ -1058,13 +1058,10 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="kpi-label">Valor Esperado</div>
       <div class="kpi-value" id="aValorEsperado" style="font-size:18px">—</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Valor Facturado (2026)</div>
-      <div class="kpi-value" id="aValorFacturado" style="font-size:18px">—</div>
-    </div>
-    <div class="kpi-card orange">
-      <div class="kpi-label">💰 Total Facturado</div>
-      <div class="kpi-value" id="frTotal" style="font-size:18px">—</div>
+    <div class="kpi-card" style="border-left:4px solid #16a34a;">
+      <div class="kpi-label">💰 Valor Facturado</div>
+      <div class="kpi-value" id="aValorConciliado" style="font-size:18px">—</div>
+      <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #dc2626;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
       <div class="kpi-label" style="color:#dc2626;">⚠️ Sin facturar +15 días</div>
@@ -3220,8 +3217,23 @@ async function cargarVulcano() {
     if (vulcFacturas.length > 0) {
       renderVulcanoResumen(resumen);
       renderVulcanoFacturas();
+      setKpiFacturado(resumen.total_real_vulcano, true);
+    } else {
+      // Aún no se ha importado Vulcano: mostrar el total facturado de la app.
+      const fr = await fetch('/api/facturacion/resumen').then(r => r.json());
+      setKpiFacturado(fr.total, false);
     }
   } catch(e) { /* silencioso — todavía no se ha importado */ }
+}
+
+// KPI "Valor Facturado" de Ofertas Aprobadas = valor conciliado con Vulcano.
+function setKpiFacturado(valor, conciliado) {
+  const el = document.getElementById('aValorConciliado');
+  if (el) el.textContent = formatCOP(valor || 0);
+  const sub = document.getElementById('aValorConciliadoSub');
+  if (sub) sub.textContent = conciliado
+    ? '✅ Conciliado con Vulcano'
+    : 'Importa Vulcano para conciliar';
 }
 
 function renderVulcanoResumen(r) {
