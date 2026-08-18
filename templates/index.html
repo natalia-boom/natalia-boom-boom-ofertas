@@ -882,6 +882,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn write-only" onclick="switchTab('generar')">🏷️ Generar Oferta</button>
   <button class="tab-btn" onclick="switchTab('control')">📋 Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')">✅ Ofertas Aprobadas</button>
+  <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
@@ -892,6 +893,47 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- MAIN CONTENT -->
 <main class="main" id="appMain" style="display:none;">
+
+<!-- ==================== TABLERO COMERCIAL ==================== -->
+<section class="tab-panel" id="tab-tablero">
+  <div class="section-card">
+    <div class="section-title" style="margin:0 0 4px;">🎯 Tablero Comercial</div>
+    <p style="margin:0 0 18px;font-size:12.5px;color:var(--text-muted);">
+      Resumen ejecutivo de tu gestión comercial 2026, de un vistazo.
+    </p>
+
+    <!-- 3 tarjetas -->
+    <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:24px;">
+      <div class="kpi-card" style="border-left:4px solid #16a34a;min-width:220px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">🎯 Efectividad</div>
+        <div id="tbEfectividad" style="font-size:26px;font-weight:800;color:#16a34a;">—</div>
+        <div id="tbEfectividadSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #2563eb;min-width:220px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">💰 Valor Ganado</div>
+        <div id="tbValorGanado" style="font-size:26px;font-weight:800;color:#2563eb;">—</div>
+        <div id="tbValorGanadoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #f59e0b;min-width:220px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">⏰ Seguimiento Pendiente</div>
+        <div id="tbSeguimiento" style="font-size:26px;font-weight:800;color:#f59e0b;">—</div>
+        <div id="tbSeguimientoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+      </div>
+    </div>
+
+    <!-- dos tablas -->
+    <div style="display:flex;flex-wrap:wrap;gap:24px;">
+      <div style="flex:1;min-width:320px;">
+        <div class="section-title" style="font-size:15px;margin:0 0 12px;">🏆 Top 10 Clientes</div>
+        <div id="tbTopClientes"><div class="empty-state">Cargando…</div></div>
+      </div>
+      <div style="flex:1;min-width:320px;">
+        <div class="section-title" style="font-size:15px;margin:0 0 12px;">👥 Por Ejecutivo</div>
+        <div id="tbPorEjecutivo"><div class="empty-state">Cargando…</div></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ==================== DASHBOARD ==================== -->
 <section class="tab-panel active" id="tab-dashboard">
@@ -2688,6 +2730,7 @@ function switchTab(name) {
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
+  if (name === 'tablero')    loadTablero();
 }
 
 // ========== USER ==========
@@ -3219,8 +3262,8 @@ async function loadResumenFacturacion() {
 }
 
 // ========== TOP CLIENTES ==========
-async function loadTopClientes() {
-  const wrap = document.getElementById('topClientesWrap');
+async function loadTopClientes(wrapId) {
+  const wrap = document.getElementById(wrapId || 'topClientesWrap');
   if (!wrap) return;
   try {
     const data = await fetch('/api/reportes/top-clientes?limit=10').then(r => r.json());
@@ -3267,6 +3310,48 @@ async function loadTopClientes() {
   } catch (e) {
     wrap.innerHTML = '<div class="empty-state">No se pudo cargar el top de clientes.</div>';
   }
+}
+
+// ========== TABLERO COMERCIAL ==========
+async function loadTablero() {
+  // Top 10 clientes (reutiliza el endpoint y el render de barras).
+  loadTopClientes('tbTopClientes');
+  try {
+    const t = await fetch('/api/reportes/tablero').then(r => r.json());
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('tbEfectividad', (t.efectividad || 0) + '%');
+    set('tbEfectividadSub', `${t.aceptadas} aceptadas de ${t.total_ofertas} ofertas`);
+    set('tbValorGanado', formatCOP(t.valor_ganado || 0));
+    set('tbValorGanadoSub', 'Facturado real (conciliado Vulcano)');
+    set('tbSeguimiento', (t.seguimiento_pendiente || 0));
+    set('tbSeguimientoSub', 'Ofertas RECIBIDO con +15 días sin respuesta');
+    renderPorEjecutivo(t.por_ejecutivo || []);
+  } catch (e) {
+    const w = document.getElementById('tbPorEjecutivo');
+    if (w) w.innerHTML = '<div class="empty-state">No se pudo cargar el tablero.</div>';
+  }
+}
+
+function renderPorEjecutivo(list) {
+  const wrap = document.getElementById('tbPorEjecutivo');
+  if (!wrap) return;
+  if (!list.length) { wrap.innerHTML = '<div class="empty-state">Sin datos de ejecutivos.</div>'; return; }
+  let html = '<div class="table-wrap"><table><thead><tr>' +
+    '<th>Ejecutivo</th>' +
+    '<th style="text-align:center;">Ofertas</th>' +
+    '<th style="text-align:center;">Aceptadas</th>' +
+    '<th style="text-align:right;">Facturado</th>' +
+    '</tr></thead><tbody>';
+  list.forEach(e => {
+    html += `<tr>` +
+      `<td style="font-weight:600;">${e.ejecutivo}</td>` +
+      `<td style="text-align:center;">${e.n_ofertas}</td>` +
+      `<td style="text-align:center;">${e.n_aceptadas}</td>` +
+      `<td style="text-align:right;font-weight:700;color:#16a34a;">${formatCOP(e.valor_facturado)}</td>` +
+      `</tr>`;
+  });
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
 }
 
 // ========== CONCILIACIÓN VULCANO ==========

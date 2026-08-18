@@ -4216,6 +4216,73 @@ def reporte_top_clientes(limit: int = Query(10)):
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/reportes/tablero")
+def reporte_tablero():
+    """Resumen ejecutivo para la pestaña Tablero:
+    - Efectividad (ofertas aceptadas / total)
+    - Valor ganado (facturado real conciliado con Vulcano)
+    - Seguimiento pendiente (ofertas RECIBIDO con +15 días sin respuesta)
+    - Ranking por ejecutivo (quién generó cada oferta)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE UPPER(respuesta) = 'ACEPTADA') AS aceptadas,
+                    COUNT(*) FILTER (
+                        WHERE UPPER(respuesta) = 'RECIBIDO'
+                          AND fecha IS NOT NULL
+                          AND fecha <= CURRENT_DATE - INTERVAL '15 days'
+                    ) AS seguimiento
+                FROM ofertas
+            """)
+            r = fetchone(cur)
+            total = int(r["total"] or 0)
+            aceptadas = int(r["aceptadas"] or 0)
+            seguimiento = int(r["seguimiento"] or 0)
+
+            # Valor ganado = facturación real conciliada (Vulcano). Si aún no se
+            # ha importado Vulcano, cae al total facturado interno de la app.
+            cur.execute("""
+                SELECT COALESCE(SUM(subtotal), 0) AS t
+                FROM vulcano_facturas WHERE excluida = false
+            """)
+            valor_ganado = int(fetchone(cur)["t"] or 0)
+            if not valor_ganado:
+                valor_ganado = int(_app_total_facturado(cur) or 0)
+
+            cur.execute("""
+                SELECT COALESCE(NULLIF(TRIM(realizada), ''), '(sin asignar)') AS ejecutivo,
+                       COUNT(*) AS n_ofertas,
+                       COUNT(*) FILTER (WHERE UPPER(respuesta) = 'ACEPTADA') AS n_aceptadas,
+                       COALESCE(SUM(valor_facturado), 0) AS valor_facturado
+                FROM ofertas
+                GROUP BY 1
+                ORDER BY n_ofertas DESC
+            """)
+            ejec = fetchall(cur)
+
+        por_ejecutivo = [{
+            "ejecutivo": e["ejecutivo"],
+            "n_ofertas": int(e["n_ofertas"] or 0),
+            "n_aceptadas": int(e["n_aceptadas"] or 0),
+            "valor_facturado": int(e["valor_facturado"] or 0),
+        } for e in ejec]
+
+        return {
+            "total_ofertas": total,
+            "aceptadas": aceptadas,
+            "efectividad": round(aceptadas * 100.0 / total, 1) if total else 0.0,
+            "valor_ganado": valor_ganado,
+            "seguimiento_pendiente": seguimiento,
+            "por_ejecutivo": por_ejecutivo,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 if __name__ == '__main__':
     import uvicorn
     port = int(os.environ.get('PORT', 8000))
