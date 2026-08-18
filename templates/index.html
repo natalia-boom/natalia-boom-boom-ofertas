@@ -882,9 +882,9 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn write-only" onclick="switchTab('generar')">🏷️ Generar Oferta</button>
   <button class="tab-btn" onclick="switchTab('control')">📋 Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')">✅ Ofertas Aprobadas</button>
-  <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
+  <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
   <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
   <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
@@ -921,16 +921,10 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
     </div>
 
-    <!-- dos tablas -->
-    <div style="display:flex;flex-wrap:wrap;gap:24px;">
-      <div style="flex:1;min-width:320px;">
-        <div class="section-title" style="font-size:15px;margin:0 0 12px;">🏆 Top 10 Clientes</div>
-        <div id="tbTopClientes"><div class="empty-state">Cargando…</div></div>
-      </div>
-      <div style="flex:1;min-width:320px;">
-        <div class="section-title" style="font-size:15px;margin:0 0 12px;">👥 Por Ejecutivo</div>
-        <div id="tbPorEjecutivo"><div class="empty-state">Cargando…</div></div>
-      </div>
+    <!-- Top clientes -->
+    <div>
+      <div class="section-title" style="font-size:15px;margin:0 0 12px;">🏆 Top 10 Clientes</div>
+      <div id="tbTopClientes"><div class="empty-state">Cargando…</div></div>
     </div>
   </div>
 </section>
@@ -2055,6 +2049,36 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </thead>
           <tbody id="notifBody">
             <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando alertas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TODO LO ACEPTADO -->
+    <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);margin-bottom:28px;overflow:hidden;">
+      <div style="background:#15803d;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span style="font-weight:700;font-size:14px;">✅ TODO LO ACEPTADO (notificado a la fecha)</span>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input id="aceptadasBuscar" placeholder="Buscar cliente u oferta…" oninput="renderAceptadas()"
+                 style="padding:6px 12px;border:none;border-radius:6px;font-size:12px;min-width:200px;">
+          <span id="aceptadasCount" style="font-size:12px;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;">—</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:460px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f5f7fa;position:sticky;top:0;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">No. Oferta</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Fecha</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Cliente</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Servicio</th>
+              <th style="padding:10px 12px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Valor</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Mes Aceptado</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Factura</th>
+            </tr>
+          </thead>
+          <tbody id="aceptadasBody">
+            <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando ofertas aceptadas...</td></tr>
           </tbody>
         </table>
       </div>
@@ -3325,33 +3349,7 @@ async function loadTablero() {
     set('tbValorGanadoSub', 'Facturado real (conciliado Vulcano)');
     set('tbSeguimiento', (t.seguimiento_pendiente || 0));
     set('tbSeguimientoSub', 'Ofertas RECIBIDO con +15 días sin respuesta');
-    renderPorEjecutivo(t.por_ejecutivo || []);
-  } catch (e) {
-    const w = document.getElementById('tbPorEjecutivo');
-    if (w) w.innerHTML = '<div class="empty-state">No se pudo cargar el tablero.</div>';
-  }
-}
-
-function renderPorEjecutivo(list) {
-  const wrap = document.getElementById('tbPorEjecutivo');
-  if (!wrap) return;
-  if (!list.length) { wrap.innerHTML = '<div class="empty-state">Sin datos de ejecutivos.</div>'; return; }
-  let html = '<div class="table-wrap"><table><thead><tr>' +
-    '<th>Ejecutivo</th>' +
-    '<th style="text-align:center;">Ofertas</th>' +
-    '<th style="text-align:center;">Aceptadas</th>' +
-    '<th style="text-align:right;">Facturado</th>' +
-    '</tr></thead><tbody>';
-  list.forEach(e => {
-    html += `<tr>` +
-      `<td style="font-weight:600;">${e.ejecutivo}</td>` +
-      `<td style="text-align:center;">${e.n_ofertas}</td>` +
-      `<td style="text-align:center;">${e.n_aceptadas}</td>` +
-      `<td style="text-align:right;font-weight:700;color:#16a34a;">${formatCOP(e.valor_facturado)}</td>` +
-      `</tr>`;
-  });
-  html += '</tbody></table></div>';
-  wrap.innerHTML = html;
+  } catch (e) { /* silencioso */ }
 }
 
 // ========== CONCILIACIÓN VULCANO ==========
@@ -5057,11 +5055,16 @@ function fmtCOP(v) {
   return '$ ' + Number(v).toLocaleString('es-CO');
 }
 
+let aceptadasOps = [];
+
 async function cargarNotificaciones() {
-  const [rN, rO] = await Promise.all([
+  const [rN, rO, rA] = await Promise.all([
     fetch('/api/notificaciones').then(r=>r.json()).catch(()=>[]),
     fetch('/api/osi').then(r=>r.json()).catch(()=>[]),
+    fetch('/api/operaciones/aceptadas').then(r=>r.json()).catch(()=>[]),
   ]);
+  aceptadasOps = Array.isArray(rA) ? rA : [];
+  renderAceptadas();
 
   // Badge
   const noLeidas = rN.filter(n=>!n.leida).length;
@@ -5137,6 +5140,37 @@ async function cargarNotificaciones() {
       }).join('');
     }
   }
+}
+
+function renderAceptadas() {
+  const tbody = document.getElementById('aceptadasBody');
+  const countEl = document.getElementById('aceptadasCount');
+  if (!tbody) return;
+  const q = (document.getElementById('aceptadasBuscar')?.value || '').trim().toLowerCase();
+  const lista = q
+    ? aceptadasOps.filter(o =>
+        (o.cliente || '').toLowerCase().includes(q) ||
+        (o.num || '').toLowerCase().includes(q))
+    : aceptadasOps;
+  if (countEl) countEl.textContent = `${lista.length} ofertas`;
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:#999;">Sin ofertas aceptadas.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(o => {
+    const fecha = o.fecha ? new Date(o.fecha + 'T00:00:00').toLocaleDateString('es-CO') : '—';
+    const factura = (o.no_factura && String(o.no_factura).trim()) ? o.no_factura
+      : '<span style="color:#f59e0b;font-weight:700;">Pendiente</span>';
+    return `<tr style="border-bottom:1px solid #f0f0f0;">
+      <td style="padding:10px 12px;font-weight:700;color:var(--petrol);">${o.num||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#666;">${fecha}</td>
+      <td style="padding:10px 12px;">${o.cliente||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#555;">${o.tipo||'—'}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtCOP(o.valor)}</td>
+      <td style="padding:10px 12px;text-align:center;font-size:12px;">${o.mes_aceptado||'—'}</td>
+      <td style="padding:10px 12px;text-align:center;font-size:12px;">${factura}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function marcarLeida(id) {

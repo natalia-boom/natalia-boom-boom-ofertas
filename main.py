@@ -3453,6 +3453,30 @@ def marcar_todas_leidas(request: Request):
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/operaciones/aceptadas")
+def operaciones_aceptadas(request: Request):
+    """Todas las ofertas ACEPTADAS, para que Operaciones sepa lo que se ha
+    notificado/ganado a la fecha. Ordenadas de la más reciente a la más antigua."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT num, fecha, cliente, tipo, valor, mes_aceptado,
+                       seguimiento, no_factura, valor_facturado
+                FROM ofertas
+                WHERE UPPER(respuesta) = 'ACEPTADA'
+                ORDER BY fecha DESC NULLS LAST, CAST(num AS INTEGER) DESC
+            """)
+            filas = fetchall(cur)
+        for f in filas:
+            if f.get("fecha"):
+                f["fecha"] = str(f["fecha"])
+        return filas
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 # ── OSI ───────────────────────────────────────────────────────────────────────
 class OSIUpdate(BaseModel):
     responsable:    Optional[str] = None
