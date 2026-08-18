@@ -4441,7 +4441,7 @@ async function generarPDF() {
   if (!cliente) { showToast('El campo Cliente es obligatorio (completa el Paso 2)', 'warning'); return; }
 
   const btn = document.getElementById('btnGenerarPDF');
-  btn.disabled = true; btn.textContent = '⏳ Preparando...';
+  btn.disabled = true; btn.textContent = '⏳ Generando PDF...';
 
   try {
     const refNum = document.getElementById('gRefDisplay').dataset.num || '260001';
@@ -4469,52 +4469,28 @@ async function generarPDF() {
       fotos:         fotosOferta,
     };
 
-    // Obtener el HTML del correo (mismo template)
-    const res = await fetch('/api/generar-html', {
+    // Pedir el PDF REAL al servidor (mismo diseño del correo) y descargarlo directo
+    const res = await fetch('/api/generar-pdf', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error generando oferta'); }
-    let html = await res.text();
-
-    // Inyectar CSS de impresión para PDF perfecto
-    const printCSS = `<style>
-@page { size: A4; margin: 1.2cm 1.4cm 1.8cm 1.4cm; }
-@media print {
-  body { padding: 0 !important; background: white !important; }
-  .wrapper { box-shadow: none !important; border-radius: 0 !important; max-width: 100% !important; }
-  .no-print { display: none !important; }
-}
-</style>`;
-    // Botón de impresión visible antes de imprimir
-    const printBtn = `<div class="no-print" style="text-align:center;padding:14px;background:#f4f4f4;">
-  <button onclick="window.print()" style="background:#E8601C;color:#fff;border:none;padding:10px 28px;font-size:14px;font-weight:bold;border-radius:6px;cursor:pointer;">
-    🖨️ Imprimir / Guardar como PDF
-  </button>
-  <span style="margin-left:16px;font-size:12px;color:#666;">En la ventana de impresión selecciona <b>Guardar como PDF</b></span>
-</div>`;
-    html = html.replace('</head>', printCSS + '\n</head>');
-    html = html.replace('<body>', '<body>' + printBtn);
-
-    // Abrir en nueva pestaña y disparar impresión automática
-    const blob = new Blob([html], {type: 'text/html; charset=utf-8'});
-    const url  = URL.createObjectURL(blob);
-    const win  = window.open(url, '_blank');
-    if (win) {
-      win.addEventListener('load', () => {
-        setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 400);
-      });
-    } else {
-      // Si el navegador bloqueó la ventana emergente, descarga el HTML
-      const a = document.createElement('a');
-      a.href = url;
-      const ref = document.getElementById('gRefDisplay').textContent;
-      a.download = `OFERTA_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.html`;
-      a.click();
-      showToast('💡 Abre el archivo HTML descargado y usa Ctrl+P → Guardar como PDF', 'info');
+    if (!res.ok) {
+      let msg = 'Error generando el PDF';
+      try { const e = await res.json(); msg = e.detail || msg; } catch(_) {}
+      throw new Error(msg);
     }
-    showToast('✅ Oferta lista — selecciona "Guardar como PDF" en el diálogo', 'success');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const ref  = document.getElementById('gRefDisplay').textContent;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Oferta_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast('✅ PDF descargado', 'success');
   } catch(e) {
     showToast('❌ Error: ' + e.message, 'error');
   } finally {
