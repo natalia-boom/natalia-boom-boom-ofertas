@@ -177,6 +177,32 @@
       <div class="acc">
         <div class="acc-head" onclick="toggleAcc(this)">
           <div class="acc-num">4</div>
+          <div class="acc-title">📄 Cómo generar una oferta (paso a paso)</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          Entra a <strong>Comercial → pestaña “Generar oferta”</strong> y ve bajando por los pasos:
+          <ul>
+            <li><strong>Paso 1 · Chatea con la IA:</strong> pega el correo del cliente, describe el servicio o adjunta un Excel (con el clip 📎). La inteligencia artificial llena sola los campos. Puedes pedirle ajustes escribiéndole.</li>
+            <li><strong>Paso 2 · Datos generales:</strong> revisa y ajusta cliente, contacto, origen, destino y descripción. El <strong>cliente se elige de la lista</strong>.</li>
+            <li><strong>Paso 3 · Detalle de la carga:</strong> la tabla se llena sola; puedes editarla o usar <strong>“+ Agregar ítem”</strong>. (En el Paso 3B puedes subir <strong>fotos</strong>, es opcional.)</li>
+            <li><strong>Paso 4 · Propuesta económica:</strong> agrega los equipos y su <strong>valor unitario</strong> con <strong>“+ Agregar equipo”</strong>. El <strong>TOTAL se calcula solo</strong>.</li>
+            <li><strong>Paso 5 · Notas técnicas:</strong> usa el botón <strong>“💡 Auto-generar notas”</strong> o escríbelas a mano.</li>
+            <li>Más abajo completa el <strong>mes, la fecha</strong> y los datos finales.</li>
+          </ul>
+          Al terminar, usa los botones de abajo:
+          <ul>
+            <li><strong>📄 Generar PDF</strong> — descarga el PDF para adjuntarlo al correo del cliente.</li>
+            <li><strong>📧 Correo Outlook (HTML)</strong> — genera el correo listo para pegar en Outlook.</li>
+            <li><strong>💾 Guardar Oferta</strong> — la guarda en el sistema (queda en “Control” con su número).</li>
+          </ul>
+          <div class="mini">El <strong>número de la oferta se asigna solo</strong>, no hay que inventarlo. Recuerda darle <strong>Guardar</strong> para que quede registrada.</div>
+        </div></div>
+      </div>
+
+      <div class="acc">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">5</div>
           <div class="acc-title">⚙️ Módulo Operaciones — lo aceptado y las OSI</div>
           <div class="acc-arrow">▶</div>
         </div>
@@ -270,8 +296,18 @@
     document.getElementById('fUser').textContent = d.user;
     document.getElementById('fChips').innerHTML = d.modulos
       .map(m=>`<span class="chip">${m[0]} ${m[1]}</span>`).join('');
-    // Renumerar FAQ según módulos visibles
-    document.getElementById('accFaqNum').textContent = (p==='boris') ? '7' : '5';
+    renumberSteps();
+  }
+
+  // Numera automáticamente los pasos visibles (los de Boris salen o no según la persona)
+  function renumberSteps(){
+    let n = 1;
+    document.querySelectorAll('.acc').forEach(acc=>{
+      if(getComputedStyle(acc).display !== 'none'){
+        const num = acc.querySelector('.acc-num');
+        if(num) num.textContent = n++;
+      }
+    });
   }
 
   function toggleAcc(head){
