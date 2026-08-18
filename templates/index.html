@@ -2433,7 +2433,7 @@ function enterModulo(modulo) {
   mostrarApp();
   if (info.tabsComercial) { switchTab('dashboard'); initApp(); }
   else if (modulo === 'ti') { switchTab('ti'); tiSwitchTab('estado'); }
-  else if (modulo === 'rentabilidad') { switchTab('rentabilidad'); initRentabilidad(); }
+  else if (modulo === 'rentabilidad') { switchTab('rentabilidad'); }
   else { switchTab(info.tab); }
 }
 
@@ -2745,6 +2745,7 @@ function switchTab(name) {
   if (name === 'clientes')   cargarClientes();
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
   if (name === 'tablero')    loadTablero();
+  if (name === 'rentabilidad') initRentabilidad();
 }
 
 // ========== USER ==========
