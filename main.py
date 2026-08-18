@@ -548,6 +548,7 @@ def generar_html_oferta(data: dict) -> str:
     eq_rows_html      = ""
     summary_rows_html = ""
     standby_rows_html = ""
+    n_valued = 0
 
     for e in equipos:
         cant   = int(e.get("cant", 1) or 1)
@@ -577,6 +578,7 @@ def generar_html_oferta(data: dict) -> str:
       </tr>"""
 
         if v_unit:
+            n_valued += 1
             label = f"{eq_name} &mdash; {cant} &times; {unit_str}" if cant > 1 else f"{eq_name} &mdash; {unit_str}"
             summary_rows_html += f"""
       <tr>
@@ -598,14 +600,17 @@ def generar_html_oferta(data: dict) -> str:
                  if origen and destino else
                  (f" &mdash; {origen.upper()}" if origen else ""))
 
-    # Summary table only when > 1 equipment line (or always if there are any values)
+    # Resumen económico: solo desglosar cuando hay MÁS de una línea con valor.
+    # Con una sola línea, el valor ya aparece en la tabla de equipos → mostramos
+    # únicamente la barra TOTAL OFERTA (sin repetir la línea).
     summary_html = ""
-    if summary_rows_html and total:
+    if total:
+        desglose = summary_rows_html if n_valued > 1 else ""
         summary_html = f"""
   <div class="table-scroll" style="margin-top:12px;">
   <table class="det">
     <tbody>
-      {summary_rows_html}
+      {desglose}
       <tr class="total-row">
         <td><strong>TOTAL OFERTA</strong></td>
         <td><strong>{_fmt_cop(total)} COP</strong></td>
@@ -613,9 +618,6 @@ def generar_html_oferta(data: dict) -> str:
     </tbody>
   </table>
   </div>"""
-    elif total:
-        # Single item — still show total row
-        summary_html = ""   # total already shown in eq_rows_html last column
 
     # ── Notes → clean bullet list ─────────────────────────────────────────────
     skip_pfx = ("origen:", "destino:", "stand-by", "standby", "tiempos libres")
