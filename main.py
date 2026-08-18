@@ -1695,6 +1695,31 @@ def _ensure_db():
         """)
         print("[DB] Tabla 'vulcano_facturas' lista.")
 
+        # Presupuesto / META mensual de facturación por año. Fuente: Natalia.
+        # Sirve para medir el % de cumplimiento (facturado real vs meta).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS presupuesto (
+                id bigint generated always as identity primary key,
+                anio int NOT NULL,
+                mes text NOT NULL,
+                monto bigint NOT NULL DEFAULT 0,
+                UNIQUE (anio, mes)
+            )
+        """)
+        # Semilla idempotente del presupuesto 2026 (no pisa ediciones posteriores).
+        _presu_2026 = [
+            ("ENERO", 1250000000), ("FEBRERO", 1450000000), ("MARZO", 1550000000),
+            ("ABRIL", 1650000000), ("MAYO", 1850000000), ("JUNIO", 1900000000),
+            ("JULIO", 1850000000), ("AGOSTO", 1800000000), ("SEPTIEMBRE", 1600000000),
+            ("OCTUBRE", 1650000000), ("NOVIEMBRE", 1450000000), ("DICIEMBRE", 1500000000),
+        ]
+        for _m, _v in _presu_2026:
+            cur.execute("""
+                INSERT INTO presupuesto (anio, mes, monto) VALUES (2026, %s, %s)
+                ON CONFLICT (anio, mes) DO NOTHING
+            """, (_m, _v))
+        print("[DB] Tabla 'presupuesto' lista y sembrada (2026).")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2222,6 +2247,12 @@ class ClienteUpdate(BaseModel):
 
 class VulcanoExcluir(BaseModel):
     excluida: bool
+
+
+class PresupuestoItem(BaseModel):
+    anio: int
+    mes: str
+    monto: int
 
 
 class TextoCliente(BaseModel):
@@ -3859,6 +3890,47 @@ def vulcano_excluir(factura: str, body: VulcanoExcluir):
         raise HTTPException(500, str(e))
 
 
+# ── Presupuesto / META de facturación ────────────────────────────────────────
+_MES_ORDER = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+              "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+
+
+@app.get("/api/presupuesto")
+def get_presupuesto(anio: Optional[int] = Query(None)):
+    """Presupuesto (meta) mensual y total del año."""
+    anio_val = anio or datetime.now().year
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT mes, monto FROM presupuesto WHERE anio=%s", (anio_val,))
+            data = {r["mes"]: int(r["monto"]) for r in fetchall(cur)}
+        meses = [{"mes": m, "monto": data.get(m, 0)} for m in _MES_ORDER]
+        return {"anio": anio_val, "meses": meses,
+                "total": sum(x["monto"] for x in meses)}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.put("/api/presupuesto")
+def set_presupuesto(body: PresupuestoItem):
+    """Crea/edita la meta de un mes."""
+    mes = (body.mes or "").strip().upper()
+    if mes not in _MES_ORDER:
+        raise HTTPException(400, "Mes inválido")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO presupuesto (anio, mes, monto) VALUES (%s,%s,%s)
+                ON CONFLICT (anio, mes) DO UPDATE SET monto = EXCLUDED.monto
+            """, (body.anio, mes, int(body.monto)))
+            return {"ok": True, "anio": body.anio, "mes": mes, "monto": int(body.monto)}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 # ── Feature 2: Mini CRM Clientes ──────────────────────────────────────────────
 @app.get("/api/clientes/stats")
 def get_clientes_stats():
@@ -4084,7 +4156,17 @@ def reporte_facturacion(anio: Optional[int] = Query(None)):
                         ELSE 99
                     END
             """, (anio_val, anio_val))
-            return fetchall(cur)
+            filas = fetchall(cur)
+            # Presupuesto (meta) del año para calcular cumplimiento por mes.
+            cur.execute("SELECT mes, monto FROM presupuesto WHERE anio=%s", (anio_val,))
+            presu = {r["mes"]: int(r["monto"]) for r in fetchall(cur)}
+        for f in filas:
+            m = (f.get("mes") or "").upper()
+            meta = presu.get(m, 0)
+            fact = float(f.get("valor_facturado") or 0)
+            f["presupuesto"] = meta
+            f["cumplimiento"] = round(fact * 100.0 / meta, 1) if meta else None
+        return filas
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
