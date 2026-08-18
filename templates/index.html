@@ -1254,6 +1254,69 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- ── CONCILIACIÓN CON VULCANO ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="margin:0;">🔗 Conciliación con VULCANO</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="file" id="vulcArchivo" accept=".xlsx,.xls" style="display:none;" onchange="importarVulcano()">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('vulcArchivo').click()">📥 Importar Excel de Vulcano</button>
+      </div>
+    </div>
+    <p style="margin:0 0 14px;font-size:12.5px;color:var(--text-muted);">
+      Sube el Excel que descargas de Vulcano. La app cruza las facturas, excluye las que no cuentan (amarillas)
+      y compara el total real contra el total de la app. Objetivo: que ambos cuadren siempre.
+    </p>
+
+    <div id="vulcResumen" style="display:none;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+      <div class="kpi-card" style="border-left:4px solid #16a34a;min-width:210px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Total Real Vulcano</div>
+        <div id="vulcTotalReal" style="font-size:22px;font-weight:800;color:#16a34a;">—</div>
+        <div id="vulcExcluidasInfo" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #2563eb;min-width:210px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Total en la App</div>
+        <div id="vulcTotalApp" style="font-size:22px;font-weight:800;color:#2563eb;">—</div>
+      </div>
+      <div class="kpi-card" id="vulcDiffCard" style="border-left:4px solid #f59e0b;min-width:210px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Diferencia (App − Vulcano)</div>
+        <div id="vulcDiff" style="font-size:22px;font-weight:800;color:#f59e0b;">—</div>
+        <div id="vulcDiffPct" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
+      </div>
+    </div>
+
+    <div id="vulcTablaWrap" style="display:none;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+        <input id="vulcBuscar" placeholder="Buscar factura o cliente…" oninput="renderVulcanoFacturas()"
+               style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;min-width:220px;">
+        <select id="vulcFiltroExcl" onchange="renderVulcanoFacturas()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+          <option value="">Todas</option>
+          <option value="no">Solo incluidas</option>
+          <option value="si">Solo excluidas</option>
+        </select>
+        <span id="vulcCount" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div class="table-wrap" style="max-height:420px;overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:center;">Incluir</th>
+              <th>Factura</th>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Estado</th>
+              <th style="text-align:right;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="vulcBody"><tr><td colspan="6" class="empty-state">Aún no has importado el Excel de Vulcano.</td></tr></tbody>
+        </table>
+      </div>
+      <p style="margin:10px 0 0;font-size:12px;color:var(--text-muted);">
+        Desmarca <strong>Incluir</strong> en las facturas que no deben sumar al total (las amarillas). El total se recalcula solo.
+      </p>
+    </div>
+  </div>
+
   <!-- ── NOTA ACLARATORIA ── -->
   <div style="margin-top:16px;padding:12px 16px;background:#fff8ec;border-left:4px solid var(--orange);border-radius:8px;font-size:13px;color:#5a4a2a;">
     📝 <strong>Nota:</strong> El <strong>Total Facturado</strong> concilia con el Excel e incluye 4 categorías: <strong>Ofertas 2026</strong>, <strong>Año Anterior 2025</strong> (numeradas + año pasado), <strong>Contratos</strong> (SACYR, Cerrejón, GM&amp;M…) y <strong>Otros</strong> (postes, adicionales, favores).
@@ -2613,7 +2676,7 @@ function switchTab(name) {
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
-  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); }
+  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); }
 }
 
 // ========== USER ==========
@@ -3142,6 +3205,113 @@ async function loadResumenFacturacion() {
     if (s) s.textContent =
       `Total 2025: ${formatCOP(r.ofertas_2025)}  ·  numeradas ${formatCOP(r.ofertas_2025_numeradas)} + año pasado ${formatCOP(r.ofertas_2025_ano_pasado)}`;
   } catch(e) { /* silencioso */ }
+}
+
+// ========== CONCILIACIÓN VULCANO ==========
+let vulcFacturas = [];
+
+async function cargarVulcano() {
+  try {
+    const [resumen, facturas] = await Promise.all([
+      fetch('/api/vulcano/resumen').then(r => r.json()),
+      fetch('/api/vulcano/facturas').then(r => r.json())
+    ]);
+    vulcFacturas = Array.isArray(facturas) ? facturas : [];
+    if (vulcFacturas.length > 0) {
+      renderVulcanoResumen(resumen);
+      renderVulcanoFacturas();
+    }
+  } catch(e) { /* silencioso — todavía no se ha importado */ }
+}
+
+function renderVulcanoResumen(r) {
+  if (!r) return;
+  document.getElementById('vulcResumen').style.display = 'flex';
+  document.getElementById('vulcTablaWrap').style.display = 'block';
+  document.getElementById('vulcTotalReal').textContent = formatCOP(r.total_real_vulcano);
+  document.getElementById('vulcTotalApp').textContent  = formatCOP(r.total_app);
+  document.getElementById('vulcExcluidasInfo').textContent =
+    `${r.n_facturas} facturas · ${r.n_excluidas} excluidas (${formatCOP(r.monto_excluido)})`;
+  const diff = r.diferencia;
+  const diffEl = document.getElementById('vulcDiff');
+  diffEl.textContent = (diff >= 0 ? '+' : '−') + formatCOP(Math.abs(diff));
+  const card = document.getElementById('vulcDiffCard');
+  const pct = r.total_real_vulcano ? (Math.abs(diff) / r.total_real_vulcano * 100) : 0;
+  document.getElementById('vulcDiffPct').textContent = pct.toFixed(2) + '% de diferencia';
+  // Verde si prácticamente cuadra (<0.1%), ámbar si no.
+  const ok = pct < 0.1;
+  card.style.borderLeftColor = ok ? '#16a34a' : '#f59e0b';
+  diffEl.style.color = ok ? '#16a34a' : '#f59e0b';
+}
+
+function renderVulcanoFacturas() {
+  const q = (document.getElementById('vulcBuscar').value || '').toLowerCase();
+  const filtroExcl = document.getElementById('vulcFiltroExcl').value;
+  let lista = vulcFacturas.slice();
+  if (filtroExcl === 'si') lista = lista.filter(f => f.excluida);
+  else if (filtroExcl === 'no') lista = lista.filter(f => !f.excluida);
+  if (q) lista = lista.filter(f =>
+    (f.factura||'').toLowerCase().includes(q) || (f.cliente||'').toLowerCase().includes(q));
+  document.getElementById('vulcCount').textContent = `${lista.length} de ${vulcFacturas.length} facturas`;
+  const body = document.getElementById('vulcBody');
+  if (lista.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">Sin resultados.</td></tr>';
+    return;
+  }
+  body.innerHTML = lista.map(f => `
+    <tr style="${f.excluida ? 'background:#fffbeb;color:#92785a;' : ''}">
+      <td style="text-align:center;">
+        <input type="checkbox" ${f.excluida ? '' : 'checked'}
+               onchange="toggleVulcano('${(f.factura||'').replace(/'/g,"\\'")}', this.checked)"
+               title="${f.excluida ? 'Excluida del total' : 'Incluida en el total'}">
+      </td>
+      <td style="font-weight:600;">${f.factura||''}</td>
+      <td>${f.fecha||''}</td>
+      <td>${f.cliente||''}</td>
+      <td>${f.estado||''}</td>
+      <td style="text-align:right;">${formatCOP(f.subtotal||0)}</td>
+    </tr>`).join('');
+}
+
+async function toggleVulcano(factura, incluir) {
+  try {
+    const res = await fetch(`/api/vulcano/factura/${encodeURIComponent(factura)}/excluir`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ excluida: !incluir })
+    });
+    if (!res.ok) { showToast('❌ No se pudo actualizar', 'error'); return; }
+    const data = await res.json();
+    const f = vulcFacturas.find(x => x.factura === factura);
+    if (f) f.excluida = !incluir;
+    renderVulcanoResumen(data.resumen);
+    renderVulcanoFacturas();
+  } catch(e) { showToast('❌ Error de conexión', 'error'); }
+}
+
+async function importarVulcano() {
+  const input = document.getElementById('vulcArchivo');
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('archivo', file);
+  showToast('⏳ Importando Excel de Vulcano…', 'info');
+  try {
+    const res = await fetch('/api/vulcano/importar', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast('❌ ' + (err.detail || 'No se pudo importar'), 'error');
+      input.value = '';
+      return;
+    }
+    const data = await res.json();
+    showToast(`✅ Importadas ${data.leidas} facturas (${data.nuevas} nuevas)`, 'success');
+    await cargarVulcano();
+  } catch(e) {
+    showToast('❌ Error al importar el archivo', 'error');
+  } finally {
+    input.value = '';
+  }
 }
 
 // ========== NUEVA OFERTA ==========

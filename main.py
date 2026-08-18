@@ -16,7 +16,7 @@ import pg8000.dbapi as pgdb
 import hashlib
 import secrets
 
-from fastapi import FastAPI, HTTPException, Request, Response, Query
+from fastapi import FastAPI, HTTPException, Request, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, Response as FastResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -1670,6 +1670,31 @@ def _ensure_db():
         """)
         print("[DB] Tabla 'clientes' lista y sembrada.")
 
+        # Tabla ESPEJO de la facturación real de VULCANO (sistema externo donde
+        # Natalia factura). Se llena importando el Excel que ella descarga de
+        # Vulcano. 'excluida' marca las facturas que NO cuentan al total real
+        # (p. ej. las que contabilidad marca en amarillo). Fuente autoritativa
+        # para conciliar el total de la app contra contabilidad ("cero errores").
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS vulcano_facturas (
+                id bigint generated always as identity primary key,
+                factura text unique not null,
+                fecha date,
+                mes text,
+                anio text,
+                estado text,
+                nit text,
+                cliente text,
+                subtotal bigint DEFAULT 0,
+                total bigint DEFAULT 0,
+                valor_pagado bigint DEFAULT 0,
+                saldo bigint DEFAULT 0,
+                excluida boolean not null default false,
+                importado_at timestamptz DEFAULT now()
+            )
+        """)
+        print("[DB] Tabla 'vulcano_facturas' lista.")
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id        bigserial primary key,
@@ -2193,6 +2218,10 @@ class ClienteUpdate(BaseModel):
     nombre_corto: Optional[str] = None
     razon_social: Optional[str] = None
     nit: Optional[str] = None
+
+
+class VulcanoExcluir(BaseModel):
+    excluida: bool
 
 
 class TextoCliente(BaseModel):
@@ -3558,6 +3587,275 @@ def update_cliente(cid: int, body: ClienteUpdate):
     except Exception as e:
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(409, "Ese nombre de cliente ya existe")
+        raise HTTPException(500, str(e))
+
+
+# ── Facturación VULCANO: importador y conciliación ────────────────────────────
+# Natalia factura en VULCANO (sistema externo) y descarga un Excel. Aquí lo
+# importa a la tabla espejo 'vulcano_facturas', marca las facturas que NO cuentan
+# ("excluidas") y la app muestra el total real conciliado contra contabilidad.
+
+# Encabezados esperados del Excel de Vulcano (posición 1-based). Se detectan por
+# nombre de columna (flexible), con estas posiciones como respaldo.
+_VULCANO_COLS = {
+    "factura": 1, "fecha": 2, "anio": 3, "mes": 4, "estado": 6,
+    "nit": 7, "cliente": 8, "subtotal": 9, "total": 14,
+    "valor_pagado": 17, "saldo": 18,
+}
+# Facturas que contabilidad marcó para NO incluir en el total (las "amarillas").
+# Se pre-marcan como excluidas al importar para dejar el total real de una vez.
+_VULCANO_EXCLUIDAS_DEFAULT = {
+    "BLCE3761", "BLCE3768", "BLCE3773", "BLCE3823", "BLCE3824",
+    "BLCE3825", "BLCE3882", "BLCE3883", "BLCE3884",
+}
+
+
+def _vul_num(x):
+    """Convierte a entero seguro (None/strings/formulas -> 0)."""
+    if isinstance(x, bool):
+        return 0
+    if isinstance(x, (int, float)):
+        return int(round(x))
+    return 0
+
+
+def _vul_str(x):
+    if x is None:
+        return None
+    s = str(x).strip()
+    return s or None
+
+
+def _app_total_facturado(cur):
+    """Total facturado en la app (misma lógica que /api/facturacion/resumen)."""
+    cur.execute("SELECT COALESCE(SUM(valor_facturado),0) FROM ofertas "
+                "WHERE UPPER(respuesta)='ACEPTADA'")
+    fact_2026 = cur.fetchone()[0] or 0
+    cur.execute("SELECT COALESCE(SUM(valor_facturado),0) FROM ofertas_2025")
+    f2025_num = cur.fetchone()[0] or 0
+    cur.execute("SELECT categoria, COALESCE(SUM(valor_facturado),0) "
+                "FROM facturacion_cat GROUP BY categoria")
+    cat = {r[0]: (r[1] or 0) for r in cur.fetchall()}
+    contratos = int(cat.get("CONTRATO", 0))
+    ano_pasado = int(cat.get("2025_ANO_PASADO", 0))
+    otros = int(cat.get("OTROS", 0))
+    return int(fact_2026) + int(f2025_num) + ano_pasado + contratos + otros
+
+
+@app.post("/api/vulcano/importar")
+async def vulcano_importar(archivo: UploadFile = File(...)):
+    """Sube el Excel descargado de VULCANO y lo carga a la tabla espejo.
+    - Enlaza cada factura por número (BLCE####).
+    - Pre-marca como excluidas las facturas que no cuentan al total.
+    - Conserva las exclusiones que Natalia haya hecho manualmente (re-importar
+      no las pierde)."""
+    if not OPENPYXL_OK:
+        raise HTTPException(500, "openpyxl no está instalado en el servidor")
+    try:
+        from openpyxl import load_workbook
+    except Exception:
+        raise HTTPException(500, "No se pudo cargar openpyxl")
+
+    contenido = await archivo.read()
+    try:
+        wb = load_workbook(BytesIO(contenido), data_only=True)
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo leer el Excel: {e}")
+
+    # Buscar la hoja de facturación (por nombre) o usar la primera.
+    ws = None
+    for nombre in wb.sheetnames:
+        if "factur" in nombre.lower():
+            ws = wb[nombre]
+            break
+    if ws is None:
+        ws = wb[wb.sheetnames[0]]
+
+    # Mapear columnas por encabezado (fila 1); si no, usar posiciones por defecto.
+    hdr = {}
+    for c in range(1, ws.max_column + 1):
+        v = ws.cell(1, c).value
+        if v:
+            hdr[str(v).strip().lower()] = c
+
+    def col(key, alts):
+        for a in alts:
+            if a in hdr:
+                return hdr[a]
+        return _VULCANO_COLS[key]
+
+    idx = {
+        "factura": col("factura", ["factura"]),
+        "fecha": col("fecha", ["fecha"]),
+        "anio": col("anio", ["año", "ano", "anio"]),
+        "mes": col("mes", ["mes_", "mes"]),
+        "estado": col("estado", ["estado"]),
+        "nit": col("nit", ["id cliente", "nit"]),
+        "cliente": col("cliente", ["cliente"]),
+        "subtotal": col("subtotal", ["subtotal"]),
+        "total": col("total", ["total"]),
+        "valor_pagado": col("valor_pagado", ["valor_pagado", "valor pagado"]),
+        "saldo": col("saldo", ["saldo"]),
+    }
+
+    filas = []
+    for r in range(2, ws.max_row + 1):
+        factura = _vul_str(ws.cell(r, idx["factura"]).value)
+        if not factura:
+            continue  # fila vacía
+        # Saltar filas de totales/subtotales del Excel (p. ej. "N. registros: 315,0").
+        # Los números de factura reales no llevan espacios ni ':'.
+        fl = factura.lower()
+        if " " in factura or ":" in factura or "registro" in fl or fl.startswith("total"):
+            continue
+        fecha_val = ws.cell(r, idx["fecha"]).value
+        fecha = None
+        if isinstance(fecha_val, datetime):
+            fecha = fecha_val.date()
+        elif isinstance(fecha_val, date):
+            fecha = fecha_val
+        filas.append({
+            "factura": factura,
+            "fecha": fecha,
+            "mes": _vul_str(ws.cell(r, idx["mes"]).value),
+            "anio": _vul_str(ws.cell(r, idx["anio"]).value),
+            "estado": _vul_str(ws.cell(r, idx["estado"]).value),
+            "nit": _vul_str(ws.cell(r, idx["nit"]).value),
+            "cliente": _vul_str(ws.cell(r, idx["cliente"]).value),
+            "subtotal": _vul_num(ws.cell(r, idx["subtotal"]).value),
+            "total": _vul_num(ws.cell(r, idx["total"]).value),
+            "valor_pagado": _vul_num(ws.cell(r, idx["valor_pagado"]).value),
+            "saldo": _vul_num(ws.cell(r, idx["saldo"]).value),
+        })
+
+    if not filas:
+        raise HTTPException(400, "El Excel no tiene facturas legibles (revisa la hoja/columnas)")
+
+    nuevas = actualizadas = 0
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            for f in filas:
+                # ¿Ya existe? Para conservar la exclusión manual.
+                cur.execute("SELECT excluida FROM vulcano_facturas WHERE factura=%s",
+                            (f["factura"],))
+                prev = fetchone(cur)
+                if prev is None:
+                    # Nueva: excluir si está en la lista por defecto.
+                    excluida = f["factura"] in _VULCANO_EXCLUIDAS_DEFAULT
+                    cur.execute("""
+                        INSERT INTO vulcano_facturas
+                            (factura, fecha, mes, anio, estado, nit, cliente,
+                             subtotal, total, valor_pagado, saldo, excluida)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
+                          f["nit"], f["cliente"], f["subtotal"], f["total"],
+                          f["valor_pagado"], f["saldo"], excluida))
+                    nuevas += 1
+                else:
+                    # Existe: actualizar datos, CONSERVAR excluida manual.
+                    cur.execute("""
+                        UPDATE vulcano_facturas SET
+                            fecha=%s, mes=%s, anio=%s, estado=%s, nit=%s, cliente=%s,
+                            subtotal=%s, total=%s, valor_pagado=%s, saldo=%s,
+                            importado_at=now()
+                        WHERE factura=%s
+                    """, (f["fecha"], f["mes"], f["anio"], f["estado"], f["nit"],
+                          f["cliente"], f["subtotal"], f["total"], f["valor_pagado"],
+                          f["saldo"], f["factura"]))
+                    actualizadas += 1
+            resumen = _vulcano_calc_resumen(cur)
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+    return {"ok": True, "leidas": len(filas), "nuevas": nuevas,
+            "actualizadas": actualizadas, "resumen": resumen}
+
+
+def _vulcano_calc_resumen(cur):
+    """Calcula totales de Vulcano y la conciliación contra la app."""
+    cur.execute("""
+        SELECT
+            COUNT(*),
+            COALESCE(SUM(subtotal),0),
+            COUNT(*) FILTER (WHERE excluida),
+            COALESCE(SUM(subtotal) FILTER (WHERE excluida),0),
+            COALESCE(SUM(subtotal) FILTER (WHERE NOT excluida),0)
+        FROM vulcano_facturas
+    """)
+    n, bruto, n_excl, monto_excl, total_real = cur.fetchone()
+    app_total = _app_total_facturado(cur)
+    diff = int(app_total) - int(total_real)
+    return {
+        "n_facturas": int(n or 0),
+        "subtotal_bruto": int(bruto or 0),
+        "n_excluidas": int(n_excl or 0),
+        "monto_excluido": int(monto_excl or 0),
+        "total_real_vulcano": int(total_real or 0),
+        "total_app": int(app_total),
+        "diferencia": diff,
+    }
+
+
+@app.get("/api/vulcano/resumen")
+def vulcano_resumen():
+    """Totales de Vulcano vs. total de la app (conciliación)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            return _vulcano_calc_resumen(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/vulcano/facturas")
+def vulcano_facturas(excluidas: Optional[str] = Query(None),
+                     buscar: Optional[str] = Query(None)):
+    """Lista las facturas importadas de Vulcano.
+    excluidas: 'si' | 'no' (opcional). buscar: por factura o cliente."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            where, params = [], []
+            if excluidas == "si":
+                where.append("excluida = TRUE")
+            elif excluidas == "no":
+                where.append("excluida = FALSE")
+            if buscar:
+                where.append("(factura ILIKE %s OR cliente ILIKE %s)")
+                params += [f"%{buscar}%", f"%{buscar}%"]
+            sql = "SELECT * FROM vulcano_facturas"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            sql += " ORDER BY factura"
+            cur.execute(sql, params)
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/vulcano/factura/{factura}/excluir")
+def vulcano_excluir(factura: str, body: VulcanoExcluir):
+    """Marca/desmarca una factura como excluida del total real."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE vulcano_facturas SET excluida=%s WHERE factura=%s",
+                        (body.excluida, factura))
+            if cur.rowcount == 0:
+                raise HTTPException(404, "Factura no encontrada")
+            resumen = _vulcano_calc_resumen(cur)
+            return {"ok": True, "factura": factura, "excluida": body.excluida,
+                    "resumen": resumen}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
         raise HTTPException(500, str(e))
 
 
