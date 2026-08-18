@@ -2092,7 +2092,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
@@ -2450,6 +2450,12 @@ def _chat_oferta(messages: list) -> dict:
 @app.get("/", response_class=HTMLResponse)
 def index():
     return FileResponse("templates/index.html")
+
+
+@app.get("/manual", response_class=HTMLResponse)
+def manual():
+    """Manual interactivo para el equipo (Willy, Boris). Público, sin login."""
+    return FileResponse("templates/manual.html")
 
 
 @app.get("/api/logo")

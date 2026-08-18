@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de uso · nIAP — BOOM Logistics</title>
+<style>
+  :root{
+    --petrol:#1B2A4A; --petrol2:#0c1a3a; --orange:#E8601C; --orange-soft:#fff3ec;
+    --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --bg:#f4f6fb; --ok:#16a34a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  a{color:var(--orange);}
+  .wrap{max-width:820px;margin:0 auto;padding:0 16px 60px;}
+
+  /* Header */
+  .hero{background:linear-gradient(135deg,#0c1a3a 0%,#1a3060 55%,#0d1c3f 100%);color:#fff;padding:34px 16px 30px;text-align:center;}
+  .brand{display:inline-flex;align-items:center;gap:2px;font-family:'Exo 2','Segoe UI',sans-serif;font-weight:800;font-size:30px;letter-spacing:2px;}
+  .brand .spark{color:var(--orange);}
+  .hero p{margin:10px 0 0;color:#c9d4ec;font-size:15px;}
+  .hero .tag{display:inline-block;margin-top:14px;background:rgba(232,96,28,.16);color:#ffd9c2;border:1px solid rgba(232,96,28,.4);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;}
+
+  /* Person selector */
+  .people{display:flex;gap:12px;justify-content:center;margin:-22px auto 0;max-width:820px;padding:0 16px;position:relative;z-index:2;}
+  .person-btn{flex:1;max-width:260px;background:#fff;border:2px solid var(--border);border-radius:16px;padding:16px 14px;cursor:pointer;text-align:center;transition:.15s;box-shadow:0 6px 18px rgba(12,26,58,.08);}
+  .person-btn:hover{transform:translateY(-2px);}
+  .person-btn.active{border-color:var(--orange);background:var(--orange-soft);}
+  .person-btn .emoji{font-size:30px;}
+  .person-btn .pname{font-weight:700;font-size:16px;margin-top:4px;}
+  .person-btn .prole{font-size:12px;color:var(--muted);}
+
+  /* Credential card */
+  .cred{background:#fff;border-radius:18px;padding:22px;margin-top:22px;box-shadow:0 4px 16px rgba(12,26,58,.07);border:1px solid var(--border);}
+  .cred h2{margin:0 0 4px;font-size:19px;color:var(--petrol);}
+  .cred .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  .field{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;background:#fbfcfe;}
+  .field .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;min-width:96px;}
+  .field .val{font-weight:700;font-size:16px;color:var(--petrol);word-break:break-all;flex:1;}
+  .field .copy{background:var(--petrol);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600;}
+  .field .copy:active{transform:scale(.96);}
+  .pass-note{font-size:12px;color:var(--muted);margin:2px 4px 14px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{background:#eef2fb;color:var(--petrol);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+
+  /* Steps / accordion */
+  .steps{margin-top:26px;}
+  .steps h3{color:var(--petrol);font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  .acc{background:#fff;border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(12,26,58,.05);}
+  .acc-head{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;user-select:none;}
+  .acc-num{flex:0 0 34px;height:34px;background:var(--orange);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;}
+  .acc-title{flex:1;font-weight:700;font-size:15px;color:var(--petrol);}
+  .acc-arrow{transition:.2s;color:var(--muted);font-size:18px;}
+  .acc.open .acc-arrow{transform:rotate(90deg);color:var(--orange);}
+  .acc-body{max-height:0;overflow:hidden;transition:max-height .28s ease;}
+  .acc.open .acc-body{max-height:900px;}
+  .acc-inner{padding:2px 20px 20px 66px;color:#374151;font-size:14.5px;line-height:1.6;}
+  .acc-inner ul{margin:8px 0;padding-left:18px;}
+  .acc-inner li{margin:5px 0;}
+  .acc-inner .mini{background:var(--orange-soft);border-left:3px solid var(--orange);padding:8px 12px;border-radius:8px;font-size:13.5px;margin-top:10px;}
+  .only-boris{display:none;}
+  body.is-boris .only-boris{display:block;}
+  body.is-boris .acc.for-boris{display:block;}
+  .acc.for-boris{display:none;}
+  body.is-boris .acc.for-boris{display:block;}
+
+  .footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:30px;line-height:1.7;}
+  .footer strong{color:var(--petrol);}
+  @media(max-width:520px){
+    .people{flex-direction:column;align-items:center;}
+    .person-btn{max-width:100%;width:100%;}
+    .acc-inner{padding-left:20px;}
+    .field{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body class="is-willy">
+
+  <div class="hero">
+    <div class="brand">n<span class="spark">◆</span>IAP</div>
+    <p>Sistema de Control de Ofertas · BOOM Logistics Colombia</p>
+    <div class="tag">📖 Manual de uso paso a paso</div>
+  </div>
+
+  <div class="people">
+    <div class="person-btn active" id="btn-willy" onclick="setPerson('willy')">
+      <div class="emoji">🚛</div>
+      <div class="pname">Willy</div>
+      <div class="prole">Willington Ortiz — Comercial</div>
+    </div>
+    <div class="person-btn" id="btn-boris" onclick="setPerson('boris')">
+      <div class="emoji">📋</div>
+      <div class="pname">Boris</div>
+      <div class="prole">Boris Borrego — Comercial</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- Credenciales -->
+    <div class="cred">
+      <h2 id="credHola">¡Hola Willy! 👋</h2>
+      <div class="sub">Estos son tus datos para entrar a la plataforma. Guárdalos en un lugar seguro.</div>
+
+      <div class="field">
+        <span class="lbl">🔗 Enlace</span>
+        <span class="val" id="fLink">https://web-production-73608.up.railway.app/</span>
+        <button class="copy" onclick="copyText('https://web-production-73608.up.railway.app/', this)">Copiar</button>
+      </div>
+      <div class="field">
+        <span class="lbl">👤 Usuario</span>
+        <span class="val" id="fUser">wortiz</span>
+        <button class="copy" onclick="copyText(document.getElementById('fUser').textContent, this)">Copiar</button>
+      </div>
+      <div class="field">
+        <span class="lbl">🔒 Contraseña</span>
+        <span class="val" id="fPass" style="color:var(--orange);">_______________</span>
+      </div>
+      <div class="pass-note">🔐 Por seguridad, Natalia te entrega tu contraseña en privado. Si la olvidas, escríbele y ella la restablece.</div>
+
+      <div style="font-size:13px;color:var(--muted);margin:6px 0 8px;font-weight:600;">TUS MÓDULOS DISPONIBLES</div>
+      <div class="chips" id="fChips"></div>
+    </div>
+
+    <!-- Pasos -->
+    <div class="steps">
+      <h3>🧭 Guía paso a paso</h3>
+
+      <div class="acc open">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">1</div>
+          <div class="acc-title">Cómo entrar a la plataforma</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          <ul>
+            <li>Abre el <strong>enlace</strong> de arriba en tu navegador (Chrome o Edge). Puedes usarlo en el computador o en el celular.</li>
+            <li>Escribe tu <strong>usuario</strong> y tu <strong>contraseña</strong>.</li>
+            <li>Pulsa <strong>Ingresar</strong>.</li>
+          </ul>
+          <div class="mini">💡 Tip: guarda el enlace en “Favoritos” para entrar más rápido la próxima vez.</div>
+        </div></div>
+      </div>
+
+      <div class="acc">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">2</div>
+          <div class="acc-title">Elegir tu módulo</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          <p>Al entrar verás unas tarjetas con los módulos. Solo tus módulos estarán activos (los demás salen apagados). Haz clic en el que necesites.</p>
+          <p class="only-boris"><strong>Boris:</strong> tú tienes acceso a varios módulos. Puedes cambiar entre ellos en cualquier momento con el botón <strong>“Cambiar módulo”</strong> arriba.</p>
+          <div class="mini">Para volver a esta pantalla de módulos, usa el botón <strong>“Cambiar módulo”</strong>.</div>
+        </div></div>
+      </div>
+
+      <div class="acc">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">3</div>
+          <div class="acc-title">🚛 Módulo Comercial — ofertas y clientes</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          Dentro de Comercial tienes estas pestañas arriba:
+          <ul>
+            <li><strong>Dashboard:</strong> resumen general (cuántas ofertas hay, valores, etc.).</li>
+            <li><strong>Generar oferta:</strong> creas una oferta nueva y descargas el PDF para el cliente.</li>
+            <li><strong>Control:</strong> la lista de todas las ofertas; puedes buscar, filtrar y editar el estado (enviado, aceptado, etc.).</li>
+            <li><strong>Ofertas Aprobadas:</strong> lo que ya fue aceptado y su facturación.</li>
+            <li><strong>Clientes:</strong> el listado de clientes.</li>
+          </ul>
+          <div class="mini">Al crear una oferta, el número se asigna solo. No tienes que inventarlo.</div>
+        </div></div>
+      </div>
+
+      <div class="acc">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">4</div>
+          <div class="acc-title">⚙️ Módulo Operaciones — lo aceptado y las OSI</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          Aquí ves lo que ya se ganó/notificó:
+          <ul>
+            <li><strong>Alertas de proyectos aceptados:</strong> avisos de ofertas nuevas aceptadas.</li>
+            <li><strong>✅ Todo lo aceptado:</strong> la lista completa de ofertas aceptadas a la fecha, con buscador. Aquí sabes qué se debe operar/facturar.</li>
+            <li><strong>OSI:</strong> las Órdenes de Servicio Internas (equipo, conductor, placa, despacho).</li>
+          </ul>
+          <div class="mini">Usa el buscador de “Todo lo aceptado” para encontrar por cliente o número de oferta.</div>
+        </div></div>
+      </div>
+
+      <!-- Solo Boris -->
+      <div class="acc for-boris">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">5</div>
+          <div class="acc-title">💹 Módulo Rentabilidad — márgenes y costos</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          Muestra las ofertas <strong>aceptadas</strong> con su ingreso. Puedes agregar el <strong>costo</strong> de cada proyecto (botón ✏️ Costo) y el sistema calcula la <strong>utilidad</strong> y el <strong>margen %</strong> automáticamente.
+          <ul>
+            <li>Verde: margen sano (≥ 20%).</li>
+            <li>Naranja: margen medio (10–20%).</li>
+            <li>Rojo: margen bajo (menos de 10%).</li>
+          </ul>
+          <div class="mini">Arriba puedes filtrar por año y por mes.</div>
+        </div></div>
+      </div>
+
+      <div class="acc for-boris">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num">6</div>
+          <div class="acc-title">📊 Tarifario Automático</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          Consulta de tarifas basada en el historial de ofertas. <strong>Próximamente</strong> — aún se está afinando; cuando esté listo te avisamos.
+        </div></div>
+      </div>
+
+      <div class="acc">
+        <div class="acc-head" onclick="toggleAcc(this)">
+          <div class="acc-num" id="accFaqNum">5</div>
+          <div class="acc-title">❓ Preguntas frecuentes</div>
+          <div class="acc-arrow">▶</div>
+        </div>
+        <div class="acc-body"><div class="acc-inner">
+          <ul>
+            <li><strong>Olvidé mi contraseña:</strong> escríbele a Natalia y ella la restablece.</li>
+            <li><strong>No veo un módulo:</strong> es porque no está asignado a tu usuario. Si lo necesitas, pídelo a Natalia.</li>
+            <li><strong>¿Puedo entrar desde el celular?:</strong> sí, con el mismo enlace y datos.</li>
+            <li><strong>Cerrar sesión:</strong> usa el botón de salir (arriba a la derecha) cuando termines, sobre todo en equipos compartidos.</li>
+          </ul>
+          <div class="mini">¿Dudas? Contacta a <strong>Natalia Vargas</strong> — nvargas@boomlts.com</div>
+        </div></div>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <strong>BOOM Logistics Colombia</strong> · Sistema nIAP<br>
+      Manual generado para el equipo comercial · Uso interno
+    </div>
+
+  </div>
+
+<script>
+  const DATA = {
+    willy: {
+      hola:'¡Hola Willy! 👋',
+      user:'wortiz',
+      modulos:[['🚛','Comercial'],['⚙️','Operaciones']]
+    },
+    boris: {
+      hola:'¡Hola Boris! 👋',
+      user:'bborrego',
+      modulos:[['🚛','Comercial'],['⚙️','Operaciones'],['💹','Rentabilidad'],['📊','Tarifario']]
+    }
+  };
+
+  function setPerson(p){
+    const d = DATA[p];
+    document.body.classList.toggle('is-boris', p==='boris');
+    document.body.classList.toggle('is-willy', p==='willy');
+    document.getElementById('btn-willy').classList.toggle('active', p==='willy');
+    document.getElementById('btn-boris').classList.toggle('active', p==='boris');
+    document.getElementById('credHola').textContent = d.hola;
+    document.getElementById('fUser').textContent = d.user;
+    document.getElementById('fChips').innerHTML = d.modulos
+      .map(m=>`<span class="chip">${m[0]} ${m[1]}</span>`).join('');
+    // Renumerar FAQ según módulos visibles
+    document.getElementById('accFaqNum').textContent = (p==='boris') ? '7' : '5';
+  }
+
+  function toggleAcc(head){
+    head.parentElement.classList.toggle('open');
+  }
+
+  function copyText(txt, btn){
+    navigator.clipboard.writeText(txt).then(()=>{
+      const old = btn.textContent; btn.textContent='✓ Copiado';
+      setTimeout(()=>btn.textContent=old,1400);
+    }).catch(()=>{});
+  }
+
+  setPerson('willy');
+</script>
+</body>
+</html>
