@@ -945,11 +945,6 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="d-kpi-label">En Seguimiento</div>
       <div class="d-kpi-value" id="kSeguimiento">—</div>
     </div>
-    <div class="d-kpi kpi-purple">
-      <div class="d-kpi-icon">💰</div>
-      <div class="d-kpi-label">Valor Total COP</div>
-      <div class="d-kpi-value" id="kValor" style="font-size:18px;line-height:1.2;">—</div>
-    </div>
     <div class="d-kpi kpi-teal">
       <div class="d-kpi-icon">📅</div>
       <div class="d-kpi-label">Ofertas Este Mes</div>
@@ -2841,7 +2836,6 @@ function renderDashboard() {
   animateKPI('kTotal',      stats.total,      false);
   animateKPI('kAceptadas',  stats.aceptadas,  false);
   animateKPI('kSeguimiento',stats.seguimiento,false);
-  animateKPI('kValor',      stats.valorTotal, true);
   animateKPI('kMes',        stats.estesMes,   false);
   document.getElementById('kTasa').textContent = 'Tasa: ' + stats.tasa + '%';
 
