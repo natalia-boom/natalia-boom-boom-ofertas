@@ -1317,6 +1317,17 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- ── TOP CLIENTES ── -->
+  <div class="section-card" style="margin-top:20px;">
+    <div class="section-title" style="margin:0 0 4px;">🏆 Top Clientes por Facturación</div>
+    <p style="margin:0 0 16px;font-size:12.5px;color:var(--text-muted);">
+      Tus mejores clientes según lo facturado real (fuente: VULCANO conciliado), de mayor a menor.
+    </p>
+    <div id="topClientesWrap">
+      <div class="empty-state">Cargando top de clientes…</div>
+    </div>
+  </div>
+
   <!-- ── NOTA ACLARATORIA ── -->
   <div style="margin-top:16px;padding:12px 16px;background:#fff8ec;border-left:4px solid var(--orange);border-radius:8px;font-size:13px;color:#5a4a2a;">
     📝 <strong>Nota:</strong> El <strong>Total Facturado</strong> concilia con el Excel e incluye 4 categorías: <strong>Ofertas 2026</strong>, <strong>Año Anterior 2025</strong> (numeradas + año pasado), <strong>Contratos</strong> (SACYR, Cerrejón, GM&amp;M…) y <strong>Otros</strong> (postes, adicionales, favores).
@@ -2676,7 +2687,7 @@ function switchTab(name) {
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
-  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); }
+  if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
 }
 
 // ========== USER ==========
@@ -3207,6 +3218,57 @@ async function loadResumenFacturacion() {
   } catch(e) { /* silencioso */ }
 }
 
+// ========== TOP CLIENTES ==========
+async function loadTopClientes() {
+  const wrap = document.getElementById('topClientesWrap');
+  if (!wrap) return;
+  try {
+    const data = await fetch('/api/reportes/top-clientes?limit=10').then(r => r.json());
+    const cli = (data && data.clientes) || [];
+    if (!cli.length) {
+      wrap.innerHTML = '<div class="empty-state">Aún no hay datos. Importa el Excel de Vulcano para ver el top de clientes.</div>';
+      return;
+    }
+    const max = cli[0].valor || 1;
+    const medals = ['🥇', '🥈', '🥉'];
+    const barColors = [
+      'linear-gradient(90deg,#f59e0b,#fbbf24)',  // oro
+      'linear-gradient(90deg,#64748b,#94a3b8)',  // plata
+      'linear-gradient(90deg,#b45309,#d97706)'   // bronce
+    ];
+    let html = '<div style="display:flex;flex-direction:column;gap:14px;">';
+    cli.forEach((c, i) => {
+      const pct = max ? Math.max(3, Math.round(c.valor * 100 / max)) : 0;
+      const bar = i < 3 ? barColors[i] : 'linear-gradient(90deg,#2563eb,#3b82f6)';
+      const badge = i < 3 ? medals[i] : (i + 1);
+      const nf = c.n_facturas + (c.n_facturas === 1 ? ' factura' : ' facturas');
+      html += `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:0 0 36px;height:36px;border-radius:50%;background:${i < 3 ? '#fff7ed' : '#f1f5f9'};
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:${i < 3 ? '19px' : '14px'};font-weight:800;color:#334155;">${badge}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;align-items:baseline;">
+            <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.cliente}">${c.cliente}</span>
+            <span style="font-weight:800;font-size:14px;color:#16a34a;white-space:nowrap;">${formatCOP(c.valor)}</span>
+          </div>
+          <div style="height:11px;background:#eef2f7;border-radius:6px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${bar};border-radius:6px;transition:width .5s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted);">
+            <span>${nf}</span>
+            <span>${c.porcentaje}% del total</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty-state">No se pudo cargar el top de clientes.</div>';
+  }
+}
+
 // ========== CONCILIACIÓN VULCANO ==========
 let vulcFacturas = [];
 
@@ -3349,6 +3411,7 @@ async function importarVulcano() {
     const data = await res.json();
     showToast(`✅ Importadas ${data.leidas} facturas (${data.nuevas} nuevas)`, 'success');
     await cargarVulcano();
+    loadTopClientes();
   } catch(e) {
     showToast('❌ Error al importar el archivo', 'error');
   } finally {

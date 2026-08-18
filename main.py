@@ -4173,6 +4173,49 @@ def reporte_facturacion(anio: Optional[int] = Query(None)):
 
 
 
+@app.get("/api/reportes/top-clientes")
+def reporte_top_clientes(limit: int = Query(10)):
+    """Top de clientes por facturación REAL (fuente: VULCANO conciliado).
+    Usa el subtotal de las facturas NO excluidas, agrupado por cliente.
+    Devuelve el total general para poder calcular el % de cada cliente."""
+    try:
+        limit = max(1, min(limit, 50))
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT cliente,
+                       COUNT(*) AS n_facturas,
+                       COALESCE(SUM(subtotal), 0) AS valor
+                FROM vulcano_facturas
+                WHERE excluida = false
+                  AND cliente IS NOT NULL AND cliente <> ''
+                GROUP BY cliente
+                HAVING COALESCE(SUM(subtotal), 0) > 0
+                ORDER BY valor DESC
+                LIMIT %s
+            """, (limit,))
+            filas = fetchall(cur)
+            cur.execute("""
+                SELECT COALESCE(SUM(subtotal), 0) AS total
+                FROM vulcano_facturas
+                WHERE excluida = false
+            """)
+            total = int(fetchone(cur)["total"] or 0)
+        clientes = []
+        for f in filas:
+            valor = int(f["valor"] or 0)
+            clientes.append({
+                "cliente": f["cliente"],
+                "n_facturas": int(f["n_facturas"] or 0),
+                "valor": valor,
+                "porcentaje": round(valor * 100.0 / total, 1) if total else 0.0,
+            })
+        return {"total": total, "clientes": clientes}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 if __name__ == '__main__':
     import uvicorn
     port = int(os.environ.get('PORT', 8000))
