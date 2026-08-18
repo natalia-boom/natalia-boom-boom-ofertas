@@ -914,11 +914,6 @@ body.rol-viewer .write-only { display:none !important; }
         <div id="tbValorGanado" style="font-size:26px;font-weight:800;color:#2563eb;">—</div>
         <div id="tbValorGanadoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
-      <div class="kpi-card" style="border-left:4px solid #f59e0b;min-width:220px;flex:1;">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">⏰ Seguimiento Pendiente</div>
-        <div id="tbSeguimiento" style="font-size:26px;font-weight:800;color:#f59e0b;">—</div>
-        <div id="tbSeguimientoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
-      </div>
     </div>
 
     <!-- Top clientes -->
@@ -3347,8 +3342,6 @@ async function loadTablero() {
     set('tbEfectividadSub', `${t.aceptadas} aceptadas de ${t.total_ofertas} ofertas`);
     set('tbValorGanado', formatCOP(t.valor_ganado || 0));
     set('tbValorGanadoSub', 'Facturado real (conciliado Vulcano)');
-    set('tbSeguimiento', (t.seguimiento_pendiente || 0));
-    set('tbSeguimientoSub', 'Ofertas RECIBIDO con +15 días sin respuesta');
   } catch (e) { /* silencioso */ }
 }
 
