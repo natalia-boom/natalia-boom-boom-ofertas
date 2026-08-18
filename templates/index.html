@@ -599,9 +599,12 @@ body.rol-viewer .write-only { display:none !important; }
         <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username"
           onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
       </div>
-      <div class="login-field">
+      <div class="login-field" style="position:relative;">
         <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"
+          style="padding-right:42px;"
           onkeydown="if(event.key==='Enter') doLogin()">
+        <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;">👁</button>
       </div>
     </div>
 
@@ -1442,7 +1445,11 @@ body.rol-viewer .write-only { display:none !important; }
           </div>
           <div class="form-group">
             <label>Contraseña *</label>
-            <input type="password" id="nuPassword" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+            <div style="position:relative;">
+              <input type="password" id="nuPassword" placeholder="Mínimo 6 caracteres" autocomplete="new-password" style="padding-right:40px;width:100%;">
+              <button type="button" onclick="togglePass('nuPassword', this)" title="Mostrar / ocultar contraseña"
+                style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;">👁</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Rol *</label>
@@ -2597,6 +2604,14 @@ async function crearUsuario() {
     document.getElementById('nuevoUsuarioForm').style.display = 'none';
     loadUsuarios();
   } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+function togglePass(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const oculto = inp.type === 'password';
+  inp.type = oculto ? 'text' : 'password';
+  if (btn) btn.textContent = oculto ? '🙈' : '👁';
 }
 
 async function resetPasswordPrompt(uid, nombre) {
