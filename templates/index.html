@@ -3624,7 +3624,35 @@ const COMERCIAL_INFO_JS = {
   'Willington Ortiz': { cargo: 'Director Comercial',   email: 'comercial@boomlts.com' },
 };
 
+// Firma de la oferta con el NOMBRE LEGAL COMPLETO según el ejecutivo que la hace
+const FIRMANTES = {
+  wortiz:   { nombre: 'WILLINGTON ORTIZ PLATA',      cargo: 'Director Comercial',  email: 'comercial@boomlts.com' },
+  admin:    { nombre: 'NATALIA ANDREA VARGAS LEAL',   cargo: 'Ejecutiva Comercial', email: 'nvargas@boomlts.com' },
+  bborrego: { nombre: 'BORIS ANDRES BORREGO JIMENEZ', cargo: 'Gerente General',     email: 'bborrego@boomlts.com' },
+};
+// Permite ubicar al firmante por usuario o por cualquier variante de su nombre
+const FIRMANTE_ALIAS = {
+  'wortiz':'wortiz', 'willington ortiz plata':'wortiz', 'willington ortiz':'wortiz',
+  'bborrego':'bborrego', 'boris borrego jiménez':'bborrego', 'boris borrego jimenez':'bborrego',
+  'boris andres borrego jimenez':'bborrego', 'boris borrego':'bborrego',
+  'admin':'admin', 'administrador':'admin', 'natalia vargas':'admin',
+  'natalia andrea vargas leal':'admin', 'naty':'admin',
+};
+function resolveFirmante(key) {
+  if (!key) return null;
+  const id = FIRMANTE_ALIAS[String(key).trim().toLowerCase()];
+  return id ? FIRMANTES[id] : null;
+}
+
 function _setComercial(name) {
+  const f = resolveFirmante(name);
+  if (f) {
+    document.getElementById('gComercial').value        = f.nombre;
+    document.getElementById('gComercialDisp').value    = f.nombre;
+    document.getElementById('gCargo').value            = f.cargo;
+    document.getElementById('gEmailComercial').value   = f.email;
+    return;
+  }
   const info = COMERCIAL_INFO_JS[name] || { cargo: '', email: '' };
   document.getElementById('gComercial').value        = name;
   document.getElementById('gComercialDisp').value    = name;
@@ -3770,8 +3798,10 @@ async function initGenerar() {
     document.getElementById('gRealizada').value   = user;
     document.getElementById('gFormalizada').value = user;
   }
-  const comercialName = user || document.getElementById('gRealizada').value.trim();
-  if (comercialName) _setComercial(comercialName);
+  // Firma según el ejecutivo logueado (usuario) → nombre legal completo
+  const comercialKey = (currentUser && currentUser.username) || user
+                       || document.getElementById('gRealizada').value.trim();
+  if (comercialKey) _setComercial(comercialKey);
 
   // Ensure at least one equipment row
   if (document.getElementById('equiposTbody').rows.length === 0) addEquipoRow();

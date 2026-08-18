@@ -94,6 +94,11 @@ print(f"[DB] host={DB_HOST} port={DB_PORT} db={DB_NAME} user={DB_USER}")
 
 # ── BOOM comercial info ───────────────────────────────────────────────────────
 COMERCIAL_INFO = {
+    # Nombres legales completos (firma de la oferta según el ejecutivo)
+    "NATALIA ANDREA VARGAS LEAL":   ("Ejecutiva Comercial",   "nvargas@boomlts.com"),
+    "BORIS ANDRES BORREGO JIMENEZ": ("Gerente General",        "bborrego@boomlts.com"),
+    "WILLINGTON ORTIZ PLATA":       ("Director Comercial",     "comercial@boomlts.com"),
+    # Compatibilidad con nombres cortos anteriores
     "Natalia Vargas":   ("Ejecutiva Comercial",   "nvargas@boomlts.com"),
     "Boris Borrego":    ("Gerente General",        "bborrego@boomlts.com"),
     "Willington Ortiz": ("Director Comercial",    "comercial@boomlts.com"),
@@ -2308,7 +2313,7 @@ PREGUNTA a Naty en el chat (sin generar aún) cuando:
 ═══ ESTRUCTURA OFERTA (NO VARIAR) ═══
 - Header: azul #1B2A4A, logo base64, barra #E8601C
 - Secciones: Detalle técnico → Económico → Notas → Condiciones → Exclusiones → Firma
-- Firma: "Natalia Vargas / Ejecutiva Comercial" (SIEMPRE)
+- Firma: la define el sistema según el ejecutivo que genera la oferta (NO la escribas tú en el cuerpo)
 - Stand-by: OBLIGATORIO
 - Póliza de carga y RCE: "Hasta $4.000.000.000 COP". Si el valor declarado supera ese límite,
   indicar que se expide póliza específica con nota de USD + IVA + deducible a cargo del cliente.
