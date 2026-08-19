@@ -2546,9 +2546,21 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - Cargos mínimos (ej. mínimo 3 turnos): refléjalos en la columna Cantidad (no "1") y explícalos en Notas.
 - Cuota de reserva / disponibilidad: línea propia, independiente de los turnos operativos.
 - Opciones alternativas A/B: preséntalas etiquetadas, sin asumir cuál elige el cliente.
-- Stand-by base 2026: Camabaja 3 ejes $1.800.000/día, 4 ejes $2.100.000, 5 ejes $3.000.000,
-  Kit escoltas $1.000.000/día, Patineta $1.500.000, Cama alta $1.500.000. Operaciones especiales
-  (modular, skidding, grúas): usa la tarifa que dé el cliente, no fuerces la fórmula de camabaja.
+- STAND-BY 2026 (tarifas FIJAS preestablecidas — úsalas SIEMPRE, salvo que quien realiza la oferta
+  indique en el chat otro valor). Toda oferta debe llevar la nota de stand-by con la tarifa del equipo:
+    · Cama Alta 3 ejes: $1.200.000/día
+    · Cama Baja 3 ejes: $1.500.000/día
+    · Cama Baja 4 ejes: $1.800.000/día
+    · Cama Baja 5 ejes: $2.600.000/día
+    · Cama Alta/Baja Extensible o Semi Modular/Extensible: $2.500.000/día
+    · Modular 2 Cuna / Modular Cuna 2 Líneas: $4.800.000/día
+    · Modular 6 Cuna / 6–8 Líneas / Modular 12 líneas: $8.500.000/día
+    · Modular 18 líneas: $15.000.000/día
+    · Jacking Skidding: $15.000.000/día
+    · Camión Turbo: $550.000/día
+    · Camión Grúa: tarifa pactada (NO es fija)
+  Si el equipo no coincide exacto con una categoría, usa la más cercana por tipo de cama/estructura.
+  Nunca dejes el stand-by en blanco ni en "a confirmar". Solo cámbialo si el usuario lo pide expresamente.
 - Seguros: póliza RCE y de carga hasta $4.000.000.000 COP c/u. Maquinaria USADA: la carga solo ampara
   pérdida total. Si el valor supera el límite, alerta y recomienda top-up. Si no se sabe nueva/usada,
   deja la pregunta abierta en el cierre.
@@ -2558,8 +2570,8 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 
 ═══ FIRMANTE ═══
 Firma SIEMPRE con el ejecutivo indicado en "FIRMANTE POR DEFECTO" (más abajo): es el usuario que está
-creando la oferta. Usa su nombre, cargo, correo y teléfono tal cual. SOLO usa otro firmante si el usuario
-lo pide explícitamente en el chat (ej. "fírmala Boris"). Nunca pongas a Boris por defecto.
+creando la oferta. Usa su nombre, cargo y correo tal cual. NO incluyas NINGÚN teléfono al pie de la firma.
+SOLO usa otro firmante si el usuario lo pide explícitamente en el chat (ej. "fírmala Boris"). Nunca pongas a Boris por defecto.
 En meta.realizada escribe el nombre corto del firmante que realmente usaste.
 
 ═══ PRESENTACIÓN (OBLIGATORIO) ═══
@@ -2651,10 +2663,8 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None) -> 
             _f_partes.append(str(firmante["cargo"]).strip())
         if firmante.get("email"):
             _f_partes.append(str(firmante["email"]).strip())
-        if firmante.get("telefono"):
-            _f_partes.append(str(firmante["telefono"]).strip())
         sys += ("\n\nFIRMANTE POR DEFECTO: " + " — ".join(_f_partes)
-                + " (firma la oferta con este ejecutivo salvo que el usuario pida otro en el chat).")
+                + " (firma la oferta con este ejecutivo salvo que el usuario pida otro en el chat; NO pongas teléfono al pie de la firma).")
 
     client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
