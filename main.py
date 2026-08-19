@@ -2623,6 +2623,25 @@ class OfertaIABody(BaseModel):
     firmante: Optional[dict] = None  # {nombre, cargo, email, telefono} del usuario logueado
 
 
+def _limpiar_oferta_html(html: str) -> str:
+    """Red de seguridad determinista sobre el HTML de la oferta IA.
+    Elimina cualquier tabla/banda de resumen que contenga la columna 'FORMALIZADA POR'
+    (que a veces el modelo agrega pese al prompt). Esa banda es la que además muestra
+    el cliente en mayúsculas y el valor en tipografía gigante, así que al quitarla se
+    corrigen los tres problemas de una sola vez. El dato real de cliente/valor queda en
+    la ref-bar y en la tabla económica (fila total-row, discreta)."""
+    if not html or "formaliza" not in html.lower():
+        return html
+    # 1) Quita tablas completas que incluyan "FORMALIZADA/FORMALIZED"
+    html = re.sub(r"<table\b[^>]*>.*?</table>",
+                  lambda m: "" if re.search(r"formaliz", m.group(0), re.I) else m.group(0),
+                  html, flags=re.I | re.S)
+    # 2) Fallback: si quedó una fila <tr> suelta con "formaliza", quítala
+    html = re.sub(r"<tr\b[^>]*>(?:(?!</tr>).)*?formaliz(?:(?!</tr>).)*?</tr>", "",
+                  html, flags=re.I | re.S)
+    return html
+
+
 def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
     """Reemplaza los marcadores {{LOGO}}, {{SELLO}}, {{REF}}, {{FOTO_n}} por los recursos reales."""
     logo_src = _logo_src()
@@ -2699,6 +2718,7 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None) -> 
 
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
+        html = _limpiar_oferta_html(html)
 
     return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt}
 
@@ -3097,7 +3117,7 @@ def download_oferta_pdf(oferta_id: int):
             payload = stored
         # Ofertas del modo IA avanzada guardan el HTML completo ya renderizado.
         if payload.get("ia_html"):
-            pdf_bytes = _html_to_pdf_bytes(payload["ia_html"])
+            pdf_bytes = _html_to_pdf_bytes(_limpiar_oferta_html(payload["ia_html"]))
         else:
             payload["equipos"] = [e for e in (payload.get("equipos") or []) if e.get("equipo") or e.get("cant")]
             payload["cargo_items"] = [c for c in (payload.get("cargo_items") or []) if c.get("descripcion") or c.get("dimensiones")]

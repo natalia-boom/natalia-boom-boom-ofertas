@@ -4576,6 +4576,16 @@ function iaDescargarHTML() {
   showToast('✅ HTML descargado — ábrelo, Ctrl+A, y pégalo en Outlook', 'success');
 }
 
+// Red de seguridad: quita cualquier tabla/fila de "FORMALIZADA POR" que la IA
+// haya dejado en ofertas guardadas antes de la corrección.
+function iaLimpiarHtml(html) {
+  if (!html || !/formaliza/i.test(html)) return html || '';
+  html = html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi,
+    m => /formaliz/i.test(m) ? '' : m);
+  html = html.replace(/<tr\b[^>]*>(?:(?!<\/tr>)[\s\S])*?formaliz(?:(?!<\/tr>)[\s\S])*?<\/tr>/gi, '');
+  return html;
+}
+
 async function iaGenerarOferta() {
   if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
   const btn = document.getElementById('iaBtnGuardar');
@@ -4685,7 +4695,7 @@ function iaCargarOferta() {
   // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
   const stored = o.pdf_data;
   if (stored && stored.ia_html) {
-    iaHtml = stored.ia_html;
+    iaHtml = iaLimpiarHtml(stored.ia_html);
     iaMeta = { cliente: o.cliente, valor: o.valor, moneda: stored.moneda || 'COP', mes: o.mes, descripcion: o.general, realizada: o.realizada };
     iaRenderPreview();
     iaSetButtons(true);
