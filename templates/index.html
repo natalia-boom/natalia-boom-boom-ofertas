@@ -883,6 +883,7 @@ body.rol-viewer .write-only { display:none !important; }
 <nav class="tabs-bar" id="appNav" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
   <button class="tab-btn write-only" onclick="switchTab('generar')">🏷️ Generar Oferta</button>
+  <button class="tab-btn write-only" onclick="switchTab('iaoferta')">✨ Oferta IA (avanzada)</button>
   <button class="tab-btn" onclick="switchTab('control')">📋 Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')">✅ Ofertas Aprobadas</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
@@ -1872,6 +1873,94 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </section>
 
+<!-- ==================== OFERTA IA (AVANZADA) ==================== -->
+<section class="tab-panel" id="tab-iaoferta">
+  <div class="section-card">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;color:var(--petrol);">✨ Oferta con IA — Modo Avanzado</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:2px;max-width:640px;line-height:1.55;">
+          Conversa con Claude como en el chat de tu equipo. Describe la operación (o pega el correo del cliente), arrastra las fotos de referencia y la IA arma la oferta completa —compleja, con alertas, en español o inglés, USD o COP—. Ajusta lo que quieras conversando. Cuando esté lista, descárgala o guárdala en el Control.
+        </p>
+      </div>
+      <div style="background:var(--petrol);color:#fff;padding:10px 20px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;text-align:center;min-width:150px;">
+        <div style="font-size:11px;letter-spacing:1px;opacity:0.8;">REF.</div>
+        <div id="iaRefDisplay" style="font-size:26px;font-weight:700;line-height:1.1;">—</div>
+        <input type="hidden" id="iaRefNum" value="">
+        <button type="button" id="iaRefEditBtn" onclick="iaToggleRefEdit()" title="Ajustar número (solo al versionar una oferta)"
+          style="margin-top:4px;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;">✏️ Ajustar N°</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;" id="iaLayout">
+
+      <!-- ===== Columna izquierda: CHAT ===== -->
+      <div>
+        <div class="section-title" style="margin:0 0 8px;">💬 CHAT CON CLAUDE</div>
+
+        <div class="chat-historia" id="iaChatHistoria" style="max-height:440px;min-height:300px;">
+          <div class="chat-msg">
+            <div class="chat-avatar">AI</div>
+            <div class="chat-burbuja">Hola Natalia 👋 Cuéntame la operación que necesitas cotizar: cliente, alcance, equipos, precios y condiciones. Puedes pegar el correo del cliente tal cual, y arrastrar aquí las fotos de referencia de la carga. Con eso te armo la oferta completa. Si algo debe ir en inglés o en USD, solo dímelo.</div>
+          </div>
+        </div>
+
+        <!-- Zona de arrastre / input -->
+        <div class="chat-input-row" id="iaDropZone">
+          <input type="file" id="iaFileInput" accept="image/*" multiple style="display:none;" onchange="iaHandleFiles(this.files)">
+          <button class="chat-clip-btn" onclick="document.getElementById('iaFileInput').click()" title="Adjuntar fotos de referencia">📎</button>
+          <textarea id="iaChatInput" rows="2" placeholder="Describe la operación o pega el correo del cliente… (Enter para enviar · Shift+Enter para nueva línea · arrastra fotos aquí)"
+            style="flex:1;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;resize:none;line-height:1.5;"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaSendMessage();}"></textarea>
+          <button class="btn btn-primary" onclick="iaSendMessage()" id="iaBtnEnviar" style="flex-shrink:0;padding:9px 18px;">➤ Enviar</button>
+        </div>
+
+        <!-- Miniaturas de fotos de referencia -->
+        <div id="iaFotosPreview" style="display:none;flex-wrap:wrap;gap:8px;margin-top:8px;padding:6px 0;"></div>
+
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="iaResetChat()">🔄 Nueva conversación</button>
+          <button class="chat-clip-btn" onclick="iaToggleCargarPanel()" title="Cargar oferta existente para versionar" style="padding:7px 12px;">📂 Versionar oferta</button>
+        </div>
+        <div id="iaCargarPanel" style="display:none;background:#eaf4f7;border:1.5px solid var(--petrol);border-radius:8px;padding:10px 14px;margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:600;color:var(--petrol);">Número de oferta a versionar:</span>
+          <input type="text" id="iaCargarNum" maxlength="10" placeholder="ej: 260045"
+            style="width:120px;padding:5px 9px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:'Barlow',sans-serif;"
+            onkeydown="if(event.key==='Enter') iaCargarOferta()">
+          <button class="btn btn-primary btn-sm" onclick="iaCargarOferta()">Cargar</button>
+        </div>
+      </div>
+
+      <!-- ===== Columna derecha: VISTA PREVIA ===== -->
+      <div>
+        <div class="section-title" style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;">
+          <span>👁️ VISTA PREVIA</span>
+          <span id="iaMetaResumen" style="font-size:11px;font-weight:400;opacity:0.9;"></span>
+        </div>
+        <div id="iaPreviewWrap" style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;background:#f4f4f4;min-height:440px;position:relative;">
+          <div id="iaPreviewEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:440px;text-align:center;color:var(--text-muted);padding:20px;">
+            <div style="font-size:56px;margin-bottom:14px;">📄</div>
+            <div style="font-size:14px;max-width:320px;line-height:1.55;">Aquí verás la oferta a medida que Claude la construye. Empieza describiendo la operación en el chat.</div>
+          </div>
+          <iframe id="iaPreviewFrame" style="display:none;width:100%;height:640px;border:none;background:#fff;"></iframe>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="iaBtnPDF" onclick="iaDescargarPDF()" disabled style="padding:10px 20px;">📄 Descargar PDF</button>
+          <button class="btn btn-secondary" id="iaBtnHTML" onclick="iaDescargarHTML()" disabled style="padding:10px 20px;">📧 Descargar HTML (correo)</button>
+          <button class="btn btn-primary" id="iaBtnGuardar" onclick="iaGenerarOferta()" disabled style="padding:10px 20px;background:var(--petrol);">💾 Generar oferta (guardar)</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+          <b>Descargar PDF/HTML</b>: solo descarga, no guarda. &nbsp;|&nbsp; <b>Generar oferta</b>: guarda el registro en el Control de Ofertas con el consecutivo <span id="iaRefInline">—</span>.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ==================== TARIFARIO ==================== -->
 <section class="tab-panel" id="tab-tarifario">
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:420px;text-align:center;padding:40px 20px;">
@@ -2755,6 +2844,7 @@ function switchTab(name) {
   });
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'generar')    initGenerar();
+  if (name === 'iaoferta')   iaInit();
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
   if (name === 'clientes')   cargarClientes();
@@ -4126,6 +4216,400 @@ async function sendChatMessage() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ==================== OFERTA IA (AVANZADA) ====================
+let iaHistory   = [];      // historial de chat [{role, content}]
+let iaFotos     = [];      // fotos de referencia [{dataUrl, name}]
+let iaHtml      = '';      // último HTML generado
+let iaMeta      = null;    // última meta {cliente, valor, moneda, mes, tipo, descripcion, realizada}
+let iaRefAssigned = false; // ¿ya se pidió consecutivo?
+let iaEditingId = null;    // id de oferta que se versiona (o null)
+let iaDropBound = false;
+
+async function iaInit() {
+  if (!iaRefAssigned) await iaLoadRef();
+  if (!iaDropBound) iaBindDrop();
+}
+
+async function iaLoadRef() {
+  try {
+    const res = await fetch('/api/consecutivo');
+    const data = await res.json();
+    const numPad = String(data.consecutivo).padStart(6, '0');
+    const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
+    document.getElementById('iaRefDisplay').textContent = fmt;
+    document.getElementById('iaRefNum').value = data.consecutivo;
+    document.getElementById('iaRefInline').textContent = fmt;
+    iaRefAssigned = true;
+  } catch (e) { /* silencioso */ }
+}
+
+function iaToggleRefEdit() {
+  const cur = document.getElementById('iaRefNum').value || '';
+  const val = prompt('Número consecutivo (6 dígitos, ej: 260045). Úsalo solo para versionar una oferta existente:', cur);
+  if (val === null) return;
+  const clean = val.replace(/\D/g, '');
+  if (clean.length < 4) { showToast('Número no válido', 'warning'); return; }
+  const numPad = clean.padStart(6, '0');
+  const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
+  document.getElementById('iaRefDisplay').textContent = fmt;
+  document.getElementById('iaRefNum').value = clean;
+  document.getElementById('iaRefInline').textContent = fmt;
+  showToast('Número ajustado a ' + fmt, 'success');
+}
+
+// ── Drag & drop de fotos sobre el chat ────────────────────────────────────────
+function iaBindDrop() {
+  const zone = document.getElementById('iaDropZone');
+  const hist = document.getElementById('iaChatHistoria');
+  [zone, hist].forEach(el => {
+    if (!el) return;
+    el.addEventListener('dragover', ev => { ev.preventDefault(); el.style.background = '#eaf4f7'; });
+    el.addEventListener('dragleave', () => { el.style.background = ''; });
+    el.addEventListener('drop', ev => {
+      ev.preventDefault(); el.style.background = '';
+      if (ev.dataTransfer && ev.dataTransfer.files) iaHandleFiles(ev.dataTransfer.files);
+    });
+  });
+  // Pegar imágenes con Ctrl+V dentro del textarea
+  const inp = document.getElementById('iaChatInput');
+  if (inp) inp.addEventListener('paste', ev => {
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) iaHandleFiles([f]);
+      }
+    }
+  });
+  iaDropBound = true;
+}
+
+async function iaHandleFiles(files) {
+  for (const file of Array.from(files)) {
+    if (!file.type.startsWith('image/')) continue;
+    await new Promise(resolve => {
+      const fr = new FileReader();
+      fr.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          // Re-encode a JPEG con ancho máx 1400px para no inflar la oferta
+          const maxW = 1400;
+          const scale = img.width > maxW ? maxW / img.width : 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          iaFotos.push({ dataUrl, name: file.name });
+          resolve();
+        };
+        img.src = ev.target.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  iaRenderFotos();
+}
+
+function iaRenderFotos() {
+  const strip = document.getElementById('iaFotosPreview');
+  if (!iaFotos.length) { strip.style.display = 'none'; strip.innerHTML = ''; return; }
+  strip.style.display = 'flex';
+  strip.innerHTML = '';
+  iaFotos.forEach((f, idx) => {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'position:relative;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;width:88px;height:66px;';
+    const img = document.createElement('img');
+    img.src = f.dataUrl;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    const btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.title = 'Quitar foto';
+    btn.style.cssText = 'position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;';
+    btn.onclick = () => { iaFotos.splice(idx, 1); iaRenderFotos(); };
+    chip.appendChild(img); chip.appendChild(btn);
+    strip.appendChild(chip);
+  });
+}
+
+function iaAppendMsg(role, text, fotos) {
+  const container = document.getElementById('iaChatHistoria');
+  const isAI = role === 'assistant';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-msg' + (isAI ? '' : ' user');
+  const avatar = document.createElement('div');
+  avatar.className = 'chat-avatar';
+  avatar.textContent = isAI ? 'AI' : 'TÚ';
+  const burbuja = document.createElement('div');
+  burbuja.className = 'chat-burbuja';
+  if (fotos && fotos.length) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;' + (text ? 'margin-bottom:8px;' : '');
+    fotos.forEach(f => {
+      const el = document.createElement('img');
+      el.src = f.dataUrl;
+      wrap.appendChild(el);
+    });
+    burbuja.appendChild(wrap);
+  }
+  if (text) {
+    const span = document.createElement('div');
+    span.style.whiteSpace = 'pre-wrap';
+    span.textContent = text;
+    burbuja.appendChild(span);
+  }
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(burbuja);
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+  return burbuja;
+}
+
+async function iaSendMessage() {
+  const inputEl = document.getElementById('iaChatInput');
+  const userText = inputEl.value.trim();
+  const fotosNow = [...iaFotos];
+  if (!userText && fotosNow.length === 0) {
+    showToast('Escribe un mensaje o arrastra una foto', 'warning');
+    return;
+  }
+
+  // Construir el contenido para la API (texto + imágenes que Claude pueda ver)
+  let apiContent;
+  if (fotosNow.length) {
+    apiContent = [];
+    fotosNow.forEach(f => {
+      const parts = f.dataUrl.split(',');
+      const media = (parts[0].match(/data:(.*?);/) || [,'image/jpeg'])[1];
+      apiContent.push({ type: 'image', source: { type: 'base64', media_type: media, data: parts[1] } });
+    });
+    if (userText) apiContent.push({ type: 'text', text: userText });
+  } else {
+    apiContent = userText;
+  }
+
+  iaAppendMsg('user', userText, fotosNow);
+  iaHistory.push({ role: 'user', content: apiContent });
+  inputEl.value = '';
+
+  const btn = document.getElementById('iaBtnEnviar');
+  btn.disabled = true;
+  const bubble = iaAppendMsg('assistant', '⏳ Claude está armando la oferta…');
+
+  try {
+    const res = await fetch('/api/oferta-ia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: iaHistory,
+        fotos: iaFotos.map(f => f.dataUrl),
+        ref: document.getElementById('iaRefNum').value || null
+      })
+    });
+    if (!res.ok) {
+      let msg = 'Error generando la oferta';
+      try { const e = await res.json(); msg = e.detail || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    bubble.textContent = data.reply || '(oferta generada)';
+    iaHistory.push({ role: 'assistant', content: data.reply || '' });
+
+    if (data.html) {
+      iaHtml = data.html;
+      iaMeta = data.meta || null;
+      iaRenderPreview();
+      iaSetButtons(true);
+    }
+    if (data.ref) {
+      const numPad = String(data.ref).replace(/\D/g, '').padStart(6, '0');
+      const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
+      document.getElementById('iaRefDisplay').textContent = fmt;
+      document.getElementById('iaRefInline').textContent = fmt;
+      if (!document.getElementById('iaRefNum').value) document.getElementById('iaRefNum').value = data.ref;
+    }
+  } catch (e) {
+    bubble.textContent = '❌ ' + e.message;
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function iaRenderPreview() {
+  const frame = document.getElementById('iaPreviewFrame');
+  document.getElementById('iaPreviewEmpty').style.display = 'none';
+  frame.style.display = 'block';
+  frame.srcdoc = iaHtml;
+  if (iaMeta) {
+    const val = iaMeta.valor ? (iaMeta.moneda === 'USD' ? 'USD ' : '$') +
+      Number(iaMeta.valor).toLocaleString(iaMeta.moneda === 'USD' ? 'en-US' : 'es-CO') : '';
+    document.getElementById('iaMetaResumen').textContent =
+      [iaMeta.cliente, val, iaMeta.mes].filter(Boolean).join(' · ');
+  }
+}
+
+function iaSetButtons(on) {
+  ['iaBtnPDF', 'iaBtnHTML', 'iaBtnGuardar'].forEach(id => {
+    document.getElementById(id).disabled = !on;
+  });
+}
+
+function iaFilename(ext) {
+  const ref = document.getElementById('iaRefDisplay').textContent.replace(/[^0-9\-]/g, '') || 'BOOM';
+  const cli = (iaMeta && iaMeta.cliente ? iaMeta.cliente : 'CLIENTE').replace(/\s+/g, '_').toUpperCase();
+  return `Oferta_BOOM_${ref}_${cli}.${ext}`;
+}
+
+async function iaDescargarPDF() {
+  if (!iaHtml) return;
+  const btn = document.getElementById('iaBtnPDF');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Generando PDF...';
+  try {
+    const res = await fetch('/api/html-a-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html: iaHtml, filename: iaFilename('pdf') })
+    });
+    if (!res.ok) {
+      let msg = 'Error generando el PDF';
+      try { const e = await res.json(); msg = e.detail || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = iaFilename('pdf');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast('✅ PDF descargado', 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+function iaDescargarHTML() {
+  if (!iaHtml) return;
+  const blob = new Blob([iaHtml], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = iaFilename('html');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  showToast('✅ HTML descargado — ábrelo, Ctrl+A, y pégalo en Outlook', 'success');
+}
+
+async function iaGenerarOferta() {
+  if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
+  const btn = document.getElementById('iaBtnGuardar');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  const numRaw = document.getElementById('iaRefNum').value.replace(/\D/g, '');
+  const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  const now = new Date();
+  const mes = (iaMeta.mes ? iaMeta.mes.substring(0, 3).toUpperCase() : months[now.getMonth()]);
+  // Valor a COP para el Control: si la oferta es en USD lo dejamos igual (número),
+  // el Control muestra el número; el detalle en USD queda en el HTML guardado.
+  const payload = {
+    num:        numRaw,
+    mes:        mes,
+    fecha:      now.toISOString().slice(0, 10),
+    cliente:    iaMeta.cliente || 'SIN CLIENTE',
+    realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
+    tipo:       iaMeta.tipo || null,
+    valor:      parseInt(iaMeta.valor) || 0,
+    estado:     'ENVIADO',
+    general:    iaMeta.descripcion || null,
+    pdf_data: {
+      ref:        numRaw,
+      cliente:    iaMeta.cliente,
+      descripcion: iaMeta.descripcion,
+      moneda:     iaMeta.moneda || 'COP',
+      modo:       'ia',
+      ia_html:    iaHtml
+    }
+  };
+  try {
+    let res, ok, numFinal = numRaw;
+    if (iaEditingId !== null) {
+      res = await fetch('/api/ofertas/' + iaEditingId, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      ok = res.ok;
+      if (ok) showToast('✅ Oferta ' + numRaw + ' actualizada', 'success');
+    } else {
+      res = await fetch('/api/ofertas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      ok = res.ok;
+      if (ok) {
+        const g = await res.json();
+        numFinal = (g && g.num) ? g.num : numRaw;
+        showToast('✅ Oferta ' + numFinal + ' guardada en el Control', 'success');
+      }
+    }
+    if (!ok) { const e = await res.json(); throw new Error(e.detail || 'Error guardando'); }
+    await loadAll();
+    switchTab('control');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Generar oferta (guardar)';
+  }
+}
+
+function iaResetChat() {
+  if (iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
+  iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
+  document.getElementById('iaChatHistoria').innerHTML =
+    '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">Listo para una nueva oferta 👋 Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
+  document.getElementById('iaChatInput').value = '';
+  document.getElementById('iaFileInput').value = '';
+  iaRenderFotos();
+  iaSetButtons(false);
+  document.getElementById('iaPreviewFrame').style.display = 'none';
+  document.getElementById('iaPreviewEmpty').style.display = 'flex';
+  document.getElementById('iaMetaResumen').textContent = '';
+  iaRefAssigned = false;
+  iaLoadRef();
+}
+
+function iaToggleCargarPanel() {
+  const p = document.getElementById('iaCargarPanel');
+  const vis = p.style.display !== 'none';
+  p.style.display = vis ? 'none' : 'flex';
+  if (!vis) setTimeout(() => document.getElementById('iaCargarNum').focus(), 50);
+}
+
+function iaCargarOferta() {
+  const num = document.getElementById('iaCargarNum').value.trim();
+  if (!num) { showToast('Ingresa el número de oferta', 'warning'); return; }
+  const o = allOfertas.find(x => String(x.num) === String(num));
+  if (!o) { showToast('No se encontró la oferta #' + num, 'error'); return; }
+  iaEditingId = o.id;
+  const numPad = String(o.num).padStart(6, '0');
+  const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
+  document.getElementById('iaRefDisplay').textContent = fmt;
+  document.getElementById('iaRefNum').value = o.num;
+  document.getElementById('iaRefInline').textContent = fmt;
+  document.getElementById('iaCargarPanel').style.display = 'none';
+  // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
+  const stored = o.pdf_data;
+  if (stored && stored.ia_html) {
+    iaHtml = stored.ia_html;
+    iaMeta = { cliente: o.cliente, valor: o.valor, moneda: stored.moneda || 'COP', mes: o.mes, descripcion: o.general, realizada: o.realizada };
+    iaRenderPreview();
+    iaSetButtons(true);
+  }
+  const ctx = 'Estoy ajustando/versionando la oferta ' + fmt + ' del cliente ' + (o.cliente || '') +
+              '. Dime qué cambios necesitas y regeneraré la oferta completa manteniendo el mismo número.';
+  iaAppendMsg('assistant', ctx);
+  iaHistory.push({ role: 'assistant', content: ctx });
+  showToast('Oferta ' + fmt + ' cargada para versionar', 'success');
 }
 
 function handleExcelFile(input) {

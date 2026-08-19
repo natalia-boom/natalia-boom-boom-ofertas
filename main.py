@@ -3051,9 +3051,13 @@ def download_oferta_pdf(oferta_id: int):
             payload = json.loads(stored)
         else:
             payload = stored
-        payload["equipos"] = [e for e in (payload.get("equipos") or []) if e.get("equipo") or e.get("cant")]
-        payload["cargo_items"] = [c for c in (payload.get("cargo_items") or []) if c.get("descripcion") or c.get("dimensiones")]
-        pdf_bytes = generar_pdf_oferta(payload)
+        # Ofertas del modo IA avanzada guardan el HTML completo ya renderizado.
+        if payload.get("ia_html"):
+            pdf_bytes = _html_to_pdf_bytes(payload["ia_html"])
+        else:
+            payload["equipos"] = [e for e in (payload.get("equipos") or []) if e.get("equipo") or e.get("cant")]
+            payload["cargo_items"] = [c for c in (payload.get("cargo_items") or []) if c.get("descripcion") or c.get("dimensiones")]
+            pdf_bytes = generar_pdf_oferta(payload)
         ref_fmt = _fmt_ref(row.get("num") or oferta_id)
         cliente_slug = re.sub(r"[^a-zA-Z0-9]", "_", (row.get("cliente") or "BOOM"))[:20]
         filename = f"Oferta_{ref_fmt}_{cliente_slug}.pdf"
