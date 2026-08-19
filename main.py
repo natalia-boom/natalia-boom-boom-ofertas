@@ -2511,8 +2511,14 @@ DENTRO de la oferta (nota o alerta), nunca como pregunta al usuario. NUNCA inven
 ni datos que no puedas conocer: si falta un dato, muéstralo como pendiente en la oferta (clase .pendiente
 o una nota), no lo inventes. Solo pide algo en el chat si es imprescindible para poder cotizar.
 
-IDIOMA: genera la oferta en el idioma del cliente. Si el texto viene en inglés o el cliente lo requiere
-(ej. HANSA), genera TODA la oferta en inglés con la misma estructura y clases.
+ADAPTABILIDAD: sirves para CUALQUIER oferta de BOOM, no solo grandes operaciones. Ajusta el tamaño de la
+oferta al negocio: una cotización simple (un flete, un alquiler de camabaja, un stand-by) debe quedar
+CORTA y limpia (pocas secciones, sin alertas de colores si no hacen falta); una operación compleja
+(modular, izaje, ruta difícil, sobredimensión) usa toda la estructura. No fuerces secciones ni recuadros
+que no aporten. No copies datos de ejemplos previos: usa SOLO lo que el usuario te dé en este chat.
+
+IDIOMA: genera la oferta en el idioma del cliente. Si el texto viene en inglés o el cliente lo requiere,
+genera TODA la oferta en inglés con la misma estructura y clases.
 MONEDA: respeta la moneda del negocio (USD si cotiza en dólares; no conviertas a COP salvo que lo pidan).
 FORMATO DE CIFRAS: separador de miles con PUNTO estilo Colombia SIEMPRE, incluso en inglés
 (ej. "USD 6.500", "USD 39.000", "$1.800.000"). Nunca uses coma para miles.
@@ -2551,9 +2557,10 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - Pago por defecto: "50% anticipo / 50% contra factura" salvo otra indicación.
 
 ═══ FIRMANTE ═══
-Por defecto Boris Borrego, Gerente General, bborrego@boomlts.com, +57 310 635 1677.
-Si el usuario indica otro ejecutivo, úsalo: Natalia Vargas — Ejecutiva Comercial — nvargas@boomlts.com;
-Willington Ortiz — Director Comercial — comercial@boomlts.com.
+Firma SIEMPRE con el ejecutivo indicado en "FIRMANTE POR DEFECTO" (más abajo): es el usuario que está
+creando la oferta. Usa su nombre, cargo, correo y teléfono tal cual. SOLO usa otro firmante si el usuario
+lo pide explícitamente en el chat (ej. "fírmala Boris"). Nunca pongas a Boris por defecto.
+En meta.realizada escribe el nombre corto del firmante que realmente usaste.
 
 ═══ ESQUELETO OBLIGATORIO DEL HTML ═══
 Devuelve un documento HTML completo (<!DOCTYPE html> … </html>) con <head> que incluya EXACTAMENTE el
@@ -2586,6 +2593,7 @@ class OfertaIABody(BaseModel):
     messages: List[ChatMsg]
     fotos: Optional[List[str]] = []
     ref: Optional[str] = None
+    firmante: Optional[dict] = None  # {nombre, cargo, email, telefono} del usuario logueado
 
 
 def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
@@ -2606,7 +2614,7 @@ def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
     return html
 
 
-def _oferta_ia(messages: list, fotos: list, ref: str) -> dict:
+def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None) -> dict:
     if not ANTHROPIC_OK:
         raise RuntimeError("Instala el paquete 'anthropic': pip install anthropic")
     if not ANTHROPIC_API_KEY:
@@ -2625,6 +2633,17 @@ def _oferta_ia(messages: list, fotos: list, ref: str) -> dict:
            + f"\nFECHA ACTUAL: {mes_actual} {anio_actual} (usa este mes/año en la ref-bar y en meta.mes, "
              f"salvo que el cliente indique otra fecha)."
            + f"\nFOTOS ADJUNTAS: {n_fotos}.")
+
+    if firmante and isinstance(firmante, dict) and firmante.get("nombre"):
+        _f_partes = [str(firmante.get("nombre", "")).strip()]
+        if firmante.get("cargo"):
+            _f_partes.append(str(firmante["cargo"]).strip())
+        if firmante.get("email"):
+            _f_partes.append(str(firmante["email"]).strip())
+        if firmante.get("telefono"):
+            _f_partes.append(str(firmante["telefono"]).strip())
+        sys += ("\n\nFIRMANTE POR DEFECTO: " + " — ".join(_f_partes)
+                + " (firma la oferta con este ejecutivo salvo que el usuario pida otro en el chat).")
 
     client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
@@ -3320,7 +3339,7 @@ def oferta_ia_endpoint(body: OfertaIABody):
                 cur = conn.cursor()
                 cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
                 ref = str(fetchone(cur)["next"])
-        return _oferta_ia(body.messages, body.fotos or [], ref)
+        return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

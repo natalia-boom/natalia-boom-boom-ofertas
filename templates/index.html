@@ -4399,13 +4399,20 @@ async function iaSendMessage() {
   const bubble = iaAppendMsg('assistant', '⏳ Claude está armando la oferta…');
 
   try {
+    let firmante = null;
+    try {
+      const _u = (typeof currentUser === 'object' && currentUser) ? currentUser : {};
+      const _f = resolveFirmante(_u.username) || resolveFirmante(_u.nombre);
+      if (_f) firmante = { nombre: _f.nombre, cargo: _f.cargo, email: _f.email };
+    } catch (e) {}
     const res = await fetch('/api/oferta-ia', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: iaHistory,
         fotos: iaFotos.map(f => f.dataUrl),
-        ref: document.getElementById('iaRefNum').value || null
+        ref: document.getElementById('iaRefNum').value || null,
+        firmante: firmante
       })
     });
     if (!res.ok) {
