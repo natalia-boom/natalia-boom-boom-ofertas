@@ -1947,6 +1947,71 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <iframe id="iaPreviewFrame" style="display:none;width:100%;height:640px;border:none;background:#fff;"></iframe>
         </div>
 
+        <!-- ===== Clasificación para el Control (dashboard) ===== -->
+        <div style="margin-top:14px;border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;background:#fafbfc;">
+          <div style="font-size:12px;font-weight:700;color:var(--petrol);margin-bottom:8px;">🗂️ REGISTRO PARA EL CONTROL</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+            <div class="form-group">
+              <label>Tipo de Cliente</label>
+              <select id="iaSector">
+                <option value="">Seleccionar...</option>
+                <option>MINERO</option>
+                <option>INDUSTRIAL</option>
+                <option>ENERGÉTICO</option>
+                <option>AGENTES DE CARGA</option>
+                <option>CONSTRUCCIÓN</option>
+                <option>PUERTOS</option>
+                <option>EMP. TRANSP</option>
+                <option>NAVIERA</option>
+                <option>ADUANAS</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Unidad de Negocio</label>
+              <select id="iaUnidad">
+                <option value="">Seleccionar...</option>
+                <option>TRANSPORTE</option>
+                <option>IZAJE</option>
+                <option>MIXTO</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tipo de Negocio</label>
+              <select id="iaTipo">
+                <option value="">Seleccionar...</option>
+                <option>SPOT TRANSPORTE</option>
+                <option>SPOT IZAJE</option>
+                <option>SPOT MIXTO</option>
+                <option>PROYECTO TRANSPORTE</option>
+                <option>PROYECTO IZAJE</option>
+                <option>PROYECTO MIXTO</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <select id="iaEstado">
+                <option value="ENVIADO">ENVIADO</option>
+                <option value="EN PROCESO">EN PROCESO</option>
+                <option value="CERRADO">CERRADO</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Respuesta</label>
+              <select id="iaRespuesta">
+                <option value="">Seleccionar...</option>
+                <option>ACEPTADA</option>
+                <option>RECHAZADA</option>
+                <option>EN SEGUIMIENTO</option>
+                <option>PENDIENTE</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px;">
+            <label>Seguimiento</label>
+            <textarea id="iaSeguimiento" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Notas de seguimiento"></textarea>
+          </div>
+        </div>
+
         <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="iaBtnPDF" onclick="iaDescargarPDF()" disabled style="padding:10px 20px;">📄 Descargar PDF</button>
           <button class="btn btn-secondary" id="iaBtnHTML" onclick="iaDescargarHTML()" disabled style="padding:10px 20px;">📧 Descargar HTML (correo)</button>
@@ -4527,9 +4592,13 @@ async function iaGenerarOferta() {
     fecha:      now.toISOString().slice(0, 10),
     cliente:    iaMeta.cliente || 'SIN CLIENTE',
     realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
-    tipo:       iaMeta.tipo || null,
+    sector:     document.getElementById('iaSector').value || null,
+    unidad:     document.getElementById('iaUnidad').value || null,
+    tipo:       document.getElementById('iaTipo').value || iaMeta.tipo || null,
     valor:      parseInt(iaMeta.valor) || 0,
-    estado:     'ENVIADO',
+    estado:     document.getElementById('iaEstado').value || 'ENVIADO',
+    respuesta:  document.getElementById('iaRespuesta').value || null,
+    seguimiento: document.getElementById('iaSeguimiento').value || null,
     general:    iaMeta.descripcion || null,
     pdf_data: {
       ref:        numRaw,
@@ -4576,6 +4645,8 @@ function iaResetChat() {
     '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">Listo para una nueva oferta 👋 Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
   document.getElementById('iaChatInput').value = '';
   document.getElementById('iaFileInput').value = '';
+  ['iaSector','iaUnidad','iaTipo','iaRespuesta','iaSeguimiento'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('iaEstado').value = 'ENVIADO';
   iaRenderFotos();
   iaSetButtons(false);
   document.getElementById('iaPreviewFrame').style.display = 'none';
@@ -4604,6 +4675,13 @@ function iaCargarOferta() {
   document.getElementById('iaRefNum').value = o.num;
   document.getElementById('iaRefInline').textContent = fmt;
   document.getElementById('iaCargarPanel').style.display = 'none';
+  // Rellenar el registro para el Control con lo que ya tenía la oferta
+  document.getElementById('iaSector').value      = o.sector || '';
+  document.getElementById('iaUnidad').value       = o.unidad || '';
+  document.getElementById('iaTipo').value          = o.tipo || '';
+  document.getElementById('iaEstado').value        = o.estado || 'ENVIADO';
+  document.getElementById('iaRespuesta').value     = o.respuesta || '';
+  document.getElementById('iaSeguimiento').value   = o.seguimiento || '';
   // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
   const stored = o.pdf_data;
   if (stored && stored.ia_html) {
