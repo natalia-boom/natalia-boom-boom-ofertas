@@ -2567,6 +2567,10 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - Sobredimensión: ancho > 3,0 m o alto > 4,40 m ⇒ permiso especial (.alerta). Exceso muy amplio ⇒
   .alerta-critica con el cálculo explícito.
 - Pago por defecto: "50% anticipo / 50% contra factura" salvo otra indicación.
+- TIEMPOS LIBRES (predeterminado, inclúyelo SIEMPRE en las notas salvo que el usuario lo cambie):
+  "Tiempos libres: 6 horas para cargue / 6 horas para descargue."
+- PERMISOS (predeterminado, inclúyelo SIEMPRE salvo que no aplique o el usuario lo cambie):
+  "Permisos: Incluye gestión de permisos de tránsito ante autoridades competentes (según aplique y reglamentación vigente)."
 
 ═══ FIRMANTE ═══
 Firma SIEMPRE con el ejecutivo indicado en "FIRMANTE POR DEFECTO" (más abajo): es el usuario que está
