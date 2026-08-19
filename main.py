@@ -2562,6 +2562,17 @@ creando la oferta. Usa su nombre, cargo, correo y teléfono tal cual. SOLO usa o
 lo pide explícitamente en el chat (ej. "fírmala Boris"). Nunca pongas a Boris por defecto.
 En meta.realizada escribe el nombre corto del firmante que realmente usaste.
 
+═══ PRESENTACIÓN (OBLIGATORIO) ═══
+- NUNCA agregues una columna, tarjeta, celda ni fila de "FORMALIZADA POR" / "FORMALIZED BY". Quien REALIZA
+  la oferta la formaliza: muestra a lo sumo UN responsable (el firmante). No pongas dos roles separados
+  (realizada/formalizada); si vas a indicar quién la hizo, una sola casilla basta.
+- NOMBRE DEL CLIENTE: escríbelo EXACTAMENTE como te lo da el usuario (ej. "Geodis" se queda "Geodis", NO
+  "GEODIS" ni una versión "unificada"/traducida). No cambies mayúsculas/minúsculas, no abrevies, no traduzcas
+  ni fusiones el nombre del cliente. Respeta la marca tal cual está escrita, incluida la ref-bar.
+- VALOR TOTAL: preséntalo en tamaño DISCRETO. Úsalo dentro de la fila class="total-row" de la tabla
+  económica. NO lo pongas en tipografía gigante ni en un recuadro enorme aparte; si lo destacas, que su
+  fuente no supere ~15px y luzca equilibrado con el resto de la oferta.
+
 ═══ ESQUELETO OBLIGATORIO DEL HTML ═══
 Devuelve un documento HTML completo (<!DOCTYPE html> … </html>) con <head> que incluya EXACTAMENTE el
 bloque <style> que se te entrega (no cambies las clases). El <body> debe ser:
