@@ -2453,6 +2453,212 @@ def _chat_oferta(messages: list) -> dict:
     return {"reply": reply, "fields": fields}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MODO AVANZADO — la IA genera la OFERTA HTML COMPLETA directamente (como el chat
+# de Claude que usa Boris). Sirve para ofertas COMPLEJAS: multi-moneda (USD),
+# alertas, recomendaciones, opciones, mínimos, cuotas de reserva, fotos, ES/EN.
+# ══════════════════════════════════════════════════════════════════════════════
+_BOOM_OFERTA_CSS = """*{box-sizing:border-box;}
+body{font-family:Arial,sans-serif;font-size:13px;color:#1B2A4A;margin:0;padding:16px;background:#f4f4f4;}
+.wrapper{max-width:1000px;margin:0 auto;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.header-bar{background:#1B2A4A;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.header-bar img{height:42px;width:auto;}
+.header-info{color:#fff;font-size:11px;line-height:1.6;text-align:right;}
+.header-info strong{font-size:12px;display:block;}
+.ref-bar{background:#E8601C;padding:8px 20px;}
+.ref-bar p{margin:0;color:#fff;font-size:11px;font-weight:bold;}
+.body{padding:20px;}
+.greeting p{font-size:13px;line-height:1.6;margin:0 0 10px 0;}
+.section-title{background:#1B2A4A;color:#fff;font-size:12px;font-weight:bold;padding:7px 12px;margin:20px 0 8px 0;border-radius:3px;}
+.spec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0;}
+.spec-card{background:#f0f4fa;border-radius:5px;padding:9px 8px;text-align:center;}
+.spec-card .val{font-size:13px;font-weight:bold;color:#E8601C;}
+.spec-card .lbl{font-size:10px;color:#666;margin-top:2px;}
+.alerta{background:#fff3cd;border-left:4px solid #E8601C;padding:8px 12px;border-radius:3px;font-size:12px;color:#7a4f00;margin:10px 0;}
+.alerta-critica{background:#fdecea;border-left:4px solid #c0392b;padding:8px 12px;border-radius:3px;font-size:12px;color:#7b1a1a;margin:10px 0;font-weight:bold;}
+.destacado{background:#eaf2fb;border-left:4px solid #1B6FA8;padding:8px 12px;border-radius:3px;font-size:12px;color:#0d3d61;margin:10px 0;}
+.table-scroll{width:100%;overflow-x:auto;}
+table.det{width:100%;border-collapse:collapse;font-size:12px;}
+table.det th{background:#1B2A4A;color:#fff;padding:7px 8px;font-size:11px;text-align:center;white-space:nowrap;}
+table.det th:first-child{text-align:left;}
+table.det td{padding:7px 8px;border-bottom:1px solid #e5e5e5;vertical-align:middle;font-size:12px;}
+table.det td:not(:first-child){text-align:center;}
+table.det td:last-child{text-align:right;font-weight:bold;}
+table.det tr:nth-child(even) td{background:#f9f9f9;}
+.subtotal-row td{background:#e0e8f5!important;font-weight:bold;color:#1B2A4A;}
+.total-row td{background:#E8601C!important;color:#fff;padding:9px 10px;font-weight:bold;font-size:13px;border:none!important;}
+.si{color:#1a7d3c;font-weight:bold;}.incluido{color:#1B6FA8;font-weight:bold;}.pendiente{color:#888;font-style:italic;}
+ul.notas{margin:0;padding-left:18px;}
+ul.notas li{margin-bottom:7px;font-size:13px;line-height:1.6;}
+table.cond{width:100%;border-collapse:collapse;font-size:13px;}
+table.cond td{padding:7px 10px;border-bottom:1px solid #e5e5e5;vertical-align:top;line-height:1.5;}
+table.cond td:first-child{font-weight:bold;width:40%;background:#f5f5f5;}
+.footer{border-top:1px solid #e0e0e0;margin-top:22px;padding-top:12px;font-size:13px;color:#444;}
+.firma-nombre{font-weight:bold;color:#1B2A4A;font-size:14px;margin:0 0 2px 0;}
+.firma-cargo{color:#E8601C;font-size:13px;margin:2px 0;}
+.pie{color:#aaa;font-size:11px;margin-top:10px;border-top:1px solid #eee;padding-top:8px;text-align:center;}
+.foto-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+.foto-card img{width:100%;height:auto;display:block;border-radius:5px;border:1px solid #ddd;}
+.foto-cap{font-size:11px;color:#555;text-align:center;margin-top:5px;}
+@media (max-width:600px){.foto-grid{grid-template-columns:1fr;}}"""
+
+ADVANCED_OFERTA_PROMPT = """Eres el GENERADOR EXPERTO de OFERTAS COMERCIALES HTML de BOOM LOGISTICS COLOMBIA S.A.S.,
+empresa colombiana de transporte pesado y carga sobredimensionada. Trabajas para el equipo comercial.
+
+PRINCIPIO: RESULTADO PRIMERO. Deduce el contexto y aplica los estándares BOOM en vez de preguntar.
+Si algo es ambiguo pero NO crítico, toma la decisión más sensata y déjala como supuesto/pendiente
+DENTRO de la oferta (nota o alerta), nunca como pregunta al usuario. NUNCA inventes cifras, dimensiones
+ni datos que no puedas conocer: si falta un dato, muéstralo como pendiente en la oferta (clase .pendiente
+o una nota), no lo inventes. Solo pide algo en el chat si es imprescindible para poder cotizar.
+
+IDIOMA: genera la oferta en el idioma del cliente. Si el texto viene en inglés o el cliente lo requiere
+(ej. HANSA), genera TODA la oferta en inglés con la misma estructura y clases.
+MONEDA: respeta la moneda del negocio (USD si cotiza en dólares; no conviertas a COP salvo que lo pidan).
+FORMATO DE CIFRAS: separador de miles con PUNTO estilo Colombia SIEMPRE, incluso en inglés
+(ej. "USD 6.500", "USD 39.000", "$1.800.000"). Nunca uses coma para miles.
+
+═══ ESTRUCTURA (secciones numeradas con class="section-title", en este orden cuando apliquen) ═══
+1. DETALLE TÉCNICO DE LA CARGA / ACLARACIÓN TÉCNICA
+2. ALCANCE DEL SERVICIO  (usa .spec-grid con 3 tarjetas para datos clave: peso, equipo, soportes…)
+3. FOTOS DE REFERENCIA  (SOLO si hay fotos adjuntas; ver instrucción de fotos)
+4. PROPUESTA ECONÓMICA / BUDGETARY PROPOSAL  (table.det: Concepto | Cant | Valor unit | Valor total; fila final class="total-row")
+5. NOTAS TÉCNICAS
+6. CONDICIONES COMERCIALES  (table.cond)
+7. EXCLUSIONES  (ul.notas)
+Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
+
+═══ RECUADROS (usa el color correcto) ═══
+- class="destacado" (AZUL): recomendaciones técnicas, ventajas de un método, experiencia en vía difícil.
+  Inícialo con "✅ <strong>RECOMMENDATION</strong> —" (o RECOMENDACIÓN en español).
+- class="alerta" (AMARILLO): "por confirmar", advertencias estándar, IVA no incluido, sobredimensión normal.
+  Inícialo con "⚠️ <strong>TO BE CONFIRMED</strong> —" (o POR CONFIRMAR).
+- class="alerta-critica" (ROJO): SOLO discrepancias graves, sobredimensión extrema o pendientes críticos.
+
+═══ REGLAS DE NEGOCIO ═══
+- Valor Total = Cantidad de EQUIPOS × Valor Unitario (NUNCA piezas × unitario, salvo que el cliente diga que la tarifa es por unidad).
+- Ítems con cantidad NO definida: NO los sumes al total; déjalos fuera con nota explícita.
+- Cargos mínimos (ej. mínimo 3 turnos): refléjalos en la columna Cantidad (no "1") y explícalos en Notas.
+- Cuota de reserva / disponibilidad: línea propia, independiente de los turnos operativos.
+- Opciones alternativas A/B: preséntalas etiquetadas, sin asumir cuál elige el cliente.
+- Stand-by base 2026: Camabaja 3 ejes $1.800.000/día, 4 ejes $2.100.000, 5 ejes $3.000.000,
+  Kit escoltas $1.000.000/día, Patineta $1.500.000, Cama alta $1.500.000. Operaciones especiales
+  (modular, skidding, grúas): usa la tarifa que dé el cliente, no fuerces la fórmula de camabaja.
+- Seguros: póliza RCE y de carga hasta $4.000.000.000 COP c/u. Maquinaria USADA: la carga solo ampara
+  pérdida total. Si el valor supera el límite, alerta y recomienda top-up. Si no se sabe nueva/usada,
+  deja la pregunta abierta en el cierre.
+- Sobredimensión: ancho > 3,0 m o alto > 4,40 m ⇒ permiso especial (.alerta). Exceso muy amplio ⇒
+  .alerta-critica con el cálculo explícito.
+- Pago por defecto: "50% anticipo / 50% contra factura" salvo otra indicación.
+
+═══ FIRMANTE ═══
+Por defecto Boris Borrego, Gerente General, bborrego@boomlts.com, +57 310 635 1677.
+Si el usuario indica otro ejecutivo, úsalo: Natalia Vargas — Ejecutiva Comercial — nvargas@boomlts.com;
+Willington Ortiz — Director Comercial — comercial@boomlts.com.
+
+═══ ESQUELETO OBLIGATORIO DEL HTML ═══
+Devuelve un documento HTML completo (<!DOCTYPE html> … </html>) con <head> que incluya EXACTAMENTE el
+bloque <style> que se te entrega (no cambies las clases). El <body> debe ser:
+<div class="wrapper">
+<div class="header-bar">{{LOGO}}<div style="display:flex;align-items:center;gap:16px;"><div class="header-info"><strong>BOOM LOGISTICS COLOMBIA S.A.S.</strong>Specialized Transportation Solutions</div>{{SELLO}}</div></div>
+<div class="ref-bar"><p>REF: {{REF}} &nbsp;|&nbsp; CLIENTE &nbsp;|&nbsp; RUTA/DESCRIPCIÓN &nbsp;|&nbsp; MES AÑO[ &nbsp;|&nbsp; ESTADO]</p></div>
+<div class="body"> … secciones … <div class="footer"> … firma con .firma-nombre y .firma-cargo … </div></div>
+</div>
+NO cambies los marcadores {{LOGO}}, {{SELLO}}, {{REF}}: déjalos literales, el sistema los reemplaza.
+Usa el número de referencia {{REF}} tal cual (el sistema ya asignó el consecutivo).
+
+═══ FOTOS ═══
+Si hay N fotos adjuntas (te diré cuántas), incluye la sección "FOTOS DE REFERENCIA / REFERENCE PHOTOS"
+con una <div class="foto-grid"> que contenga EXACTAMENTE N <div class="foto-card"> con
+<img src="{{FOTO_1}}"> … <img src="{{FOTO_N}}"> y un <p class="foto-cap"> descriptivo en cada una
+(aclara "operación similar, no la carga real" cuando sea referencia). Deja los marcadores {{FOTO_n}}
+literales; el sistema pega la imagen real. Si NO hay fotos, omite la sección por completo.
+
+═══ SALIDA (OBLIGATORIO, respeta el formato) ═══
+1) Una frase breve (1-3 líneas) para el chat con los montos clave / cambios / pendientes.
+2) El HTML completo entre los marcadores <<<HTML>>> y <<<FINHTML>>> (sin ``` , sin markdown).
+3) Los metadatos entre <<<META>>> y <<<FINMETA>>>: un JSON con
+   {"cliente":"","valor":0,"moneda":"COP|USD","mes":"ENE..DIC","tipo":"","descripcion":"","realizada":"Boris Borrego|Natalia Vargas|Willington Ortiz"}
+   donde "valor" es el TOTAL numérico entero sin separadores (ej. 39000) y "mes" el mes de la oferta en
+   mayúsculas de 3 letras. Si algún dato no aplica, déjalo vacío o en 0."""
+
+
+class OfertaIABody(BaseModel):
+    messages: List[ChatMsg]
+    fotos: Optional[List[str]] = []
+    ref: Optional[str] = None
+
+
+def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
+    """Reemplaza los marcadores {{LOGO}}, {{SELLO}}, {{REF}}, {{FOTO_n}} por los recursos reales."""
+    logo_src = _logo_src()
+    sello_src = _sello_src()
+    logo_html = (f'<img src="{logo_src}" alt="BOOM Logistics"/>' if logo_src
+                 else '<span style="color:#fff;font-weight:bold;font-size:18px;">BOOM</span>')
+    sello_html = (f'<img src="{sello_src}" alt="Construimos Pais - Boom Logistics" style="height:90px;width:auto;"/>'
+                  if sello_src else "")
+    html = html.replace("{{LOGO}}", logo_html).replace("{{SELLO}}", sello_html)
+    html = html.replace("{{REF}}", ref_fmt)
+    for i, src in enumerate(fotos or [], start=1):
+        if isinstance(src, str) and src.strip().startswith("data:image"):
+            html = html.replace("{{FOTO_%d}}" % i, src)
+    # Limpia cualquier marcador de foto que el modelo dejara de más
+    html = re.sub(r"\{\{FOTO_\d+\}\}", "", html)
+    return html
+
+
+def _oferta_ia(messages: list, fotos: list, ref: str) -> dict:
+    if not ANTHROPIC_OK:
+        raise RuntimeError("Instala el paquete 'anthropic': pip install anthropic")
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("Configura ANTHROPIC_API_KEY en el archivo .env")
+
+    ref_fmt = _fmt_ref(ref or "260001")
+    n_fotos = len([f for f in (fotos or []) if isinstance(f, str) and f.strip().startswith("data:image")])
+
+    _MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"]
+    hoy = datetime.now()
+    mes_actual, anio_actual = _MESES[hoy.month - 1], hoy.year
+
+    sys = (ADVANCED_OFERTA_PROMPT
+           + "\n\nBLOQUE <style> A USAR TAL CUAL:\n<style>" + _BOOM_OFERTA_CSS + "</style>"
+           + f"\n\nNÚMERO DE REFERENCIA ASIGNADO: {ref_fmt} (úsalo en {{{{REF}}}})."
+           + f"\nFECHA ACTUAL: {mes_actual} {anio_actual} (usa este mes/año en la ref-bar y en meta.mes, "
+             f"salvo que el cliente indique otra fecha)."
+           + f"\nFOTOS ADJUNTAS: {n_fotos}.")
+
+    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=8000,
+        system=sys,
+        messages=api_messages,
+    )
+    raw = message.content[0].text
+
+    def _between(t, a, b):
+        i, j = t.find(a), t.find(b)
+        if i != -1 and j != -1 and j > i:
+            return t[i + len(a):j].strip()
+        return ""
+
+    html = _between(raw, "<<<HTML>>>", "<<<FINHTML>>>")
+    meta_str = _between(raw, "<<<META>>>", "<<<FINMETA>>>")
+    reply = raw.split("<<<HTML>>>")[0].strip() if "<<<HTML>>>" in raw else raw.strip()
+
+    meta = None
+    if meta_str:
+        try:
+            meta = json.loads(meta_str)
+        except Exception:
+            meta = None
+
+    if html:
+        html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
+
+    return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt}
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -3088,6 +3294,46 @@ def generar_html(data: OfertaHtml):
             content=html_str.encode("utf-8"),
             media_type="text/html",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+class HtmlToPdf(BaseModel):
+    html: str
+    filename: Optional[str] = "Oferta_BOOM.pdf"
+
+
+@app.post("/api/oferta-ia")
+def oferta_ia_endpoint(body: OfertaIABody):
+    """Modo avanzado: la IA arma la oferta HTML completa (compleja, ES/EN, USD, alertas…).
+    Devuelve {reply, html, meta, ref}. El número de referencia lo asigna la plataforma."""
+    try:
+        ref = body.ref
+        if not ref:
+            with get_conn() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
+                ref = str(fetchone(cur)["next"])
+        return _oferta_ia(body.messages, body.fotos or [], ref)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/html-a-pdf")
+def html_a_pdf(body: HtmlToPdf):
+    """Convierte un HTML de oferta ya generado (modo IA avanzada) en PDF descargable."""
+    try:
+        pdf_bytes = _html_to_pdf_bytes(body.html)
+        fn = re.sub(r'[^A-Za-z0-9_.\-]', "_", body.filename or "Oferta_BOOM.pdf")
+        if not fn.lower().endswith(".pdf"):
+            fn += ".pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{fn}"'},
         )
     except Exception as e:
         traceback.print_exc()
