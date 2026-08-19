@@ -2515,7 +2515,10 @@ ADAPTABILIDAD: sirves para CUALQUIER oferta de BOOM, no solo grandes operaciones
 oferta al negocio: una cotización simple (un flete, un alquiler de camabaja, un stand-by) debe quedar
 CORTA y limpia (pocas secciones, sin alertas de colores si no hacen falta); una operación compleja
 (modular, izaje, ruta difícil, sobredimensión) usa toda la estructura. No fuerces secciones ni recuadros
-que no aporten. No copies datos de ejemplos previos: usa SOLO lo que el usuario te dé en este chat.
+que no aporten. No inventes datos de ejemplos que recuerdes de tu entrenamiento: usa SOLO lo que el
+usuario te dé en este chat (texto, correo, fotos o archivos adjuntos). OJO: una oferta anterior que el
+usuario ADJUNTE o PEGUE en el chat SÍ es fuente válida y DEBES reutilizar sus datos cuando te lo pida
+(ver la sección "REPLICAR / VERSIONAR UNA OFERTA ANTERIOR").
 
 IDIOMA: genera la oferta en el idioma del cliente. Si el texto viene en inglés o el cliente lo requiere,
 genera TODA la oferta en inglés con la misma estructura y clases.
@@ -2571,6 +2574,23 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
   "Tiempos libres: 6 horas para cargue / 6 horas para descargue."
 - PERMISOS (predeterminado, inclúyelo SIEMPRE salvo que no aplique o el usuario lo cambie):
   "Permisos: Incluye gestión de permisos de tránsito ante autoridades competentes (según aplique y reglamentación vigente)."
+
+═══ REPLICAR / VERSIONAR UNA OFERTA ANTERIOR (MUY IMPORTANTE) ═══
+Cuando el usuario adjunte o pegue una oferta anterior (HTML, PDF o texto) y te pida algo como "haz la
+misma oferta" / "la misma exacta oferta" para OTRO cliente y/o con un AJUSTE de precio, DEBES:
+1. REPRODUCIR exactamente la misma estructura, secciones, conceptos, cantidades, notas y condiciones de
+   esa oferta. No la simplifiques ni omitas ítems: es la MISMA oferta.
+2. CAMBIAR el nombre del cliente al nuevo que te indiquen (en la ref-bar y donde aparezca). El cliente
+   anterior (ej. Hansa) NO debe quedar en ningún lugar de la oferta nueva.
+3. APLICAR el ajuste de precio pedido a CADA valor unitario. Ejemplo "+15%": nuevo unitario = unitario
+   anterior × 1,15. Luego recalcula TODOS los valores totales de cada línea y el TOTAL general con los
+   nuevos unitarios. Si el ajuste es otro (−10%, un valor fijo nuevo, etc.), aplícalo igual a todas las
+   líneas que corresponda. Mantén el formato de cifras con punto de miles.
+4. Usar el NUEVO número de referencia {{REF}} que ya asignó el sistema (NO el de la oferta vieja) y el
+   mes/año actuales, salvo que el usuario indique otra fecha.
+5. En la frase de resumen del chat, di explícitamente qué cambió: cliente nuevo, % aplicado y el nuevo TOTAL.
+NUNCA devuelvas la oferta anterior sin aplicar los cambios pedidos. Si un precio no puede ajustarse porque
+está "por confirmar", déjalo indicado como pendiente; no lo inventes.
 
 ═══ FIRMANTE ═══
 Firma SIEMPRE con el ejecutivo indicado en "FIRMANTE POR DEFECTO" (más abajo): es el usuario que está
@@ -3169,7 +3189,7 @@ def chat_oferta_endpoint(body: ChatOfertaBody):
 
 
 _MAX_HISTORY   = 8       # turnos máximos de historial enviados a la API
-_MAX_TEXT_CHARS = 6000   # caracteres máximos por bloque de texto adjunto
+_MAX_TEXT_CHARS = 45000  # caracteres máx por bloque de texto adjunto (permite adjuntar una oferta completa para replicarla)
 
 def _trim_api_messages(messages: list) -> list:
     """Recorta el historial a los últimos _MAX_HISTORY mensajes y trunca bloques de texto grandes."""
