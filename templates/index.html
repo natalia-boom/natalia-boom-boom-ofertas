@@ -1057,7 +1057,7 @@ body.rol-viewer .write-only { display:none !important; }
           <tr>
             <th style="width:32px">#</th>
             <th>Mes</th><th>Fecha</th><th>N° Oferta</th>
-            <th>Realizada por</th><th>Formalizada por</th>
+            <th>Realizada por</th>
             <th>Cliente</th><th>Tipo Negocio</th><th>Valor COP</th>
             <th>Estado</th><th>Respuesta</th><th>Facturación</th><th>Acciones</th>
           </tr>
@@ -3136,7 +3136,7 @@ function renderControlTable() {
     `Mostrando ${Math.min(start+1, controlFiltered.length)}–${Math.min(start+PAGE_SIZE, controlFiltered.length)} de ${controlFiltered.length} registros`;
 
   if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="13" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
   } else {
     tbody.innerHTML = page.map((o, i) => {
       const sinResp = !(o.respuesta) && (o.estado||'') === 'ENVIADO';
@@ -3149,10 +3149,9 @@ function renderControlTable() {
         <td style="font-size:11px;white-space:nowrap">${o.fecha||''}${vencida ? `<span class="alerta-dias" title="Sin respuesta hace ${dias} días">⚠ ${dias}d</span>` : ''}</td>
         <td><span class="num-badge">${o.num||''}</span></td>
         <td style="font-size:12px">${o.realizada||''}</td>
-        <td style="font-size:12px">${o.formalizada||''}</td>
         <td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.cliente||''}">${o.cliente||''}</td>
         <td style="font-size:11px">${o.tipo||''}</td>
-        <td style="text-align:right;font-weight:600">${o.valor ? formatCOP(o.valor) : '—'}</td>
+        <td style="text-align:right;font-weight:600;font-size:12px;white-space:nowrap">${o.valor ? formatCOP(o.valor) : '—'}</td>
         <td>${badgeEstado(o.estado)}</td>
         <td>${badgeRespuesta(o.respuesta)}</td>
         <td>${badgeFact(o.facturacion)}</td>
@@ -3729,8 +3728,8 @@ async function saveEdit() {
 function exportExcel(type) {
   let rows, headers, filename, sheetName;
   if (type === 'control') {
-    headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Formalizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta','Facturación'];
-    rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.formalizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta,o.facturacion||'']);
+    headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta','Facturación'];
+    rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta,o.facturacion||'']);
     filename = 'Control_Ofertas_BOOM.xlsx';
     sheetName = 'Control de Ofertas';
   } else {
