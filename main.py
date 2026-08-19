@@ -2588,6 +2588,11 @@ En meta.realizada escribe el nombre corto del firmante que realmente usaste.
 - VALOR TOTAL: preséntalo en tamaño DISCRETO. Úsalo dentro de la fila class="total-row" de la tabla
   económica. NO lo pongas en tipografía gigante ni en un recuadro enorme aparte; si lo destacas, que su
   fuente no supere ~15px y luzca equilibrado con el resto de la oferta.
+- PROHIBIDO el "encabezado resumen": NUNCA agregues una tabla, banda ni grid de columnas que repita
+  datos como REALIZADA POR / FORMALIZADA POR / CLIENTE / TIPO NEGOCIO / VALOR COP. Esos datos ya van en
+  la ref-bar (cliente y ref) y el valor SOLO va en la fila total-row de la tabla económica. No dupliques
+  esa información en una banda superior, ni en <table>, ni en <div> con columnas. El único encabezado
+  permitido es el header-bar (logo) + la ref-bar naranja del esqueleto.
 
 ═══ ESQUELETO OBLIGATORIO DEL HTML ═══
 Devuelve un documento HTML completo (<!DOCTYPE html> … </html>) con <head> que incluya EXACTAMENTE el
