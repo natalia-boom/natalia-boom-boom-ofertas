@@ -2498,7 +2498,8 @@ table.cond td:first-child{font-weight:bold;width:40%;background:#f5f5f5;}
 .firma-cargo{color:#E8601C;font-size:13px;margin:2px 0;}
 .pie{color:#aaa;font-size:11px;margin-top:10px;border-top:1px solid #eee;padding-top:8px;text-align:center;}
 .foto-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
-.foto-card img{width:100%;height:auto;display:block;border-radius:5px;border:1px solid #ddd;}
+.foto-grid.una{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto;}
+.foto-card img{width:100%;height:280px;object-fit:contain;background:#f7f7f7;display:block;border-radius:5px;border:1px solid #ddd;}
 .foto-cap{font-size:11px;color:#555;text-align:center;margin-top:5px;}
 @media (max-width:600px){.foto-grid{grid-template-columns:1fr;}}"""
 
@@ -2575,6 +2576,16 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - PERMISOS (predeterminado, inclúyelo SIEMPRE salvo que no aplique o el usuario lo cambie):
   "Permisos: Incluye gestión de permisos de tránsito ante autoridades competentes (según aplique y reglamentación vigente)."
 
+═══ NOTAS Y AJUSTES DEL USUARIO (RESPETAR TAL CUAL — MUY IMPORTANTE) ═══
+Compórtate como un asistente que edita el texto exactamente como se lo piden (igual que Claude en una
+conversación normal). Cuando el usuario escriba en el chat una NOTA, condición, aclaración, redacción o
+corrección con un texto concreto ("agrega esta nota: …", "que diga exactamente …", "cambia X por Y",
+"pon en condiciones …"), incorpóralo TAL CUAL, palabra por palabra, en el lugar que corresponda de la
+oferta: NO lo parafrasees, NO lo resumas, NO lo suavices, NO cambies el orden ni la redacción (respeta
+mayúsculas, cifras, signos y saltos). Lo que el usuario indica MANDA sobre cualquier valor por defecto:
+si pide algo distinto a un estándar (stand-by, tiempos libres, permisos, forma de pago, exclusiones,
+etc.), aplica exactamente lo que él diga. Solo completa o reordena lo que él NO haya especificado.
+
 ═══ REPLICAR / VERSIONAR UNA OFERTA ANTERIOR (MUY IMPORTANTE) ═══
 Cuando el usuario adjunte o pegue una oferta anterior (HTML, PDF o texto) y te pida algo como "haz la
 misma oferta" / "la misma exacta oferta" para OTRO cliente y/o con un AJUSTE de precio, DEBES:
@@ -2631,6 +2642,10 @@ con una <div class="foto-grid"> que contenga EXACTAMENTE N <div class="foto-card
 <img src="{{FOTO_1}}"> … <img src="{{FOTO_N}}"> y un <p class="foto-cap"> descriptivo en cada una
 (aclara "operación similar, no la carga real" cuando sea referencia). Deja los marcadores {{FOTO_n}}
 literales; el sistema pega la imagen real. Si NO hay fotos, omite la sección por completo.
+IMPORTANTE (encuadre de la foto): la foto SIEMPRE debe verse ajustada y ordenada. Cuando haya UNA sola
+foto usa <div class="foto-grid una"> (así queda centrada y con buen ancho); con 2 o más usa solo
+<div class="foto-grid">. El tamaño y encuadre lo controla el CSS (no pongas width/height en línea en
+las <img>); la clase .foto-card ya deja la imagen contenida sin deformarla ni desbordarse.
 
 ═══ SALIDA (OBLIGATORIO, respeta el formato) ═══
 1) Una frase breve (1-3 líneas) para el chat con los montos clave / cambios / pendientes.
