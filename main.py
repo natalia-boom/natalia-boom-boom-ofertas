@@ -2662,6 +2662,7 @@ class OfertaIABody(BaseModel):
     fotos: Optional[List[str]] = []
     ref: Optional[str] = None
     firmante: Optional[dict] = None  # {nombre, cargo, email, telefono} del usuario logueado
+    forma_pago: Optional[str] = None  # forma de pago elegida en la tirilla; la oferta la usa tal cual
 
 
 def _limpiar_oferta_html(html: str) -> str:
@@ -2701,7 +2702,7 @@ def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
     return html
 
 
-def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None) -> dict:
+def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, forma_pago: str = None) -> dict:
     if not ANTHROPIC_OK:
         raise RuntimeError("Instala el paquete 'anthropic': pip install anthropic")
     if not ANTHROPIC_API_KEY:
@@ -2729,6 +2730,11 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None) -> 
             _f_partes.append(str(firmante["email"]).strip())
         sys += ("\n\nFIRMANTE POR DEFECTO: " + " — ".join(_f_partes)
                 + " (firma la oferta con este ejecutivo salvo que el usuario pida otro en el chat; NO pongas teléfono al pie de la firma).")
+
+    if forma_pago and str(forma_pago).strip():
+        sys += ("\n\nFORMA DE PAGO A USAR EN LA OFERTA: \"" + str(forma_pago).strip()
+                + "\" — escríbela TAL CUAL en Condiciones Comerciales, salvo que el usuario indique en el "
+                  "chat otra forma de pago (en ese caso manda lo que diga el chat).")
 
     client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
@@ -3425,7 +3431,7 @@ def oferta_ia_endpoint(body: OfertaIABody):
                 cur = conn.cursor()
                 cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
                 ref = str(fetchone(cur)["next"])
-        return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante)
+        return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante, body.forma_pago)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

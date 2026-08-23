@@ -4553,7 +4553,8 @@ async function iaSendMessage() {
         messages: iaHistory,
         fotos: iaFotos.filter(f => f.kind === 'image' || (!f.kind && f.dataUrl)).map(f => f.dataUrl),
         ref: document.getElementById('iaRefNum').value || null,
-        firmante: firmante
+        firmante: firmante,
+        forma_pago: document.getElementById('iaFormaPago').value || null
       })
     });
     if (!res.ok) {
