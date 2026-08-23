@@ -2005,6 +2005,13 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
                 <option>PENDIENTE</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Forma de pago</label>
+              <select id="iaFormaPago">
+                <option value="50% anticipo / 50% a 30 días tras radicación de factura">50% anticipo / 50% a 30 días tras radicación de factura</option>
+                <option value="A 30 días después de radicada la factura">A 30 días después de radicada la factura</option>
+              </select>
+            </div>
           </div>
           <div class="form-group" style="margin-top:10px;">
             <label>Seguimiento</label>
@@ -4685,6 +4692,7 @@ async function iaGenerarOferta() {
       descripcion: iaMeta.descripcion,
       moneda:     iaMeta.moneda || 'COP',
       modo:       'ia',
+      forma_pago: document.getElementById('iaFormaPago').value || null,
       ia_html:    iaHtml
     }
   };
@@ -4726,6 +4734,7 @@ function iaResetChat() {
   document.getElementById('iaFileInput').value = '';
   ['iaSector','iaUnidad','iaTipo','iaRespuesta','iaSeguimiento'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('iaEstado').value = 'ENVIADO';
+  document.getElementById('iaFormaPago').value = '50% anticipo / 50% a 30 días tras radicación de factura';
   iaRenderFotos();
   iaSetButtons(false);
   document.getElementById('iaPreviewFrame').style.display = 'none';
@@ -4761,6 +4770,7 @@ function iaCargarOferta() {
   document.getElementById('iaEstado').value        = o.estado || 'ENVIADO';
   document.getElementById('iaRespuesta').value     = o.respuesta || '';
   document.getElementById('iaSeguimiento').value   = o.seguimiento || '';
+  document.getElementById('iaFormaPago').value     = (o.pdf_data && o.pdf_data.forma_pago) || '50% anticipo / 50% a 30 días tras radicación de factura';
   // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
   const stored = o.pdf_data;
   if (stored && stored.ia_html) {
