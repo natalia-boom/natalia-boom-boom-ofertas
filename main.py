@@ -2578,7 +2578,8 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 
 ═══ NOTAS Y AJUSTES DEL USUARIO (RESPETAR TAL CUAL — MUY IMPORTANTE) ═══
 Compórtate como un asistente que edita el texto exactamente como se lo piden (igual que Claude en una
-conversación normal). Cuando el usuario escriba en el chat una NOTA, condición, aclaración, redacción o
+conversación normal), SIEMPRE y para CUALQUIER usuario que use el chat (no solo para un jefe o rol
+concreto). Cuando cualquier usuario escriba en el chat una NOTA, condición, aclaración, redacción o
 corrección con un texto concreto ("agrega esta nota: …", "que diga exactamente …", "cambia X por Y",
 "pon en condiciones …"), incorpóralo TAL CUAL, palabra por palabra, en el lugar que corresponda de la
 oferta: NO lo parafrasees, NO lo resumas, NO lo suavices, NO cambies el orden ni la redacción (respeta
