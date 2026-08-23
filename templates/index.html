@@ -2007,7 +2007,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             </div>
             <div class="form-group">
               <label>Forma de pago</label>
-              <select id="iaFormaPago">
+              <select id="iaFormaPago" onchange="iaAplicarFormaPago()">
                 <option value="50% anticipo / 50% a 30 días tras radicación de factura">50% anticipo / 50% a 30 días tras radicación de factura</option>
                 <option value="A 30 días después de radicada la factura">A 30 días después de radicada la factura</option>
               </select>
@@ -4584,6 +4584,22 @@ async function iaSendMessage() {
     showToast('❌ ' + e.message, 'error');
   } finally {
     btn.disabled = false;
+  }
+}
+
+// Aplica al instante la forma de pago elegida sobre la oferta ya generada,
+// sin tener que regenerar. Reemplaza el valor de la fila "Forma de pago" /
+// "Payment terms" en la tabla de condiciones.
+function iaAplicarFormaPago() {
+  const fp = document.getElementById('iaFormaPago').value;
+  if (!iaHtml || !fp) return;
+  const re = /(<tr[^>]*>\s*<td[^>]*>\s*(?:<strong>\s*)?(?:forma\s+de\s+pago|payment(?:\s+terms)?)\b[\s\S]*?<\/td>\s*<td[^>]*>)([\s\S]*?)(<\/td>)/i;
+  if (re.test(iaHtml)) {
+    iaHtml = iaHtml.replace(re, '$1' + fp + '$3');
+    iaRenderPreview();
+    showToast('✅ Forma de pago actualizada en la oferta', 'success');
+  } else {
+    showToast('Se aplicará al generar la oferta (aún no encuentro la fila de forma de pago)', 'warning');
   }
 }
 
