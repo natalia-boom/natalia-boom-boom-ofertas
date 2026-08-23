@@ -4680,6 +4680,18 @@ function iaLimpiarHtml(html) {
 
 async function iaGenerarOferta() {
   if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
+  // 🛡️ Malla de seguridad: no dejar guardar ofertas incompletas (ensucian el Control)
+  const _cli  = (iaMeta.cliente || '').trim();
+  const _val  = parseInt(iaMeta.valor) || 0;
+  const _tipo = (document.getElementById('iaTipo').value || iaMeta.tipo || '').trim();
+  const _faltan = [];
+  if (!_cli || _cli.toUpperCase() === 'SIN CLIENTE') _faltan.push('Cliente');
+  if (_val <= 0) _faltan.push('Valor de la oferta');
+  if (!_tipo) _faltan.push('Tipo de Negocio');
+  if (_faltan.length) {
+    showToast('⚠️ Antes de guardar completa: ' + _faltan.join(', '), 'warning');
+    return;
+  }
   const btn = document.getElementById('iaBtnGuardar');
   btn.disabled = true; btn.textContent = '⏳ Guardando...';
   const numRaw = document.getElementById('iaRefNum').value.replace(/\D/g, '');
