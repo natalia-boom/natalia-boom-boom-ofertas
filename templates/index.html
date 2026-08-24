@@ -4868,6 +4868,7 @@ async function iaGenerarOferta() {
     }
     if (!ok) { const e = await res.json(); throw new Error(e.detail || 'Error guardando'); }
     await loadAll();
+    iaResetChat(true);   // limpia el generador y toma el próximo consecutivo automáticamente
     switchTab('control');
   } catch (e) {
     showToast('❌ ' + e.message, 'error');
@@ -4876,8 +4877,8 @@ async function iaGenerarOferta() {
   }
 }
 
-function iaResetChat() {
-  if (iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
+function iaResetChat(silent) {
+  if (!silent && iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
   iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
   document.getElementById('iaChatHistoria').innerHTML =
     '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">Listo para una nueva oferta 👋 Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
