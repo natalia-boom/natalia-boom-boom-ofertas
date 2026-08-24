@@ -1099,6 +1099,16 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
+  <!-- 📊 Estado de Proyectos: lo que el jefe siempre pregunta (por ejecutar / en ejecución / ejecutado / facturado) -->
+  <div class="section-card" style="padding:14px 18px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:15px;font-weight:700;color:var(--petrol);">📊 Estado de Proyectos</span>
+      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(todos los meses)</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">Haz clic en una tarjeta para filtrar ▸</span>
+    </div>
+    <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+  </div>
+
   <!-- 🔔 Alarma: ofertas ejecutadas pendientes por facturar (solo la ve el admin / Natalia) -->
   <div id="alarmaEjecutadas" onclick="document.getElementById('aSeguimiento').value='Ejecutado';filterAprobadas();"
        style="display:none;align-items:center;gap:12px;background:#fef2f2;border:1.5px solid #dc2626;border-left:6px solid #dc2626;color:#991b1b;border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer;font-weight:600;box-shadow:0 2px 6px rgba(220,38,38,.15);">
@@ -3276,6 +3286,55 @@ function esVencida(o) {
   return !o.no_factura && diasDesde(o.fecha) >= 15;
 }
 
+// 📊 Panel "Estado de Proyectos": desglose que el jefe siempre pide.
+// Respeta buscar/mes/facturación/fechas, pero NO el filtro de seguimiento,
+// para que las tarjetas muestren siempre el panorama completo.
+function renderPanelEstado() {
+  const cont = document.getElementById('panelEstadoProyectos');
+  if (!cont) return;
+  const buscar     = document.getElementById('aBuscar').value.toLowerCase();
+  const mes        = document.getElementById('aMes').value;
+  const facturacion= document.getElementById('aFacturacion').value;
+  const fechaDesde = document.getElementById('aFechaDesde').value;
+  const fechaHasta = document.getElementById('aFechaHasta').value;
+
+  const base = allOfertas.filter(o => {
+    if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return false;
+    if (buscar && !`${o.num} ${o.cliente}`.toLowerCase().includes(buscar)) return false;
+    if (mes && o.mes !== mes) return false;
+    if (facturacion === 'facturada'    && !o.no_factura) return false;
+    if (facturacion === 'sin_facturar' && o.no_factura) return false;
+    if (facturacion === 'vencida'      && !esVencida(o)) return false;
+    if (fechaDesde && (o.fecha_facturacion||'') < fechaDesde) return false;
+    if (fechaHasta && (o.fecha_facturacion||'') > fechaHasta) return false;
+    return true;
+  });
+
+  const cards = [
+    {k:'Por ejecutar', ic:'🟡', col:'#d97706', bg:'#fffbeb', bd:'#f59e0b'},
+    {k:'En ejecución', ic:'🔵', col:'#2563eb', bg:'#eff6ff', bd:'#3b82f6'},
+    {k:'Ejecutado',    ic:'✅', col:'#16a34a', bg:'#f0fdf4', bd:'#22c55e'},
+    {k:'Facturada',    ic:'🧾', col:'#0f766e', bg:'#f0fdfa', bd:'#14b8a6'},
+  ];
+  const actual = document.getElementById('aSeguimiento').value;
+  cont.innerHTML = cards.map(c => {
+    const grupo = base.filter(o => (o.seguimiento||'') === c.k);
+    const val = grupo.reduce((s,o) => s+(o.valor||0), 0);
+    const sel = actual === c.k;
+    return `<div onclick="document.getElementById('aSeguimiento').value='${sel?'':c.k}';filterAprobadas();"
+      title="Clic para ${sel?'quitar el filtro':'filtrar por '+c.k}"
+      style="cursor:pointer;background:${c.bg};border:1px solid ${c.bd};border-left:5px solid ${c.bd};
+             border-radius:9px;padding:10px 12px;${sel?'box-shadow:0 0 0 2px '+c.bd+' inset;':''}">
+      <div style="font-size:11.5px;color:${c.col};font-weight:700;">${c.ic} ${c.k}${sel?' ✓':''}</div>
+      <div style="font-size:20px;font-weight:800;color:#1B2A4A;line-height:1.15;margin-top:2px;">${formatCOP(val)}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${grupo.length} oferta${grupo.length===1?'':'s'}</div>
+    </div>`;
+  }).join('');
+
+  const lbl = document.getElementById('epMesLbl');
+  if (lbl) lbl.textContent = mes ? `(${mes})` : '(todos los meses)';
+}
+
 function filterAprobadas() {
   const buscar      = document.getElementById('aBuscar').value.toLowerCase();
   const mes         = document.getElementById('aMes').value;
@@ -3327,6 +3386,8 @@ function filterAprobadas() {
   }
   document.getElementById('aprobSummary').textContent =
     `${aprobadas.length} ofertas aceptadas · ${conFact} con factura · Valor esperado: ${formatCOP(valEsp)} · Facturado 2026: ${formatCOP(valFact)}`;
+
+  renderPanelEstado();
 
   const tbody = document.getElementById('aprobadasBody');
   if (!aprobadas.length) {
