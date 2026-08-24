@@ -224,6 +224,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .btn-secondary { background: var(--petrol); color: #fff; box-shadow: 0 2px 10px rgba(27,42,74,0.20); }
 .btn-secondary:hover { background: var(--petrol-light); transform: translateY(-1px); }
 .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; }
+.btn-ready { box-shadow: 0 0 0 3px rgba(15,118,110,0.30), 0 6px 18px rgba(15,118,110,0.35) !important; }
 .btn-outline { background: transparent; border: 1.5px solid var(--petrol); color: var(--petrol); }
 .btn-outline:hover { background: var(--petrol); color: #fff; }
 .btn-success { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,0.30); }
@@ -1935,6 +1936,45 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             onkeydown="if(event.key==='Enter') iaCargarOferta()">
           <button class="btn btn-primary btn-sm" onclick="iaCargarOferta()">Cargar</button>
         </div>
+
+        <!-- ===== Resumen en vivo de la operación ===== -->
+        <div id="iaResumenPanel" style="margin-top:18px;">
+          <div class="section-title" style="margin:0 0 8px;">✨ RESUMEN DE LA OPERACIÓN</div>
+
+          <!-- Tarjeta resumen -->
+          <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+            <div style="background:linear-gradient(135deg,var(--petrol-dark),var(--petrol));color:#fff;padding:11px 15px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;opacity:.85;">Oferta en construcción</span>
+              <div style="text-align:right;line-height:1;">
+                <div style="font-size:9px;letter-spacing:1px;opacity:.7;">REF.</div>
+                <div id="rsRef" style="font-size:20px;font-weight:800;">—</div>
+              </div>
+            </div>
+            <div style="padding:15px;">
+              <div id="rsCliente" style="font-size:17px;font-weight:800;color:var(--petrol);line-height:1.15;">
+                <span style="color:var(--text-muted);font-weight:600;font-size:14px;">Aún sin cliente…</span>
+              </div>
+              <div id="rsChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+              <div id="rsValorBox" style="margin-top:14px;background:var(--orange-light);border:1px dashed #f59e0b;border-radius:10px;padding:9px 14px;text-align:center;display:none;">
+                <div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#b45309;">Valor de la oferta</div>
+                <div id="rsValor" style="font-size:24px;font-weight:900;color:var(--orange);line-height:1;margin-top:2px;">—</div>
+                <div id="rsMes" style="font-size:10.5px;color:#b45309;margin-top:3px;font-weight:600;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Avance de la oferta -->
+          <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-top:14px;padding:14px 15px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:11px;font-weight:800;color:var(--petrol);text-transform:uppercase;letter-spacing:.04em;">Avance de la oferta</span>
+              <span id="rsPct" style="font-size:13px;font-weight:800;color:var(--teal);">0%</span>
+            </div>
+            <div style="height:8px;border-radius:6px;background:#e5e7eb;overflow:hidden;margin-bottom:12px;">
+              <span id="rsBar" style="display:block;height:100%;background:linear-gradient(90deg,var(--teal),#14b8a6);width:0%;transition:width .5s ease;"></span>
+            </div>
+            <div id="rsChecklist"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== Columna derecha: VISTA PREVIA ===== -->
@@ -1957,7 +1997,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
             <div class="form-group">
               <label>Tipo de Cliente</label>
-              <select id="iaSector">
+              <select id="iaSector" onchange="iaRenderResumen()">
                 <option value="">Seleccionar...</option>
                 <option>MINERO</option>
                 <option>INDUSTRIAL</option>
@@ -1972,7 +2012,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             </div>
             <div class="form-group">
               <label>Unidad de Negocio</label>
-              <select id="iaUnidad">
+              <select id="iaUnidad" onchange="iaRenderResumen()">
                 <option value="">Seleccionar...</option>
                 <option>TRANSPORTE</option>
                 <option>IZAJE</option>
@@ -1981,7 +2021,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             </div>
             <div class="form-group">
               <label>Tipo de Negocio</label>
-              <select id="iaTipo">
+              <select id="iaTipo" onchange="iaRenderResumen()">
                 <option value="">Seleccionar...</option>
                 <option>SPOT TRANSPORTE</option>
                 <option>SPOT IZAJE</option>
@@ -4320,6 +4360,7 @@ let iaDropBound = false;
 async function iaInit() {
   if (!iaRefAssigned) await iaLoadRef();
   if (!iaDropBound) iaBindDrop();
+  iaRenderResumen();
 }
 
 async function iaLoadRef() {
@@ -4633,6 +4674,68 @@ function iaRenderPreview() {
     document.getElementById('iaMetaResumen').textContent =
       [iaMeta.cliente, val, iaMeta.mes].filter(Boolean).join(' · ');
   }
+  iaRenderResumen();
+}
+
+// Panel "Resumen de la operación" (columna izquierda) — se llena en vivo
+function iaRenderResumen() {
+  const $ = id => document.getElementById(id);
+  if (!$('iaResumenPanel')) return;
+
+  const sector = ($('iaSector') && $('iaSector').value) || '';
+  const unidad = ($('iaUnidad') && $('iaUnidad').value) || '';
+  const tipo   = ($('iaTipo') && $('iaTipo').value) || (iaMeta && iaMeta.tipo) || '';
+  const ref    = ($('iaRefDisplay') && $('iaRefDisplay').textContent.trim()) || '—';
+  const tieneHtml = (typeof iaHtml !== 'undefined') && !!iaHtml;
+
+  $('rsRef').textContent = ref || '—';
+
+  // Cliente
+  if (iaMeta && iaMeta.cliente) {
+    $('rsCliente').textContent = iaMeta.cliente;
+  } else {
+    $('rsCliente').innerHTML = '<span style="color:var(--text-muted);font-weight:600;font-size:14px;">Aún sin cliente…</span>';
+  }
+
+  // Chips de clasificación
+  const chip = (txt, bg, col) => `<span style="background:${bg};color:${col};border-radius:20px;padding:3px 11px;font-size:11px;font-weight:700;">${txt}</span>`;
+  const chips = [];
+  if (sector) chips.push(chip(sector, 'var(--teal-light)', 'var(--teal)'));
+  if (unidad) chips.push(chip(unidad, '#dbeafe', '#1e40af'));
+  if (tipo)   chips.push(chip(tipo, 'var(--orange-light)', '#c2410c'));
+  $('rsChips').innerHTML = chips.join('');
+
+  // Valor + mes
+  if (iaMeta && iaMeta.valor) {
+    const val = (iaMeta.moneda === 'USD' ? 'USD ' : '$ ') +
+      Number(iaMeta.valor).toLocaleString(iaMeta.moneda === 'USD' ? 'en-US' : 'es-CO');
+    $('rsValor').textContent = val;
+    $('rsMes').textContent = iaMeta.mes ? ('Mes: ' + iaMeta.mes) : '';
+    $('rsValorBox').style.display = 'block';
+  } else {
+    $('rsValorBox').style.display = 'none';
+  }
+
+  // Checklist de avance
+  const items = [
+    { ok: !!(iaMeta && iaMeta.cliente), txt: 'Cliente identificado' },
+    { ok: !!(iaMeta && iaMeta.valor),   txt: 'Valor cotizado' },
+    { ok: tieneHtml,                    txt: 'Oferta redactada por la IA' },
+    { ok: !!(sector && unidad && tipo), txt: 'Clasificación para el control' },
+  ];
+  const done = items.filter(i => i.ok).length;
+  const pct  = Math.round(done / items.length * 100);
+  $('rsPct').textContent = pct + '%';
+  $('rsBar').style.width = pct + '%';
+  $('rsChecklist').innerHTML = items.map((it, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;${i < items.length - 1 ? 'border-bottom:1px solid #f1f2f4;' : ''}font-size:12.5px;">
+      <span style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;background:${it.ok ? 'var(--teal)' : '#e5e7eb'};color:${it.ok ? '#fff' : '#9ca3af'};">${it.ok ? '✓' : (i + 1)}</span>
+      <span style="color:${it.ok ? 'var(--petrol)' : 'var(--text-muted)'};font-weight:${it.ok ? '600' : '500'};">${it.txt}</span>
+    </div>`).join('');
+
+  // Realce del botón Generar cuando está completo
+  const genBtn = $('iaBtnGuardar');
+  if (genBtn) genBtn.classList.toggle('btn-ready', pct === 100 && !genBtn.disabled);
 }
 
 function iaSetButtons(on) {
@@ -4790,6 +4893,7 @@ function iaResetChat() {
   document.getElementById('iaMetaResumen').textContent = '';
   iaRefAssigned = false;
   iaLoadRef();
+  iaRenderResumen();
 }
 
 function iaToggleCargarPanel() {
@@ -4831,6 +4935,7 @@ function iaCargarOferta() {
               '. Dime qué cambios necesitas y regeneraré la oferta completa manteniendo el mismo número.';
   iaAppendMsg('assistant', ctx);
   iaHistory.push({ role: 'assistant', content: ctx });
+  iaRenderResumen();
   showToast('Oferta ' + fmt + ' cargada para versionar', 'success');
 }
 
