@@ -4818,9 +4818,15 @@ async function iaGenerarOferta() {
   const btn = document.getElementById('iaBtnGuardar');
   btn.disabled = true; btn.textContent = '⏳ Guardando...';
   const numRaw = document.getElementById('iaRefNum').value.replace(/\D/g, '');
-  const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
   const now = new Date();
-  const mes = (iaMeta.mes ? iaMeta.mes.substring(0, 3).toUpperCase() : months[now.getMonth()]);
+  // Guardar el mes COMPLETO (AGOSTO), igual que el resto de la plataforma, para que cuente bien.
+  let mes = MESES[now.getMonth()];
+  if (iaMeta.mes) {
+    const m3 = iaMeta.mes.trim().toUpperCase().substring(0, 3);
+    const found = MESES.find(x => x.substring(0, 3) === m3);
+    if (found) mes = found;
+  }
   // Valor a COP para el Control: si la oferta es en USD lo dejamos igual (número),
   // el Control muestra el número; el detalle en USD queda en el HTML guardado.
   const payload = {
