@@ -1052,7 +1052,7 @@ body.rol-viewer .write-only { display:none !important; }
             <th>Mes</th><th>Fecha</th><th>N° Oferta</th>
             <th>Realizada por</th>
             <th>Cliente</th><th>Tipo Negocio</th><th>Valor COP</th>
-            <th>Estado</th><th>Respuesta</th><th>Facturación</th><th>Acciones</th>
+            <th>Estado</th><th>Respuesta</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody id="controlBody"></tbody>
@@ -3144,7 +3144,7 @@ function renderControlTable() {
     `Mostrando ${Math.min(start+1, controlFiltered.length)}–${Math.min(start+PAGE_SIZE, controlFiltered.length)} de ${controlFiltered.length} registros`;
 
   if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
   } else {
     tbody.innerHTML = page.map((o, i) => {
       const sinResp = !(o.respuesta) && (o.estado||'') === 'ENVIADO';
@@ -3162,7 +3162,6 @@ function renderControlTable() {
         <td style="text-align:right;font-weight:600;font-size:12px;white-space:nowrap">${o.valor ? formatCOP(o.valor) : '—'}</td>
         <td>${badgeEstado(o.estado)}</td>
         <td>${badgeRespuesta(o.respuesta)}</td>
-        <td>${badgeFact(o.facturacion)}</td>
         <td style="white-space:nowrap;">
           <button class="action-btn" onclick="openEdit(${o.id})" title="Editar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3753,8 +3752,8 @@ async function saveEdit() {
 function exportExcel(type) {
   let rows, headers, filename, sheetName;
   if (type === 'control') {
-    headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta','Facturación'];
-    rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta,o.facturacion||'']);
+    headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta'];
+    rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta]);
     filename = 'Control_Ofertas_BOOM.xlsx';
     sheetName = 'Control de Ofertas';
   } else {
