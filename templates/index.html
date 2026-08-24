@@ -1103,10 +1103,9 @@ body.rol-viewer .write-only { display:none !important; }
   <div class="section-card" style="padding:14px 18px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
       <span style="font-size:15px;font-weight:700;color:var(--petrol);">📊 Estado de Proyectos</span>
-      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(todos los meses)</span>
-      <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">Haz clic en una tarjeta para filtrar ▸</span>
+      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(en construcción)</span>
     </div>
-    <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+    <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
   </div>
 
   <!-- 🔔 Alarma: ofertas ejecutadas pendientes por facturar (solo la ve el admin / Natalia) -->
@@ -1167,7 +1166,7 @@ body.rol-viewer .write-only { display:none !important; }
         <thead>
           <tr>
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
-            <th>Comercial</th><th>Unidad</th><th>Tipo</th>
+            <th>Unidad</th><th>Tipo</th>
             <th>Valor Esperado</th><th>Valor Facturado</th>
             <th>Fecha Facturación</th><th>No. Factura</th><th>Seguimiento</th>
             <th>Facturación</th>
@@ -3292,47 +3291,14 @@ function esVencida(o) {
 function renderPanelEstado() {
   const cont = document.getElementById('panelEstadoProyectos');
   if (!cont) return;
-  const buscar     = document.getElementById('aBuscar').value.toLowerCase();
-  const mes        = document.getElementById('aMes').value;
-  const facturacion= document.getElementById('aFacturacion').value;
-  const fechaDesde = document.getElementById('aFechaDesde').value;
-  const fechaHasta = document.getElementById('aFechaHasta').value;
-
-  const base = allOfertas.filter(o => {
-    if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return false;
-    if (buscar && !`${o.num} ${o.cliente}`.toLowerCase().includes(buscar)) return false;
-    if (mes && o.mes !== mes) return false;
-    if (facturacion === 'facturada'    && !o.no_factura) return false;
-    if (facturacion === 'sin_facturar' && o.no_factura) return false;
-    if (facturacion === 'vencida'      && !esVencida(o)) return false;
-    if (fechaDesde && (o.fecha_facturacion||'') < fechaDesde) return false;
-    if (fechaHasta && (o.fecha_facturacion||'') > fechaHasta) return false;
-    return true;
-  });
-
-  const cards = [
-    {k:'Por ejecutar', ic:'🟡', col:'#d97706', bg:'#fffbeb', bd:'#f59e0b'},
-    {k:'En ejecución', ic:'🔵', col:'#2563eb', bg:'#eff6ff', bd:'#3b82f6'},
-    {k:'Ejecutado',    ic:'✅', col:'#16a34a', bg:'#f0fdf4', bd:'#22c55e'},
-    {k:'Facturada',    ic:'🧾', col:'#0f766e', bg:'#f0fdfa', bd:'#14b8a6'},
-  ];
-  const actual = document.getElementById('aSeguimiento').value;
-  cont.innerHTML = cards.map(c => {
-    const grupo = base.filter(o => (o.seguimiento||'') === c.k);
-    const val = grupo.reduce((s,o) => s+(o.valor||0), 0);
-    const sel = actual === c.k;
-    return `<div onclick="document.getElementById('aSeguimiento').value='${sel?'':c.k}';filterAprobadas();"
-      title="Clic para ${sel?'quitar el filtro':'filtrar por '+c.k}"
-      style="cursor:pointer;background:${c.bg};border:1px solid ${c.bd};border-left:5px solid ${c.bd};
-             border-radius:9px;padding:10px 12px;${sel?'box-shadow:0 0 0 2px '+c.bd+' inset;':''}">
-      <div style="font-size:11.5px;color:${c.col};font-weight:700;">${c.ic} ${c.k}${sel?' ✓':''}</div>
-      <div style="font-size:20px;font-weight:800;color:#1B2A4A;line-height:1.15;margin-top:2px;">${formatCOP(val)}</div>
-      <div style="font-size:11px;color:var(--text-muted);">${grupo.length} oferta${grupo.length===1?'':'s'}</div>
+  // TEMPORAL: panel en construcción mientras se afinan los estados de proyecto.
+  cont.innerHTML = `<div style="text-align:center;padding:22px 16px;background:#fff7ed;border:1.5px dashed #f59e0b;border-radius:10px;color:#92400e;">
+      <div style="font-size:26px;line-height:1;">🚧</div>
+      <div style="font-size:14px;font-weight:700;margin-top:6px;">Panel en construcción</div>
+      <div style="font-size:12px;color:#b45309;margin-top:2px;">Estamos afinando los números. Muy pronto verás aquí el estado de tus proyectos.</div>
     </div>`;
-  }).join('');
-
   const lbl = document.getElementById('epMesLbl');
-  if (lbl) lbl.textContent = mes ? `(${mes})` : '(todos los meses)';
+  if (lbl) lbl.textContent = '(en construcción)';
 }
 
 function filterAprobadas() {
@@ -3391,7 +3357,7 @@ function filterAprobadas() {
 
   const tbody = document.getElementById('aprobadasBody');
   if (!aprobadas.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No hay ofertas aprobadas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No hay ofertas aprobadas</td></tr>';
     return;
   }
   tbody.innerHTML = aprobadas.map(o => {
@@ -3403,7 +3369,6 @@ function filterAprobadas() {
       <td>${o.mes||''}</td>
       <td>${o.fecha||''}</td>
       <td>${o.cliente||''}</td>
-      <td>${o.realizada||''}</td>
       <td>${o.unidad||''}</td>
       <td style="font-size:11px">${o.tipo||''}</td>
       <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
