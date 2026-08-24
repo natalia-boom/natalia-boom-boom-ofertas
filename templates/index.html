@@ -312,9 +312,8 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .d-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 
-.d-kpi-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 18px; }
-@media(max-width:1100px) { .d-kpi-grid { grid-template-columns: repeat(3,1fr); } }
-@media(max-width:700px)  { .d-kpi-grid { grid-template-columns: repeat(2,1fr); } }
+.d-kpi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
+@media(max-width:700px)  { .d-kpi-grid { grid-template-columns: 1fr; } }
 
 .d-kpi {
   border-radius: 18px; padding: 20px 18px; color: #fff;
@@ -942,11 +941,6 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="d-kpi-label">Aceptadas</div>
       <div class="d-kpi-value" id="kAceptadas">—</div>
       <div class="d-kpi-sub" id="kTasa">Tasa: —</div>
-    </div>
-    <div class="d-kpi kpi-amber">
-      <div class="d-kpi-icon">🔄</div>
-      <div class="d-kpi-label">En Seguimiento</div>
-      <div class="d-kpi-value" id="kSeguimiento">—</div>
     </div>
     <div class="d-kpi kpi-teal">
       <div class="d-kpi-icon">📅</div>
@@ -3021,7 +3015,6 @@ function renderDashboard() {
 
   animateKPI('kTotal',      stats.total,      false);
   animateKPI('kAceptadas',  stats.aceptadas,  false);
-  animateKPI('kSeguimiento',stats.seguimiento,false);
   animateKPI('kMes',        stats.estesMes,   false);
   document.getElementById('kTasa').textContent = 'Tasa: ' + stats.tasa + '%';
 
