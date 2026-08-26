@@ -1099,8 +1099,8 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- 📊 Estado de Proyectos: lo que el jefe siempre pregunta (por ejecutar / en ejecución / ejecutado / facturado) -->
   <div class="section-card" style="padding:14px 18px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:15px;font-weight:700;color:var(--petrol);">📊 Estado de Proyectos</span>
-      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(en construcción)</span>
+      <span style="font-size:15px;font-weight:700;color:var(--petrol);">🚦 Control de Aprobadas</span>
+      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(clic en una tarjeta para filtrar)</span>
     </div>
     <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
   </div>
@@ -1165,6 +1165,7 @@ body.rol-viewer .write-only { display:none !important; }
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
             <th>Unidad</th><th>Tipo</th>
             <th>Valor Esperado</th><th>Valor Facturado</th>
+            <th>🚦 Estado</th>
             <th>Fecha Facturación</th><th>No. Factura</th><th>Seguimiento</th>
             <th>Facturación</th>
           </tr>
@@ -2557,6 +2558,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 // ========== STATE ==========
 let allOfertas = [];
 let facturasPorOferta = {};   // { oferta_num: {n, facturado_real, total_lineas, lineas:[...]} }
+let clientesContrato = new Set();  // nombres (MAYÚSCULA) de clientes con contrato recurrente
+let semFilter = '';   // filtro del semáforo del panel Control de Aprobadas: ''|rojo|amarillo|verde|contrato|alerta|sin_seg
 let controlFiltered = [];
 let controlPage = 1;
 const PAGE_SIZE = 25;
@@ -2931,6 +2934,12 @@ async function loadAll() {
     // Facturas por oferta (1 oferta -> N facturas). No bloquea si falla.
     try { facturasPorOferta = await (await fetch('/api/facturas/por_oferta')).json(); }
     catch(e) { facturasPorOferta = {}; }
+    // Clientes con contrato (facturación recurrente): se tratan aparte en el semáforo.
+    try {
+      const cc = await (await fetch('/api/clientes_contrato')).json();
+      clientesContrato = new Set((cc||[]).flatMap(c => [c.nombre_corto, c.razon_social]
+        .filter(Boolean).map(x => x.toUpperCase().trim())));
+    } catch(e) { clientesContrato = new Set(); }
     populateControlFilters();
     renderDashboard();
     filterControl();
@@ -3323,20 +3332,91 @@ function esVencida(o) {
   return !o.no_factura && diasDesde(o.fecha) >= 15;
 }
 
-// 📊 Panel "Estado de Proyectos": desglose que el jefe siempre pide.
-// Respeta buscar/mes/facturación/fechas, pero NO el filtro de seguimiento,
-// para que las tarjetas muestren siempre el panorama completo.
+// ¿El cliente de la oferta tiene CONTRATO (facturación recurrente)?
+// Esas ofertas NO se marcan como "sin facturar": facturan por el contrato.
+function esContrato(o) {
+  return clientesContrato.has((o.cliente||'').toUpperCase().trim());
+}
+
+// Valor realmente facturado de la oferta: toma el mayor entre el campo manual
+// (valor_facturado) y la suma real de sus facturas (tabla facturas, estados FACTURADO%).
+function facturadoDe(o) {
+  const manual = o.valor_facturado || 0;
+  const fg = facturasPorOferta[o.num];
+  const real = fg ? (fg.facturado_real || 0) : 0;
+  return Math.max(manual, real);
+}
+
+// 🚦 Semáforo de facturación de una oferta ACEPTADA:
+//   📄 Contrato · 🔴 Sin facturar · 🟡 Facturada parcial · 🟢 Facturada total
+function semaforoDe(o) {
+  if (esContrato(o))
+    return {emoji:'📄', label:'Contrato', cls:'sem-contrato', color:'#475569'};
+  const fact  = facturadoDe(o);
+  const valor = o.valor || 0;
+  if (fact <= 0)
+    return {emoji:'🔴', label:'Sin facturar', cls:'sem-rojo', color:'#dc2626'};
+  if (valor > 0 && fact >= valor - 1000)   // tolerancia de $1.000 por redondeos
+    return {emoji:'🟢', label:'Facturada total', cls:'sem-verde', color:'#16a34a'};
+  return {emoji:'🟡', label:'Facturada parcial', cls:'sem-amarillo', color:'#ca8a04'};
+}
+
+// 🚦 Panel "Control de Aprobadas": semáforo de facturación + seguimiento.
+// Meta de Natalia: CERO ofertas aprobadas sin facturar y sin seguimiento.
+// Cada tarjeta es un filtro: al hacer clic filtra la tabla de abajo.
+function setSemFilter(v) {
+  semFilter = (semFilter === v) ? '' : v;   // clic de nuevo = quitar filtro
+  // El semáforo manda: al usarlo, libero el otro filtro de facturación para no chocar.
+  if (semFilter) { const s = document.getElementById('aFacturacion'); if (s) s.value = ''; }
+  filterAprobadas();
+}
+
 function renderPanelEstado() {
   const cont = document.getElementById('panelEstadoProyectos');
   if (!cont) return;
-  // TEMPORAL: panel en construcción mientras se afinan los estados de proyecto.
-  cont.innerHTML = `<div style="text-align:center;padding:22px 16px;background:#fff7ed;border:1.5px dashed #f59e0b;border-radius:10px;color:#92400e;">
-      <div style="font-size:26px;line-height:1;">🚧</div>
-      <div style="font-size:14px;font-weight:700;margin-top:6px;">Panel en construcción</div>
-      <div style="font-size:12px;color:#b45309;margin-top:2px;">Estamos afinando los números. Muy pronto verás aquí el estado de tus proyectos.</div>
-    </div>`;
   const lbl = document.getElementById('epMesLbl');
-  if (lbl) lbl.textContent = '(en construcción)';
+  if (lbl) lbl.textContent = '(clic en una tarjeta para filtrar)';
+
+  // Universo: ofertas ACEPTADAS vivas (sin las canceladas).
+  const esCancelado = s => (s||'').toUpperCase().includes('CANCEL');
+  const todas = allOfertas.filter(o =>
+    (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !esCancelado(o.seguimiento));
+
+  let rojo=0, amarillo=0, verde=0, contrato=0, alerta=0, sinSeg=0;
+  todas.forEach(o => {
+    const cls = semaforoDe(o).cls;
+    if (cls==='sem-rojo') rojo++;
+    else if (cls==='sem-amarillo') amarillo++;
+    else if (cls==='sem-verde') verde++;
+    else if (cls==='sem-contrato') contrato++;
+    if (esVencida(o) && !esContrato(o)) alerta++;
+    if (!(o.seguimiento||'').trim()) sinSeg++;
+  });
+
+  const metaOk = (rojo===0 && sinSeg===0);
+  const card = (v,emoji,label,n,color,bg) =>
+    `<div onclick="setSemFilter('${v}')" title="Clic para filtrar" style="cursor:pointer;flex:1;min-width:120px;background:${bg};border:1.5px solid ${color};${semFilter===v?`box-shadow:0 0 0 3px ${color}55;`:''}border-radius:10px;padding:10px 12px;text-align:center;transition:all .15s;">
+        <div style="font-size:22px;line-height:1;">${emoji}</div>
+        <div style="font-size:24px;font-weight:800;color:${color};margin-top:2px;">${n}</div>
+        <div style="font-size:11px;font-weight:700;color:${color};">${label}</div>
+      </div>`;
+
+  cont.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+      ${card('rojo','🔴','Sin facturar',rojo,'#dc2626','#fef2f2')}
+      ${card('amarillo','🟡','Facturada parcial',amarillo,'#ca8a04','#fefce8')}
+      ${card('verde','🟢','Facturada total',verde,'#16a34a','#f0fdf4')}
+      ${card('contrato','📄','Contrato',contrato,'#475569','#f8fafc')}
+      ${card('alerta','⚠️','Sin facturar +15 días',alerta,'#b91c1c','#fff1f2')}
+      ${card('sin_seg','📌','Sin seguimiento',sinSeg,'#7c3aed','#faf5ff')}
+    </div>
+    <div style="margin-top:10px;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:700;
+         background:${metaOk?'#f0fdf4':'#fef2f2'};color:${metaOk?'#166534':'#991b1b'};
+         border:1.5px solid ${metaOk?'#16a34a':'#dc2626'};">
+      ${metaOk
+        ? '✅ Meta cumplida: no hay ofertas aprobadas sin facturar ni sin seguimiento.'
+        : `🎯 Meta: cero aprobadas sin facturar y sin seguimiento — faltan <b>${rojo}</b> sin facturar y <b>${sinSeg}</b> sin seguimiento.`}
+    </div>`;
 }
 
 function filterAprobadas() {
@@ -3362,6 +3442,16 @@ function filterAprobadas() {
     if (facturacion === 'vencida'     && !esVencida(o)) return false;
     if (fechaDesde && (o.fecha_facturacion||'') < fechaDesde) return false;
     if (fechaHasta && (o.fecha_facturacion||'') > fechaHasta) return false;
+    // Filtro del semáforo (tarjetas del panel Control de Aprobadas)
+    if (semFilter) {
+      const cls = semaforoDe(o).cls;
+      if (semFilter === 'rojo'     && cls !== 'sem-rojo') return false;
+      if (semFilter === 'amarillo' && cls !== 'sem-amarillo') return false;
+      if (semFilter === 'verde'    && cls !== 'sem-verde') return false;
+      if (semFilter === 'contrato' && cls !== 'sem-contrato') return false;
+      if (semFilter === 'alerta'   && !(esVencida(o) && !esContrato(o))) return false;
+      if (semFilter === 'sin_seg'  && (o.seguimiento||'').trim()) return false;
+    }
     return true;
   });
 
@@ -3400,12 +3490,13 @@ function filterAprobadas() {
 
   const tbody = document.getElementById('aprobadasBody');
   if (!aprobadas.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No hay ofertas aprobadas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No hay ofertas aprobadas</td></tr>';
     return;
   }
   tbody.innerHTML = aprobadas.map(o => {
     const vencida = esVencida(o);
     const diasAtraso = diasDesde(o.fecha);
+    const sem = semaforoDe(o);
     // Facturas de esta oferta (1 oferta -> N facturas)
     const fg = facturasPorOferta[o.num];
     const nFact = fg ? fg.n : 0;
@@ -3424,6 +3515,7 @@ function filterAprobadas() {
       <td style="font-size:11px">${o.tipo||''}</td>
       <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
       <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+      <td style="text-align:center;white-space:nowrap;"><span title="${sem.label}" style="color:${sem.color};font-weight:600;font-size:11px;">${sem.emoji} ${sem.label}</span></td>
       <td>${o.fecha_facturacion||''}</td>
       <td>${o.no_factura||''}${badgeFact}</td>
       <td>
@@ -3441,7 +3533,7 @@ function filterAprobadas() {
       </td>
     </tr>
     ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
-      <td colspan="12" style="padding:8px 16px;">
+      <td colspan="13" style="padding:8px 16px;">
         <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Facturas de la oferta ${o.num} · ${nFact} línea(s) · Facturado real: ${formatCOP(fg.facturado_real)}${fg.total_lineas!==fg.facturado_real?` · Total con proyección: ${formatCOP(fg.total_lineas)}`:''}</div>
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead><tr style="color:#64748b;text-align:left;">

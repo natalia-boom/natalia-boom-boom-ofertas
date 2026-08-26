@@ -3004,10 +3004,16 @@ def create_oferta(oferta: OfertaCreate):
     calcula el siguiente número disponible y reintenta, para que nunca se pierda
     la oferta ni se repita el consecutivo."""
     pdf_json = json.dumps(oferta.pdf_data) if oferta.pdf_data else None
-    # Normaliza el nombre del cliente (quita espacios dobles/extremos) para que
-    # coincida con el catálogo oficial y no se creen duplicados por tipeo.
+    # Normaliza el nombre del cliente (quita espacios dobles/extremos y lo pasa a
+    # MAYÚSCULA) para que coincida con el catálogo oficial y no se creen duplicados
+    # por tipeo ni por mayúsculas/minúsculas distintas.
     if oferta.cliente:
-        oferta.cliente = re.sub(r"\s+", " ", oferta.cliente.strip())
+        oferta.cliente = re.sub(r"\s+", " ", oferta.cliente.strip()).upper()
+    # El nombre del comercial (quien realiza/formaliza) siempre en MAYÚSCULA.
+    if oferta.realizada:
+        oferta.realizada = re.sub(r"\s+", " ", oferta.realizada.strip()).upper()
+    if oferta.formalizada:
+        oferta.formalizada = re.sub(r"\s+", " ", oferta.formalizada.strip()).upper()
     MAX_INTENTOS = 10
     for intento in range(MAX_INTENTOS):
         try:
@@ -3881,6 +3887,23 @@ def marcar_todas_leidas(request: Request):
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/clientes_contrato")
+def get_clientes_contrato():
+    """Clientes con CONTRATO (facturación recurrente/mensual, no por oferta suelta).
+    El panel de Control de Aprobadas los trata aparte: NO se marcan como
+    'sin facturar' porque su facturación va por el contrato, no por cada oferta."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT nit, razon_social, nombre_corto FROM clientes_contrato "
+                "WHERE activo IS NOT FALSE ORDER BY razon_social")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/operaciones/aceptadas")
 def operaciones_aceptadas(request: Request):
     """Todas las ofertas ACEPTADAS, para que Operaciones sepa lo que se ha
@@ -3988,10 +4011,12 @@ def get_clientes_catalogo():
 def create_cliente(body: ClienteCreate):
     """Registra un cliente nuevo en el catálogo oficial (nombre corto + datos
     oficiales). Bloquea duplicados sin importar mayúsculas/espacios."""
-    nombre = re.sub(r"\s+", " ", (body.nombre_corto or "").strip())
+    nombre = re.sub(r"\s+", " ", (body.nombre_corto or "").strip()).upper()
     if not nombre:
         raise HTTPException(400, "El nombre del cliente es obligatorio")
-    razon = (body.razon_social or "").strip() or None
+    razon = ((body.razon_social or "").strip() or None)
+    if razon:
+        razon = razon.upper()
     nit   = (body.nit or "").strip() or None
     try:
         with get_conn() as conn:
@@ -4036,7 +4061,7 @@ def update_cliente(cid: int, body: ClienteUpdate):
             sets, params = [], []
             nuevo_nombre = None
             if body.nombre_corto is not None:
-                nuevo_nombre = re.sub(r"\s+", " ", body.nombre_corto.strip())
+                nuevo_nombre = re.sub(r"\s+", " ", body.nombre_corto.strip()).upper()
                 if not nuevo_nombre:
                     raise HTTPException(400, "El nombre del cliente no puede quedar vacío")
                 # ¿Choca con OTRO cliente distinto?
@@ -4048,7 +4073,7 @@ def update_cliente(cid: int, body: ClienteUpdate):
                     raise HTTPException(409, f'Ya existe otro cliente llamado "{nuevo_nombre}"')
                 sets.append("nombre_corto = %s"); params.append(nuevo_nombre)
             if body.razon_social is not None:
-                sets.append("razon_social = %s"); params.append(body.razon_social.strip() or None)
+                sets.append("razon_social = %s"); params.append((body.razon_social.strip() or None) and body.razon_social.strip().upper())
             if body.nit is not None:
                 sets.append("nit = %s"); params.append(body.nit.strip() or None)
             if not sets:
