@@ -889,6 +889,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn write-only" onclick="switchTab('iaoferta')">✨ Generar Oferta</button>
   <button class="tab-btn" onclick="switchTab('control')">📋 Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')">✅ Ofertas Aprobadas</button>
+  <button class="tab-btn" onclick="switchTab('proyeccion')">📈 Proyección</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
   <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
@@ -1370,6 +1371,50 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- ── NOTA ACLARATORIA ── -->
   <div style="margin-top:16px;padding:12px 16px;background:#fff8ec;border-left:4px solid var(--orange);border-radius:8px;font-size:13px;color:#5a4a2a;">
     📝 <strong>Nota:</strong> El <strong>Total Facturado</strong> concilia con el Excel e incluye 4 categorías: <strong>Ofertas 2026</strong>, <strong>Año Anterior 2025</strong> (numeradas + año pasado), <strong>Contratos</strong> (SACYR, Cerrejón, GM&amp;M…) y <strong>Otros</strong> (postes, adicionales, favores).
+  </div>
+</section>
+
+<!-- ==================== PROYECCIÓN DE FACTURACIÓN ==================== -->
+<section class="tab-panel" id="tab-proyeccion">
+  <div class="approved-header">
+    <div>
+      <h2>📈 Proyección de facturación</h2>
+      <p style="color:var(--text-muted);font-size:13px;margin:2px 0 0;">
+        Lo facturado cada mes y lo que está por facturar (POR EJECUTAR + EN EJECUCIÓN + EJECUTADO). Se arma solo desde las facturas de Vulcano.
+      </p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">🔄 Actualizar</button>
+  </div>
+
+  <!-- Tarjetas grandes: proyección y facturado -->
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;">
+    <div id="pyProyCard" style="flex:1;min-width:260px;background:linear-gradient(135deg,var(--orange),#c8520f);color:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(232,100,26,.25);">
+      <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.9;">🔮 Proyección (por facturar)</div>
+      <div id="pyProyTotal" style="font-size:32px;font-weight:800;margin:3px 0;">—</div>
+      <div id="pyProyDetalle" style="font-size:12px;opacity:.92;">—</div>
+    </div>
+    <div id="pyFactCard" style="flex:1;min-width:260px;background:linear-gradient(135deg,var(--petrol-dark),var(--petrol));color:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(14,107,125,.25);">
+      <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.9;">💰 Facturado en el año</div>
+      <div id="pyFactTotal" style="font-size:32px;font-weight:800;margin:3px 0;">—</div>
+      <div id="pyFactDetalle" style="font-size:12px;opacity:.92;">—</div>
+    </div>
+  </div>
+
+  <!-- Facturado por mes -->
+  <div class="section-title" style="margin:18px 0 8px;">💰 Facturado por mes</div>
+  <div id="pyMeses" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;"></div>
+
+  <!-- Tabla estilo dinámica -->
+  <div class="section-title" style="margin:20px 0 8px;">📊 Detalle por estado (tu tabla dinámica)</div>
+  <div style="overflow-x:auto;">
+    <table class="data-table" style="min-width:520px;">
+      <thead>
+        <tr><th>Estado</th><th style="text-align:right;">Valor</th><th style="text-align:right;"># Servicios</th></tr>
+      </thead>
+      <tbody id="pyTablaBody">
+        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">Cargando…</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -2637,7 +2682,7 @@ function enterModulo(modulo) {
   const rol = currentUser ? currentUser.rol : 'viewer';
   const info = MODULO_INFO[modulo] || MODULO_INFO.comercial;
   // Tabs comerciales (dashboard, generar, control, aprobadas)
-  const tabIds = ['dashboard','generar','control','aprobadas'];
+  const tabIds = ['dashboard','generar','control','aprobadas','proyeccion'];
   tabIds.forEach(t => {
     const btn = document.querySelector(`.tab-btn[onclick="switchTab('${t}')"]`);
     if (btn) btn.style.display = info.tabsComercial ? '' : 'none';
@@ -2987,6 +3032,57 @@ function switchTab(name) {
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
   if (name === 'tablero')    loadTablero();
   if (name === 'rentabilidad') initRentabilidad();
+  if (name === 'proyeccion') renderProyeccion();
+}
+
+// ========== PROYECCIÓN DE FACTURACIÓN (replica la tabla dinámica) ==========
+async function renderProyeccion() {
+  const body = document.getElementById('pyTablaBody');
+  if (!body) return;
+  try {
+    const res = await fetch('/api/facturacion/estado_proyecto');
+    if (!res.ok) throw new Error('No se pudo cargar la proyección');
+    const d = await res.json();
+    const p = d.proyeccion || {};
+
+    // Tarjeta proyección (lo que aún NO se ha facturado)
+    document.getElementById('pyProyTotal').textContent = fmtCop(p.total || 0);
+    document.getElementById('pyProyDetalle').innerHTML =
+      'Por ejecutar ' + fmtCop((p.por_ejecutar || {}).valor || 0) +
+      ' · En ejecución ' + fmtCop((p.en_ejecucion || {}).valor || 0) +
+      ' · Ejecutado ' + fmtCop((p.ejecutado || {}).valor || 0);
+
+    // Tarjeta facturado en el año
+    document.getElementById('pyFactTotal').textContent = fmtCop(d.facturado_total || 0);
+    const nMeses = (d.facturado_por_mes || []).length;
+    document.getElementById('pyFactDetalle').textContent = nMeses + ' meses facturados';
+
+    // Facturado por mes (tarjetitas)
+    const cont = document.getElementById('pyMeses');
+    cont.innerHTML = (d.facturado_por_mes || []).map(m =>
+      `<div style="flex:1;min-width:118px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+         <div style="font-size:11px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;">${m.mes}</div>
+         <div style="font-size:16px;font-weight:800;margin-top:3px;">${fmtCop(m.valor)}</div>
+         <div style="font-size:11px;color:var(--text-muted);">${m.n} servicios</div>
+       </div>`).join('') || '<span style="color:var(--text-muted);">Sin datos aún.</span>';
+
+    // Tabla estilo dinámica
+    const rows = [];
+    (d.facturado_por_mes || []).forEach(m => rows.push(['FACTURADO ' + m.mes, m.valor, m.n]));
+    if (p.ejecutado)    rows.push(['EJECUTADO',     p.ejecutado.valor,    p.ejecutado.n]);
+    if (p.en_ejecucion) rows.push(['EN EJECUCIÓN',  p.en_ejecucion.valor, p.en_ejecucion.n]);
+    if (p.por_ejecutar) rows.push(['POR EJECUTAR',  p.por_ejecutar.valor, p.por_ejecutar.n]);
+    if (d.cancelado && d.cancelado.valor) rows.push(['CANCELADO', d.cancelado.valor, d.cancelado.n]);
+    if (d.otros && d.otros.valor)         rows.push(['OTROS',     d.otros.valor,     d.otros.n]);
+
+    body.innerHTML = rows.map(r =>
+      `<tr><td>${r[0]}</td><td style="text-align:right;font-weight:700;">${fmtCop(r[1])}</td><td style="text-align:right;color:var(--text-muted);">${r[2]}</td></tr>`
+    ).join('') +
+    `<tr style="border-top:2px solid var(--petrol);font-weight:800;background:#f4f8f9;">
+       <td>TOTAL GENERAL</td><td style="text-align:right;">${fmtCop(d.total_general)}</td><td></td></tr>`;
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--danger);padding:20px;">❌ ${e.message}</td></tr>`;
+  }
 }
 
 // ========== USER ==========

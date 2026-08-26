@@ -2986,6 +2986,88 @@ def facturacion_resumen():
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/facturacion/estado_proyecto")
+def facturacion_estado_proyecto():
+    """Reproduce la tabla dinámica de control (Natalia): agrupa la tabla
+    `facturas` por `estado_proyecto` sumando el valor. Devuelve el facturado
+    por mes, los estados de ejecución y la proyección (lo que aún NO se ha
+    facturado = POR EJECUTAR + EN EJECUCIÓN + EJECUTADO)."""
+    _ORDEN_MES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+                  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT UPPER(TRIM(COALESCE(estado_proyecto,''))) e, "
+                "COUNT(*) n, COALESCE(SUM(valor),0) v "
+                "FROM facturas GROUP BY 1")
+            filas = fetchall(cur)
+
+        facturado_mes = {}     # mes -> {valor, n}
+        proyeccion = {"POR EJECUTAR": {"valor": 0, "n": 0},
+                      "EN EJECUCION": {"valor": 0, "n": 0},
+                      "EJECUTADO": {"valor": 0, "n": 0}}
+        cancelado = {"valor": 0, "n": 0}
+        otros = {"valor": 0, "n": 0}
+
+        for r in filas:
+            e = (r.get("e") or "").strip()
+            v = int(r.get("v") or 0)
+            n = int(r.get("n") or 0)
+            e_norm = e.replace("Ó", "O").replace("Í", "I")
+            if e_norm.startswith("FACTURADO"):
+                mes = e_norm.replace("FACTURADO", "").strip() or "(SIN MES)"
+                d = facturado_mes.setdefault(mes, {"valor": 0, "n": 0})
+                d["valor"] += v
+                d["n"] += n
+            elif e_norm == "POR EJECUTAR":
+                proyeccion["POR EJECUTAR"]["valor"] += v
+                proyeccion["POR EJECUTAR"]["n"] += n
+            elif e_norm in ("EN EJECUCION", "EN EJECUCION "):
+                proyeccion["EN EJECUCION"]["valor"] += v
+                proyeccion["EN EJECUCION"]["n"] += n
+            elif e_norm == "EJECUTADO":
+                proyeccion["EJECUTADO"]["valor"] += v
+                proyeccion["EJECUTADO"]["n"] += n
+            elif e_norm == "CANCELADO":
+                cancelado["valor"] += v
+                cancelado["n"] += n
+            elif e_norm and e_norm != "(SIN MES)":
+                otros["valor"] += v
+                otros["n"] += n
+
+        meses = []
+        for m in _ORDEN_MES:
+            if m in facturado_mes:
+                d = facturado_mes[m]
+                meses.append({"mes": m, "valor": d["valor"], "n": d["n"]})
+        # Meses que no estén en el orden estándar (por si acaso)
+        for m, d in facturado_mes.items():
+            if m not in _ORDEN_MES:
+                meses.append({"mes": m, "valor": d["valor"], "n": d["n"]})
+
+        facturado_total = sum(x["valor"] for x in meses)
+        proy_total = sum(p["valor"] for p in proyeccion.values())
+        total_general = facturado_total + proy_total + cancelado["valor"] + otros["valor"]
+
+        return {
+            "facturado_por_mes": meses,
+            "facturado_total": facturado_total,
+            "proyeccion": {
+                "por_ejecutar": proyeccion["POR EJECUTAR"],
+                "en_ejecucion": proyeccion["EN EJECUCION"],
+                "ejecutado": proyeccion["EJECUTADO"],
+                "total": proy_total,
+            },
+            "cancelado": cancelado,
+            "otros": otros,
+            "total_general": total_general,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/ofertas/{oferta_id}")
 def get_oferta(oferta_id: int):
     try:
