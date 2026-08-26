@@ -3069,7 +3069,7 @@ function renderDashboard() {
   // Donut: Clientes con más ofertas ACEPTADAS
   const acCliMap = {};
   allOfertas.forEach(o => {
-    if ((o.respuesta||'').toUpperCase() === 'ACEPTADA' && o.cliente)
+    if ((o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL') && o.cliente)
       acCliMap[o.cliente] = (acCliMap[o.cliente]||0) + 1;
   });
   const acCliData = Object.entries(acCliMap).sort((a,b)=>b[1]-a[1]).slice(0,7)
@@ -3116,7 +3116,7 @@ function renderDashboard() {
 
 function computeStats() {
   const total = allOfertas.length;
-  const aceptadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA').length;
+  const aceptadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL')).length;
   const seguimiento = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'EN SEGUIMIENTO').length;
   const valorTotal = allOfertas.reduce((s, o) => s + (o.valor||0), 0);
   const months = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
@@ -3343,8 +3343,13 @@ function filterAprobadas() {
   const fechaDesde  = document.getElementById('aFechaDesde').value;
   const fechaHasta  = document.getElementById('aFechaHasta').value;
 
+  // Un proyecto ACEPTADO pero luego CANCELADO no cuenta como aprobado vivo.
+  // Se excluye por defecto, salvo que el usuario filtre explícitamente por "Cancelado".
+  const esCancelado = s => (s||'').toUpperCase().includes('CANCEL');
+
   const aprobadas = allOfertas.filter(o => {
     if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return false;
+    if (esCancelado(o.seguimiento) && !esCancelado(seguimiento)) return false;
     if (buscar && !`${o.num} ${o.cliente}`.toLowerCase().includes(buscar)) return false;
     if (mes && o.mes !== mes) return false;
     if (seguimiento && (o.seguimiento||'') !== seguimiento) return false;
@@ -3356,8 +3361,8 @@ function filterAprobadas() {
     return true;
   });
 
-  // KPIs — siempre sobre el universo completo de aceptadas
-  const todas   = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA');
+  // KPIs — universo de aceptadas VIVAS (sin las canceladas)
+  const todas   = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !esCancelado(o.seguimiento));
   const valEsp  = aprobadas.reduce((s,o) => s+(o.valor||0), 0);
   const valFact = aprobadas.reduce((s,o) => s+(o.valor_facturado||0), 0);
   const conFact = aprobadas.filter(o => o.no_factura).length;
@@ -3799,7 +3804,7 @@ function exportExcel(type) {
     filename = 'Control_Ofertas_BOOM.xlsx';
     sheetName = 'Control de Ofertas';
   } else {
-    const aprobadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA');
+    const aprobadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL'));
     headers = ['No. Oferta','Mes','Fecha','Cliente','Comercial','Unidad','Tipo','Valor Esperado','Valor Facturado','Fecha Facturación','No. Factura','Seguimiento'];
     rows = aprobadas.map(o => [o.num,o.mes,o.fecha,o.cliente,o.realizada,o.unidad,o.tipo,o.valor,o.valor_facturado,o.fecha_facturacion,o.no_factura,o.seguimiento||'']);
     filename = 'Ofertas_Aprobadas_BOOM.xlsx';
