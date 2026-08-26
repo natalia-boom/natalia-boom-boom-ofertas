@@ -178,6 +178,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .badge-aceptada   { background: #dcfce7; color: #15803d; }
 .badge-rechazada  { background: #fee2e2; color: #b91c1c; }
 .badge-seguimiento{ background: #fef3c7; color: #92400e; }
+.badge-recibido   { background: #e0e7ff; color: #4338ca; }
 .badge-proceso    { background: #ede9fe; color: #6d28d9; }
 .seg-select { border:none; border-radius:20px; padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; outline:none; }
 .seg-select:focus { box-shadow:0 0 0 2px var(--orange); }
@@ -1030,6 +1031,7 @@ body.rol-viewer .write-only { display:none !important; }
           <option value="">Todas</option>
           <option>ACEPTADA</option><option>RECHAZADA</option>
           <option>EN SEGUIMIENTO</option><option>PENDIENTE</option>
+          <option>RECIBIDO</option>
         </select>
       </div>
       <div class="form-group">
@@ -1847,6 +1849,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             <option>RECHAZADA</option>
             <option>EN SEGUIMIENTO</option>
             <option>PENDIENTE</option>
+            <option>RECIBIDO</option>
           </select>
         </div>
       </div>
@@ -2048,6 +2051,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
                 <option>RECHAZADA</option>
                 <option>EN SEGUIMIENTO</option>
                 <option>PENDIENTE</option>
+                <option>RECIBIDO</option>
               </select>
             </div>
             <div class="form-group">
@@ -2476,6 +2480,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             <option>RECHAZADA</option>
             <option>EN SEGUIMIENTO</option>
             <option>PENDIENTE</option>
+            <option>RECIBIDO</option>
           </select>
         </div>
         <div class="form-group">
@@ -5755,7 +5760,7 @@ function badgeEstado(e) {
 
 function badgeRespuesta(r) {
   if (!r) return '';
-  const map = {'ACEPTADA':'aceptada','RECHAZADA':'rechazada','EN SEGUIMIENTO':'seguimiento','PENDIENTE':'enviado'};
+  const map = {'ACEPTADA':'aceptada','RECHAZADA':'rechazada','EN SEGUIMIENTO':'seguimiento','PENDIENTE':'enviado','RECIBIDO':'recibido'};
   const cls = map[r] || 'enviado';
   return `<span class="badge badge-${cls}">${r}</span>`;
 }
