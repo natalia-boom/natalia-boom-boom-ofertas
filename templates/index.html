@@ -4623,6 +4623,24 @@ async function iaHandleFiles(files) {
         const fr = new FileReader();
         fr.onload = ev => {
           let txt = String(ev.target.result || '');
+          const esHtml = ['html', 'htm'].includes(ext) || type === 'text/html';
+          if (esHtml) {
+            // Rescatar SOLO las fotos de la carga (dentro de .foto-grid/.foto-card),
+            // NO el logo ni el sello, para no perderlas al versionar la oferta.
+            try {
+              const doc = new DOMParser().parseFromString(txt, 'text/html');
+              const imgs = doc.querySelectorAll('.foto-card img[src^="data:image"], .foto-grid img[src^="data:image"]');
+              let n = 0;
+              imgs.forEach(im => {
+                const src = im.getAttribute('src');
+                if (src && !iaFotos.some(f => f.dataUrl === src)) {
+                  iaFotos.push({ kind: 'image', dataUrl: src, name: 'foto_carga_' + (iaFotos.length + 1) + '.jpg' });
+                  n++;
+                }
+              });
+              if (n) showToast('📷 ' + n + ' foto(s) de la carga recuperada(s) del archivo', 'success');
+            } catch (e) {}
+          }
           // Aligera HTML/otros: quita imágenes base64 gigantes embebidas
           txt = txt.replace(/data:[^;]+;base64,[A-Za-z0-9+/=]+/g, '[imagen embebida omitida]');
           if (txt.length > 40000) txt = txt.slice(0, 40000) + '\n[…archivo recortado]';
@@ -4786,6 +4804,11 @@ async function iaSendMessage() {
     if (data.html) {
       iaHtml = data.html;
       iaMeta = data.meta || null;
+      // Si la IA reportó una forma de pago (ej. anticipo distinto escrito en el chat),
+      // actualiza el selector para que se GUARDE y salga en el PDF/correo esa, no la de 50%.
+      if (iaMeta && iaMeta.forma_pago && String(iaMeta.forma_pago).trim()) {
+        iaSetFormaPago(String(iaMeta.forma_pago).trim());
+      }
       iaRenderPreview();
       iaSetButtons(true);
     }
@@ -4807,6 +4830,21 @@ async function iaSendMessage() {
 // Aplica al instante la forma de pago elegida sobre la oferta ya generada,
 // sin tener que regenerar. Reemplaza el valor de la fila "Forma de pago" /
 // "Payment terms" en la tabla de condiciones.
+// Deja seleccionada en el selector la forma de pago indicada (la agrega como
+// opción si no está entre las predeterminadas). NO reescribe el HTML: solo
+// asegura que al GUARDAR se almacene esta forma de pago y salga en el PDF/correo.
+function iaSetFormaPago(fp) {
+  const sel = document.getElementById('iaFormaPago');
+  if (!sel || !fp) return;
+  let opt = Array.from(sel.options).find(o => o.value.trim().toLowerCase() === fp.trim().toLowerCase());
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = fp; opt.textContent = fp;
+    sel.appendChild(opt);
+  }
+  sel.value = opt.value;
+}
+
 function iaAplicarFormaPago() {
   const fp = document.getElementById('iaFormaPago').value;
   if (!iaHtml || !fp) return;

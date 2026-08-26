@@ -2656,9 +2656,11 @@ las <img>); la clase .foto-card ya deja la imagen contenida sin deformarla ni de
 1) Una frase breve (1-3 líneas) para el chat con los montos clave / cambios / pendientes.
 2) El HTML completo entre los marcadores <<<HTML>>> y <<<FINHTML>>> (sin ``` , sin markdown).
 3) Los metadatos entre <<<META>>> y <<<FINMETA>>>: un JSON con
-   {"cliente":"","valor":0,"moneda":"COP|USD","mes":"ENE..DIC","tipo":"","descripcion":"","realizada":"Boris Borrego|Natalia Vargas|Willington Ortiz"}
+   {"cliente":"","valor":0,"moneda":"COP|USD","mes":"ENE..DIC","tipo":"","descripcion":"","realizada":"Boris Borrego|Natalia Vargas|Willington Ortiz","forma_pago":""}
    donde "valor" es el TOTAL numérico entero sin separadores (ej. 39000) y "mes" el mes de la oferta en
-   mayúsculas de 3 letras. Si algún dato no aplica, déjalo vacío o en 0."""
+   mayúsculas de 3 letras. En "forma_pago" pon EXACTAMENTE la forma de pago que quedó escrita en la
+   oferta: si el usuario indicó en el chat un anticipo distinto (ej. "70% de anticipo", "60% anticipo /
+   40% a 30 días"), reporta ESA, no la predeterminada. Si algún dato no aplica, déjalo vacío o en 0."""
 
 
 class OfertaIABody(BaseModel):
