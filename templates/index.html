@@ -3981,7 +3981,10 @@ function exportExcel(type) {
 async function deleteOferta(id, num, cliente) {
   const _cu = currentUser && currentUser.nombre;
   if (!_cu) { showToast('No hay sesión activa', 'warning'); return; }
-  if (!confirm(`¿Eliminar la oferta ${num} (${cliente})?\n\nEsta acción no se puede deshacer.`)) return;
+  // Triple confirmación: hay que aceptar las 3 preguntas para poder eliminar.
+  if (!confirm(`1 de 3 · ¿Eliminar la oferta ${num} (${cliente})?`)) return;
+  if (!confirm(`2 de 3 · Confirma otra vez: se eliminará la oferta ${num} (${cliente}).\n\nEsta acción NO se puede deshacer.`)) return;
+  if (!confirm(`3 de 3 · Última confirmación.\n\n¿Seguro que quieres ELIMINAR definitivamente la oferta ${num} (${cliente})?`)) return;
   try {
     const res = await fetch('/api/ofertas/' + id, { method: 'DELETE' });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error eliminando oferta'); }
