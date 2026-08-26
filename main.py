@@ -1850,14 +1850,16 @@ def _session_load_from_db():
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT token, user_id, username, nombre, rol FROM sessions "
-                "WHERE expires_at > now()"
+                "SELECT s.token, s.user_id, s.username, s.nombre, s.rol, u.modulos "
+                "FROM sessions s LEFT JOIN usuarios u ON u.id = s.user_id "
+                "WHERE s.expires_at > now()"
             )
             rows = fetchall(cur)
         for r in rows:
             _sessions[r["token"]] = {
                 "id": r["user_id"], "username": r["username"],
                 "nombre": r["nombre"], "rol": r["rol"],
+                "modulos": r.get("modulos") or [],
             }
         print(f"[AUTH] {len(rows)} sesión(es) activa(s) cargada(s) desde DB.")
     except Exception as e:
@@ -1870,9 +1872,9 @@ def _session_save(token: str, user: dict, max_age_s: int = 86400 * 7):
             cur = conn.cursor()
             cur.execute(
                 """INSERT INTO sessions (token, user_id, username, nombre, rol, expires_at)
-                   VALUES (%s, %s, %s, %s, %s, now() + interval '%s seconds')
+                   VALUES (%s, %s, %s, %s, %s, now() + make_interval(secs => %s))
                    ON CONFLICT (token) DO UPDATE
-                   SET expires_at = now() + interval '%s seconds'""",
+                   SET expires_at = now() + make_interval(secs => %s)""",
                 (token, user["id"], user["username"], user["nombre"], user["rol"],
                  max_age_s, max_age_s)
             )
@@ -1899,14 +1901,16 @@ def _session_get(token: str) -> dict | None:
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT user_id, username, nombre, rol FROM sessions "
-                "WHERE token = %s AND expires_at > now()",
+                "SELECT s.user_id, s.username, s.nombre, s.rol, u.modulos "
+                "FROM sessions s LEFT JOIN usuarios u ON u.id = s.user_id "
+                "WHERE s.token = %s AND s.expires_at > now()",
                 (token,)
             )
             row = fetchone(cur)
         if row:
             user = {"id": row["user_id"], "username": row["username"],
-                    "nombre": row["nombre"], "rol": row["rol"]}
+                    "nombre": row["nombre"], "rol": row["rol"],
+                    "modulos": row.get("modulos") or []}
             _sessions[token] = user   # repopulate cache
             return user
     except Exception as e:
