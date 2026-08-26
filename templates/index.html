@@ -1545,7 +1545,7 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="chat-historia" id="chatHistoria">
         <div class="chat-msg">
           <div class="chat-avatar">AI</div>
-          <div class="chat-burbuja">Hola Natalia 👋 Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un Excel con los datos de la carga. Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.</div>
+          <div class="chat-burbuja"><span class="js-saludo">Hola equipo comercial 👋</span> Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un Excel con los datos de la carga. Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.</div>
         </div>
       </div>
 
@@ -1912,7 +1912,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div class="chat-historia" id="iaChatHistoria" style="max-height:440px;min-height:300px;">
           <div class="chat-msg">
             <div class="chat-avatar">AI</div>
-            <div class="chat-burbuja">Hola Natalia 👋 Cuéntame la operación que necesitas cotizar: cliente, alcance, equipos, precios y condiciones. Puedes pegar el correo del cliente tal cual, y arrastrar aquí cualquier archivo de referencia: fotos de la carga, un PDF, o el HTML de una oferta anterior. Con eso te armo la oferta completa. Si algo debe ir en inglés o en USD, solo dímelo.</div>
+            <div class="chat-burbuja"><span class="js-saludo">Hola equipo comercial 👋</span> Cuéntame la operación que necesitas cotizar: cliente, alcance, equipos, precios y condiciones. Puedes pegar el correo del cliente tal cual, y arrastrar aquí cualquier archivo de referencia: fotos de la carga, un PDF, o el HTML de una oferta anterior. Con eso te armo la oferta completa. Si algo debe ir en inglés o en USD, solo dímelo.</div>
           </div>
         </div>
 
@@ -2920,6 +2920,7 @@ async function initApp() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Carga el logo temprano para que esté disponible en el selector de módulos
   // logos son SVG inline — no requieren carga dinámica
+  aplicarSaludo();   // saludo del chat según la hora (día/tarde/noche)
   await checkAuth();
 });
 
@@ -3298,6 +3299,20 @@ function clearFilters() {
 }
 
 // ========== ALERTAS ==========
+// Saludo según la hora del día: mañana / tarde / noche.
+function saludoHora() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12)  return 'Buenos días';
+  if (h >= 12 && h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+// Rellena todos los saludos del chat con la hora actual + "equipo comercial".
+function aplicarSaludo() {
+  document.querySelectorAll('.js-saludo').forEach(el => {
+    el.textContent = `${saludoHora()}, equipo comercial 👋`;
+  });
+}
+
 function diasDesde(fechaStr) {
   if (!fechaStr) return 0;
   const d = new Date(fechaStr);
@@ -4374,7 +4389,7 @@ function resetChat() {
   pendingExcelContent = null;
   const container = document.getElementById('chatHistoria');
   container.innerHTML = '';
-  appendChatMessage('assistant', 'Hola Natalia 👋 Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un archivo (imagen, PDF, Excel, Word...). Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.');
+  appendChatMessage('assistant', `${saludoHora()}, equipo comercial 👋 Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un archivo (imagen, PDF, Excel, Word...). Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.`);
   document.getElementById('chatInput').value = '';
   const anyIn = document.getElementById('anyFileInput');
   if (anyIn) anyIn.value = '';
