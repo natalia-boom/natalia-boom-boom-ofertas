@@ -1700,7 +1700,30 @@ def _ensure_db():
                 importado_at timestamptz DEFAULT now()
             )
         """)
+        # Migración: N° de oferta y clasificación de origen (2026/2025/CONTRATO)
+        # para el panel de Proyección (Bloque 1 "Facturado real").
+        cur.execute("ALTER TABLE vulcano_facturas ADD COLUMN IF NOT EXISTS oferta_ref text")
+        cur.execute("ALTER TABLE vulcano_facturas ADD COLUMN IF NOT EXISTS clase text")
         print("[DB] Tabla 'vulcano_facturas' lista.")
+
+        # Contratos: pendiente por facturar (Bloque 3 de la Proyección).
+        # Líneas manuales que digita Natalia cuando proyectos confirma un
+        # servicio de contrato por WhatsApp y Vulcano aún no lo factura.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS contratos_pendientes (
+                id bigserial primary key,
+                cliente text NOT NULL,
+                descripcion text,
+                valor bigint NOT NULL DEFAULT 0,
+                mes text,
+                estado text NOT NULL DEFAULT 'CONFIRMADO',
+                oferta_ref text,
+                creado_por text,
+                created_at timestamptz DEFAULT now(),
+                updated_at timestamptz DEFAULT now()
+            )
+        """)
+        print("[DB] Tabla 'contratos_pendientes' lista.")
 
         # Presupuesto / META mensual de facturación por año. Fuente: Natalia.
         # Sirve para medir el % de cumplimiento (facturado real vs meta).
@@ -3063,6 +3086,179 @@ def facturacion_estado_proyecto():
             "otros": otros,
             "total_general": total_general,
         }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/facturacion/real")
+def facturacion_real():
+    """Bloque 1 de la Proyección: facturado REAL de Vulcano (hoja Facturación),
+    por mes y clasificado por origen (Ofertas 2026 / 2025 / Contratos y otros).
+    Fuente: tabla `vulcano_facturas` (excluye las marcadas como excluida)."""
+    _ORDEN_MES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+                  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT UPPER(TRIM(COALESCE(mes,''))) m, "
+                "UPPER(TRIM(COALESCE(clase,'CONTRATO'))) c, "
+                "COUNT(*) n, COALESCE(SUM(subtotal),0) v "
+                "FROM vulcano_facturas WHERE excluida = false GROUP BY 1,2")
+            filas = fetchall(cur)
+
+        # mes -> {of2026, of2025, contrato, total, n}
+        por_mes = {}
+        tot = {"of2026": 0, "of2025": 0, "contrato": 0, "total": 0, "n": 0}
+        for r in filas:
+            m = (r.get("m") or "").strip() or "(SIN MES)"
+            c = (r.get("c") or "CONTRATO").strip()
+            v = int(r.get("v") or 0)
+            n = int(r.get("n") or 0)
+            key = "of2026" if c == "2026" else ("of2025" if c == "2025" else "contrato")
+            d = por_mes.setdefault(m, {"of2026": 0, "of2025": 0, "contrato": 0, "total": 0, "n": 0})
+            d[key] += v
+            d["total"] += v
+            d["n"] += n
+            tot[key] += v
+            tot["total"] += v
+            tot["n"] += n
+
+        meses = []
+        for m in _ORDEN_MES:
+            if m in por_mes:
+                d = por_mes[m]
+                meses.append({"mes": m, **d})
+        for m, d in por_mes.items():
+            if m not in _ORDEN_MES:
+                meses.append({"mes": m, **d})
+
+        return {"por_mes": meses, "totales": tot}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+class ContratoPendCreate(BaseModel):
+    cliente: str
+    descripcion: Optional[str] = ""
+    valor: Optional[int] = 0
+    mes: Optional[str] = ""
+    estado: Optional[str] = "CONFIRMADO"
+    oferta_ref: Optional[str] = ""
+
+
+class ContratoPendUpdate(BaseModel):
+    cliente: Optional[str] = None
+    descripcion: Optional[str] = None
+    valor: Optional[int] = None
+    mes: Optional[str] = None
+    estado: Optional[str] = None
+    oferta_ref: Optional[str] = None
+
+
+def _cp_valor(v):
+    """Convierte '35.500.000', '$35,500,000' o 35500000 a entero de pesos."""
+    if v is None:
+        return 0
+    if isinstance(v, (int, float)):
+        return int(v)
+    s = re.sub(r"[^\d]", "", str(v))
+    return int(s) if s else 0
+
+
+@app.get("/api/contratos_pendientes")
+def contratos_pendientes_list():
+    """Bloque 3: líneas manuales de contratos pendientes por facturar."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT id, cliente, descripcion, valor, mes, estado, oferta_ref, "
+                "creado_por, created_at FROM contratos_pendientes ORDER BY id DESC")
+            filas = fetchall(cur)
+        pendiente = sum(int(r.get("valor") or 0) for r in filas
+                        if (r.get("estado") or "").upper() != "FACTURADO")
+        total = sum(int(r.get("valor") or 0) for r in filas)
+        return {"items": filas, "pendiente_total": pendiente, "total": total, "n": len(filas)}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/contratos_pendientes")
+def contratos_pendientes_create(body: ContratoPendCreate, request: Request):
+    try:
+        cliente = re.sub(r"\s+", " ", (body.cliente or "").strip()).upper()
+        if not cliente:
+            raise HTTPException(400, "El cliente es obligatorio")
+        estado = (body.estado or "CONFIRMADO").strip().upper()
+        mes = (body.mes or "").strip().upper()
+        creado_por = request.state.user.get("nombre", "") if hasattr(request.state, "user") else ""
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO contratos_pendientes "
+                "(cliente, descripcion, valor, mes, estado, oferta_ref, creado_por) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                (cliente, (body.descripcion or "").strip(), _cp_valor(body.valor),
+                 mes, estado, (body.oferta_ref or "").strip(), creado_por))
+            new_id = fetchone(cur)["id"]
+        return {"ok": True, "id": new_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.patch("/api/contratos_pendientes/{cid}")
+def contratos_pendientes_update(cid: int, body: ContratoPendUpdate, request: Request):
+    try:
+        fields = {}
+        if body.cliente is not None:
+            fields["cliente"] = re.sub(r"\s+", " ", body.cliente.strip()).upper()
+        if body.descripcion is not None:
+            fields["descripcion"] = body.descripcion.strip()
+        if body.valor is not None:
+            fields["valor"] = _cp_valor(body.valor)
+        if body.mes is not None:
+            fields["mes"] = body.mes.strip().upper()
+        if body.estado is not None:
+            fields["estado"] = body.estado.strip().upper()
+        if body.oferta_ref is not None:
+            fields["oferta_ref"] = body.oferta_ref.strip()
+        if not fields:
+            return {"ok": True, "sin_cambios": True}
+        sets = ", ".join(f"{k} = %s" for k in fields)
+        vals = list(fields.values()) + [cid]
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE contratos_pendientes SET {sets}, updated_at = now() WHERE id = %s",
+                vals)
+            if cur.rowcount == 0:
+                raise HTTPException(404, "Línea no encontrada")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.delete("/api/contratos_pendientes/{cid}")
+def contratos_pendientes_delete(cid: int, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM contratos_pendientes WHERE id = %s", (cid,))
+            if cur.rowcount == 0:
+                raise HTTPException(404, "Línea no encontrada")
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

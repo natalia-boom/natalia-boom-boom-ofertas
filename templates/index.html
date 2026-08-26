@@ -1376,45 +1376,153 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- ==================== PROYECCIÓN DE FACTURACIÓN ==================== -->
 <section class="tab-panel" id="tab-proyeccion">
+  <style>
+    .py-chip{background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:#3a4a50;cursor:pointer;user-select:none;}
+    .py-chip-on{background:var(--petrol);color:#fff;border-color:var(--petrol);}
+    .py-mes{flex:1;min-width:112px;background:#f7fbfc;border:1px solid var(--border);border-radius:11px;padding:11px 13px;}
+    .py-mes .m{font-size:11px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;}
+    .py-mes .v{font-size:16px;font-weight:800;margin-top:3px;}
+    .py-mes .c{font-size:10px;color:var(--text-muted);}
+    .py-est{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;display:inline-block;white-space:nowrap;}
+    .py-e-conf{background:#fff3e0;color:#c8620f;} .py-e-ejec{background:#e3f0ff;color:#1565c0;} .py-e-fact{background:#e6f7ec;color:#1e8e4e;}
+  </style>
   <div class="approved-header">
     <div>
       <h2>📈 Proyección de facturación</h2>
       <p style="color:var(--text-muted);font-size:13px;margin:2px 0 0;">
-        Lo facturado cada mes y lo que está por facturar (POR EJECUTAR + EN EJECUCIÓN + EJECUTADO). Se arma solo desde las facturas de Vulcano.
+        Lo facturado REAL de Vulcano (todo) · el seguimiento de tus ofertas 2026 · y lo pendiente de contratos.
       </p>
     </div>
     <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">🔄 Actualizar</button>
   </div>
 
-  <!-- Tarjetas grandes: proyección y facturado -->
-  <div style="display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;">
-    <div id="pyProyCard" style="flex:1;min-width:260px;background:linear-gradient(135deg,var(--orange),#c8520f);color:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(232,100,26,.25);">
-      <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.9;">🔮 Proyección (por facturar)</div>
-      <div id="pyProyTotal" style="font-size:32px;font-weight:800;margin:3px 0;">—</div>
-      <div id="pyProyDetalle" style="font-size:12px;opacity:.92;">—</div>
+  <!-- ============ BLOQUE 1 — Facturado real (Vulcano) ============ -->
+  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #1e8e4e;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
+    <div style="font-size:17px;font-weight:800;color:#0a4f5c;">🟢 Facturado real por mes (Vulcano — todo incluido)</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:2px 0 14px;">La cifra real que factura la empresa: tus ofertas 2026 + 2025 + contratos. Filtra abajo para ver solo lo tuyo.</div>
+
+    <div style="background:linear-gradient(135deg,var(--petrol-dark),var(--petrol));color:#fff;border-radius:14px;padding:16px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;opacity:.85;" id="pyRealLbl">Facturado real 2026</div>
+        <div id="pyRealTotal" style="font-size:32px;font-weight:800;line-height:1.05;">—</div>
+      </div>
+      <div id="pyRealHint" style="font-size:12px;opacity:.85;">fuente: hoja «Facturación» de Vulcano</div>
     </div>
-    <div id="pyFactCard" style="flex:1;min-width:260px;background:linear-gradient(135deg,var(--petrol-dark),var(--petrol));color:#fff;border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(14,107,125,.25);">
-      <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.9;">💰 Facturado en el año</div>
-      <div id="pyFactTotal" style="font-size:32px;font-weight:800;margin:3px 0;">—</div>
-      <div id="pyFactDetalle" style="font-size:12px;opacity:.92;">—</div>
+
+    <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
+      <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">🟠 Solo ofertas 2026</span>
+      <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">🔵 2025 / año pasado</span>
+      <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">🟣 Contratos y otros</span>
+    </div>
+
+    <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+
+  <!-- ============ BLOQUE 2 — Seguimiento 2026 ============ -->
+  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #1565c0;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
+    <div style="font-size:17px;font-weight:800;color:#0a4f5c;">🔵 Seguimiento de tus ofertas 2026 (por facturar)</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:2px 0 14px;">Solo lo tuyo del año que aún no factura Vulcano. Esto es lo que tú proyectas y controlas.</div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#c8620f,#e8641a);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🟠 Por ejecutar</div>
+        <div id="pySegPorEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
+        <div style="font-size:11px;opacity:.85;">confirmado, aún no arranca</div>
+      </div>
+      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#1565c0,#3b82f6);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🔵 En ejecución</div>
+        <div id="pySegEnEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
+        <div style="font-size:11px;opacity:.85;">en proceso</div>
+      </div>
+      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🟣 Ejecutado</div>
+        <div id="pySegEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
+        <div style="font-size:11px;opacity:.85;">terminado, falta facturar</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:12px 16px;background:#eef4f6;border-radius:10px;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
+      <span>Total por facturar (proyección 2026)</span>
+      <b id="pySegTotal" style="color:#0a4f5c;font-size:19px;">—</b>
     </div>
   </div>
 
-  <!-- Facturado por mes -->
-  <div class="section-title" style="margin:18px 0 8px;">💰 Facturado por mes</div>
-  <div id="pyMeses" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;"></div>
+  <!-- ============ BLOQUE 3 — Contratos pendientes ============ -->
+  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #6d28d9;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#0a4f5c;">🟣 Contratos — pendiente por facturar</div>
+        <div style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">Lo que el equipo de proyectos confirma por WhatsApp y Vulcano aún no factura. Lo digitas tú.</div>
+      </div>
+      <button class="btn btn-sm write-only" style="background:#6d28d9;color:#fff;border:none;" onclick="pyToggleForm()">➕ Agregar pendiente de contrato</button>
+    </div>
 
-  <!-- Tabla estilo dinámica -->
-  <div class="section-title" style="margin:20px 0 8px;">📊 Detalle por estado (tu tabla dinámica)</div>
-  <div style="overflow-x:auto;">
-    <table class="data-table" style="min-width:520px;">
-      <thead>
-        <tr><th>Estado</th><th style="text-align:right;">Valor</th><th style="text-align:right;"># Servicios</th></tr>
-      </thead>
-      <tbody id="pyTablaBody">
-        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">Cargando…</td></tr>
-      </tbody>
-    </table>
+    <!-- Formulario (oculto por defecto) -->
+    <div id="pyCpForm" style="display:none;background:#faf7ff;border:1px solid #e5d9ff;border-radius:12px;padding:14px 16px;margin-top:12px;">
+      <input type="hidden" id="pyCpId" value="">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">Cliente</label>
+          <select id="pyCpCliente" class="form-input" style="width:100%;">
+            <option value="">— Elige contrato —</option>
+            <option>CERREJON</option><option>GM&amp;M</option><option>INDUSTRIAS EXPLORER</option>
+            <option>ISA INTERCOLOMBIA</option><option>SACYR</option><option>TERNIUM</option><option>TRANSELCA</option>
+            <option value="__OTRO__">Otro…</option>
+          </select>
+          <input id="pyCpClienteOtro" class="form-input" placeholder="Nombre del cliente" style="width:100%;margin-top:6px;display:none;">
+        </div>
+        <div style="flex:2;min-width:220px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">Servicio / descripción</label>
+          <input id="pyCpDesc" class="form-input" placeholder="Ej: Movilización grúa patio 3" style="width:100%;">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <div style="flex:1;min-width:150px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">Valor estimado</label>
+          <input id="pyCpValor" class="form-input" inputmode="numeric" placeholder="$ 35.500.000" style="width:100%;" oninput="pyFmtValor(this)">
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">Mes esperado</label>
+          <select id="pyCpMes" class="form-input" style="width:100%;">
+            <option>ENERO</option><option>FEBRERO</option><option>MARZO</option><option>ABRIL</option>
+            <option>MAYO</option><option>JUNIO</option><option>JULIO</option><option>AGOSTO</option>
+            <option>SEPTIEMBRE</option><option>OCTUBRE</option><option>NOVIEMBRE</option><option>DICIEMBRE</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:150px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">Estado</label>
+          <select id="pyCpEstado" class="form-input" style="width:100%;">
+            <option value="CONFIRMADO">🟠 Confirmado</option>
+            <option value="EN EJECUCION">🔵 En ejecución</option>
+            <option value="FACTURADO">🟢 Facturado</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:130px;">
+          <label style="font-size:11px;font-weight:700;color:#555;">N° oferta / ref. (opcional)</label>
+          <input id="pyCpRef" class="form-input" placeholder="26-0123 o WP" style="width:100%;">
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn btn-sm" style="background:#6d28d9;color:#fff;border:none;" onclick="pyGuardarContrato()">💾 Guardar</button>
+        <button class="btn btn-sm btn-outline" onclick="pyToggleForm(false)">Cancelar</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;padding:10px 14px;background:#f4ecff;border-radius:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+      <span>Pendiente por facturar (contratos)</span>
+      <b id="pyCpTotal" style="color:#6d28d9;font-size:18px;">—</b>
+    </div>
+
+    <div style="overflow-x:auto;margin-top:10px;">
+      <table class="data-table" style="min-width:640px;">
+        <thead>
+          <tr><th>Cliente</th><th>Servicio</th><th style="text-align:right;">Valor</th><th>Mes</th><th>Estado</th><th>Ref.</th><th></th></tr>
+        </thead>
+        <tbody id="pyCpBody">
+          <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
@@ -3036,52 +3144,217 @@ function switchTab(name) {
 }
 
 // ========== PROYECCIÓN DE FACTURACIÓN (replica la tabla dinámica) ==========
+// Datos del Bloque 1 (facturado real) para el filtro por origen
+let pyRealData = null;
+let pyFiltro = 'total';
+const PY_FILTRO_LBL = {
+  total: 'Facturado real 2026',
+  of2026: 'Facturado — solo ofertas 2026',
+  of2025: 'Facturado — 2025 / año pasado',
+  contrato: 'Facturado — contratos y otros'
+};
+
 async function renderProyeccion() {
-  const body = document.getElementById('pyTablaBody');
-  if (!body) return;
+  // Los tres bloques se cargan en paralelo; cada uno maneja su error.
+  pyRenderReal();
+  pyRenderSeguimiento();
+  pyRenderContratos();
+}
+
+// ---------- BLOQUE 1: Facturado real (Vulcano) ----------
+async function pyRenderReal() {
+  const cont = document.getElementById('pyRealMeses');
+  try {
+    const res = await fetch('/api/facturacion/real');
+    if (!res.ok) throw new Error('No se pudo cargar el facturado real');
+    pyRealData = await res.json();
+    pyPintarReal();
+  } catch (e) {
+    if (cont) cont.innerHTML = `<span style="color:var(--danger);">❌ ${e.message}</span>`;
+  }
+}
+
+function pyFiltrar(f) {
+  pyFiltro = f;
+  document.querySelectorAll('#pyRealChips .py-chip').forEach(c =>
+    c.classList.toggle('py-chip-on', c.dataset.f === f));
+  pyPintarReal();
+}
+
+function pyPintarReal() {
+  if (!pyRealData) return;
+  const key = pyFiltro;                       // total | of2026 | of2025 | contrato
+  const meses = pyRealData.por_mes || [];
+  const tot = pyRealData.totales || {};
+  document.getElementById('pyRealLbl').textContent = PY_FILTRO_LBL[key] || 'Facturado real';
+  document.getElementById('pyRealTotal').textContent = fmtCop(tot[key] || 0);
+  document.getElementById('pyRealHint').textContent =
+    (tot.n || 0) + ' facturas · fuente: hoja «Facturación» de Vulcano';
+
+  const cont = document.getElementById('pyRealMeses');
+  cont.innerHTML = meses.map(m =>
+    `<div class="py-mes">
+       <div class="m">${m.mes}</div>
+       <div class="v">${fmtCop(m[key] || 0)}</div>
+       <div class="c">${m.n} fac</div>
+     </div>`).join('') || '<span style="color:var(--text-muted);">Sin datos aún.</span>';
+}
+
+// ---------- BLOQUE 2: Seguimiento ofertas 2026 (por facturar) ----------
+async function pyRenderSeguimiento() {
   try {
     const res = await fetch('/api/facturacion/estado_proyecto');
-    if (!res.ok) throw new Error('No se pudo cargar la proyección');
+    if (!res.ok) throw new Error('No se pudo cargar el seguimiento');
     const d = await res.json();
     const p = d.proyeccion || {};
-
-    // Tarjeta proyección (lo que aún NO se ha facturado)
-    document.getElementById('pyProyTotal').textContent = fmtCop(p.total || 0);
-    document.getElementById('pyProyDetalle').innerHTML =
-      'Por ejecutar ' + fmtCop((p.por_ejecutar || {}).valor || 0) +
-      ' · En ejecución ' + fmtCop((p.en_ejecucion || {}).valor || 0) +
-      ' · Ejecutado ' + fmtCop((p.ejecutado || {}).valor || 0);
-
-    // Tarjeta facturado en el año
-    document.getElementById('pyFactTotal').textContent = fmtCop(d.facturado_total || 0);
-    const nMeses = (d.facturado_por_mes || []).length;
-    document.getElementById('pyFactDetalle').textContent = nMeses + ' meses facturados';
-
-    // Facturado por mes (tarjetitas)
-    const cont = document.getElementById('pyMeses');
-    cont.innerHTML = (d.facturado_por_mes || []).map(m =>
-      `<div style="flex:1;min-width:118px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);">
-         <div style="font-size:11px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;">${m.mes}</div>
-         <div style="font-size:16px;font-weight:800;margin-top:3px;">${fmtCop(m.valor)}</div>
-         <div style="font-size:11px;color:var(--text-muted);">${m.n} servicios</div>
-       </div>`).join('') || '<span style="color:var(--text-muted);">Sin datos aún.</span>';
-
-    // Tabla estilo dinámica
-    const rows = [];
-    (d.facturado_por_mes || []).forEach(m => rows.push(['FACTURADO ' + m.mes, m.valor, m.n]));
-    if (p.ejecutado)    rows.push(['EJECUTADO',     p.ejecutado.valor,    p.ejecutado.n]);
-    if (p.en_ejecucion) rows.push(['EN EJECUCIÓN',  p.en_ejecucion.valor, p.en_ejecucion.n]);
-    if (p.por_ejecutar) rows.push(['POR EJECUTAR',  p.por_ejecutar.valor, p.por_ejecutar.n]);
-    if (d.cancelado && d.cancelado.valor) rows.push(['CANCELADO', d.cancelado.valor, d.cancelado.n]);
-    if (d.otros && d.otros.valor)         rows.push(['OTROS',     d.otros.valor,     d.otros.n]);
-
-    body.innerHTML = rows.map(r =>
-      `<tr><td>${r[0]}</td><td style="text-align:right;font-weight:700;">${fmtCop(r[1])}</td><td style="text-align:right;color:var(--text-muted);">${r[2]}</td></tr>`
-    ).join('') +
-    `<tr style="border-top:2px solid var(--petrol);font-weight:800;background:#f4f8f9;">
-       <td>TOTAL GENERAL</td><td style="text-align:right;">${fmtCop(d.total_general)}</td><td></td></tr>`;
+    document.getElementById('pySegPorEjec').textContent = fmtCop((p.por_ejecutar || {}).valor || 0);
+    document.getElementById('pySegEnEjec').textContent  = fmtCop((p.en_ejecucion || {}).valor || 0);
+    document.getElementById('pySegEjec').textContent    = fmtCop((p.ejecutado   || {}).valor || 0);
+    document.getElementById('pySegTotal').textContent   = fmtCop(p.total || 0);
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--danger);padding:20px;">❌ ${e.message}</td></tr>`;
+    document.getElementById('pySegTotal').textContent = '❌';
+  }
+}
+
+// ---------- BLOQUE 3: Contratos pendientes (líneas manuales) ----------
+function pyEscape(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+const PY_EST_BADGE = {
+  'CONFIRMADO':  '<span class="py-est py-e-conf">🟠 Confirmado</span>',
+  'EN EJECUCION':'<span class="py-est py-e-ejec">🔵 En ejecución</span>',
+  'FACTURADO':   '<span class="py-est py-e-fact">🟢 Facturado</span>'
+};
+
+async function pyRenderContratos() {
+  const body = document.getElementById('pyCpBody');
+  try {
+    const res = await fetch('/api/contratos_pendientes');
+    if (!res.ok) throw new Error('No se pudo cargar');
+    const d = await res.json();
+    document.getElementById('pyCpTotal').textContent = fmtCop(d.pendiente_total || 0);
+    const items = d.items || [];
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Aún no hay pendientes de contrato. Usa «➕ Agregar pendiente de contrato».</td></tr>';
+      return;
+    }
+    body.innerHTML = items.map(it => {
+      const est = (it.estado || 'CONFIRMADO').toUpperCase();
+      const badge = PY_EST_BADGE[est] || pyEscape(est);
+      const gris = est === 'FACTURADO' ? 'opacity:.55;' : '';
+      const dataAttr = encodeURIComponent(JSON.stringify(it));
+      return `<tr style="${gris}">
+        <td style="font-weight:700;">${pyEscape(it.cliente)}</td>
+        <td>${pyEscape(it.descripcion || '')}</td>
+        <td style="text-align:right;font-weight:700;white-space:nowrap;">${fmtCop(it.valor || 0)}</td>
+        <td>${pyEscape(it.mes || '')}</td>
+        <td>${badge}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${pyEscape(it.oferta_ref || '')}</td>
+        <td style="white-space:nowrap;" class="write-only">
+          <span style="cursor:pointer;" title="Editar" onclick="pyEditarContrato('${dataAttr}')">✏️</span>
+          <span style="cursor:pointer;margin-left:8px;" title="Eliminar" onclick="pyEliminarContrato(${it.id}, '${pyEscape(it.cliente)}')">🗑️</span>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:16px;">❌ ${e.message}</td></tr>`;
+  }
+}
+
+function pyToggleForm(show) {
+  const f = document.getElementById('pyCpForm');
+  const visible = (show === undefined) ? (f.style.display === 'none') : show;
+  f.style.display = visible ? 'block' : 'none';
+  if (!visible) pyLimpiarForm();
+}
+
+function pyLimpiarForm() {
+  document.getElementById('pyCpId').value = '';
+  document.getElementById('pyCpCliente').value = '';
+  document.getElementById('pyCpClienteOtro').style.display = 'none';
+  document.getElementById('pyCpClienteOtro').value = '';
+  document.getElementById('pyCpDesc').value = '';
+  document.getElementById('pyCpValor').value = '';
+  document.getElementById('pyCpRef').value = '';
+  document.getElementById('pyCpEstado').value = 'CONFIRMADO';
+}
+
+// Cliente "Otro…" muestra el campo libre
+document.addEventListener('change', function (ev) {
+  if (ev.target && ev.target.id === 'pyCpCliente') {
+    document.getElementById('pyCpClienteOtro').style.display =
+      ev.target.value === '__OTRO__' ? 'block' : 'none';
+  }
+});
+
+function pyFmtValor(el) {
+  const n = (el.value || '').replace(/[^\d]/g, '');
+  el.value = n ? '$ ' + Number(n).toLocaleString('es-CO') : '';
+}
+
+async function pyGuardarContrato() {
+  const sel = document.getElementById('pyCpCliente').value;
+  let cliente = sel;
+  if (sel === '__OTRO__') cliente = document.getElementById('pyCpClienteOtro').value.trim();
+  if (!cliente) { showToast('Elige o escribe el cliente', 'error'); return; }
+  const valor = (document.getElementById('pyCpValor').value || '').replace(/[^\d]/g, '');
+  const payload = {
+    cliente: cliente,
+    descripcion: document.getElementById('pyCpDesc').value.trim(),
+    valor: parseInt(valor || '0', 10),
+    mes: document.getElementById('pyCpMes').value,
+    estado: document.getElementById('pyCpEstado').value,
+    oferta_ref: document.getElementById('pyCpRef').value.trim()
+  };
+  const id = document.getElementById('pyCpId').value;
+  try {
+    const url = id ? '/api/contratos_pendientes/' + id : '/api/contratos_pendientes';
+    const res = await fetch(url, {
+      method: id ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo guardar'); }
+    showToast(id ? '✅ Actualizado' : '✅ Pendiente agregado', 'success');
+    pyToggleForm(false);
+    pyRenderContratos();
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
+function pyEditarContrato(dataAttr) {
+  const it = JSON.parse(decodeURIComponent(dataAttr));
+  document.getElementById('pyCpId').value = it.id;
+  const opciones = ['CERREJON','GM&M','INDUSTRIAS EXPLORER','ISA INTERCOLOMBIA','SACYR','TERNIUM','TRANSELCA'];
+  if (opciones.includes((it.cliente || '').toUpperCase())) {
+    document.getElementById('pyCpCliente').value = it.cliente.toUpperCase();
+    document.getElementById('pyCpClienteOtro').style.display = 'none';
+  } else {
+    document.getElementById('pyCpCliente').value = '__OTRO__';
+    const otro = document.getElementById('pyCpClienteOtro');
+    otro.style.display = 'block';
+    otro.value = it.cliente || '';
+  }
+  document.getElementById('pyCpDesc').value = it.descripcion || '';
+  document.getElementById('pyCpValor').value = it.valor ? '$ ' + Number(it.valor).toLocaleString('es-CO') : '';
+  document.getElementById('pyCpMes').value = (it.mes || 'SEPTIEMBRE').toUpperCase();
+  document.getElementById('pyCpEstado').value = (it.estado || 'CONFIRMADO').toUpperCase();
+  document.getElementById('pyCpRef').value = it.oferta_ref || '';
+  pyToggleForm(true);
+  document.getElementById('pyCpForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function pyEliminarContrato(id, cliente) {
+  if (!confirm(`¿Eliminar el pendiente de contrato de ${cliente}?`)) return;
+  try {
+    const res = await fetch('/api/contratos_pendientes/' + id, { method: 'DELETE' });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo eliminar'); }
+    showToast('🗑️ Eliminado', 'success');
+    pyRenderContratos();
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
   }
 }
 
