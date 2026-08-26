@@ -1424,23 +1424,26 @@ body.rol-viewer .write-only { display:none !important; }
     <div style="font-size:17px;font-weight:800;color:#0a4f5c;">🔵 Seguimiento de tus ofertas 2026 (por facturar)</div>
     <div style="font-size:12px;color:var(--text-muted);margin:2px 0 14px;">Solo lo tuyo del año que aún no factura Vulcano. Esto es lo que tú proyectas y controlas.</div>
 
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">👆 Haz clic en cada tarjeta para ver las ofertas de ese estado.</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#c8620f,#e8641a);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🟠 Por ejecutar</div>
+      <div onclick="pySegVer('por_ejecutar')" title="Ver ofertas por ejecutar" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#c8620f,#e8641a);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🟠 Por ejecutar <span id="pySegCaretpor_ejecutar" style="float:right;">▸</span></div>
         <div id="pySegPorEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;">confirmado, aún no arranca</div>
+        <div style="font-size:11px;opacity:.85;"><span id="pySegNpor_ejecutar">—</span> ofertas · confirmado, aún no arranca</div>
       </div>
-      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#1565c0,#3b82f6);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🔵 En ejecución</div>
+      <div onclick="pySegVer('en_ejecucion')" title="Ver ofertas en ejecución" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#1565c0,#3b82f6);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🔵 En ejecución <span id="pySegCareten_ejecucion" style="float:right;">▸</span></div>
         <div id="pySegEnEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;">en proceso</div>
+        <div style="font-size:11px;opacity:.85;"><span id="pySegNen_ejecucion">—</span> ofertas · en proceso</div>
       </div>
-      <div style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🟣 Ejecutado</div>
+      <div onclick="pySegVer('ejecutado')" title="Ver ofertas ejecutadas" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#6d28d9,#8b5cf6);">
+        <div style="font-size:12px;opacity:.9;font-weight:600;">🟣 Ejecutado <span id="pySegCaretejecutado" style="float:right;">▸</span></div>
         <div id="pySegEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;">terminado, falta facturar</div>
+        <div style="font-size:11px;opacity:.85;"><span id="pySegNejecutado">—</span> ofertas · terminado, falta facturar</div>
       </div>
     </div>
+    <!-- Detalle desplegable de ofertas por estado -->
+    <div id="pySegDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
     <div style="margin-top:12px;padding:12px 16px;background:#eef4f6;border-radius:10px;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
       <span>Total por facturar (proyección 2026)</span>
       <b id="pySegTotal" style="color:#0a4f5c;font-size:19px;">—</b>
@@ -3201,19 +3204,81 @@ function pyPintarReal() {
 }
 
 // ---------- BLOQUE 2: Seguimiento ofertas 2026 (por facturar) ----------
+let pySegDetalleData = null;   // detalle de ofertas por estado
+let pySegAbierto = null;       // estado actualmente desplegado
+const PY_SEG_TIT = {
+  por_ejecutar: '🟠 Por ejecutar',
+  en_ejecucion: '🔵 En ejecución',
+  ejecutado:    '🟣 Ejecutado'
+};
 async function pyRenderSeguimiento() {
   try {
     const res = await fetch('/api/facturacion/estado_proyecto');
     if (!res.ok) throw new Error('No se pudo cargar el seguimiento');
     const d = await res.json();
     const p = d.proyeccion || {};
+    pySegDetalleData = d.detalle || {};
     document.getElementById('pySegPorEjec').textContent = fmtCop((p.por_ejecutar || {}).valor || 0);
     document.getElementById('pySegEnEjec').textContent  = fmtCop((p.en_ejecucion || {}).valor || 0);
     document.getElementById('pySegEjec').textContent    = fmtCop((p.ejecutado   || {}).valor || 0);
     document.getElementById('pySegTotal').textContent   = fmtCop(p.total || 0);
+    document.getElementById('pySegNpor_ejecutar').textContent = (p.por_ejecutar || {}).n || 0;
+    document.getElementById('pySegNen_ejecucion').textContent = (p.en_ejecucion || {}).n || 0;
+    document.getElementById('pySegNejecutado').textContent    = (p.ejecutado   || {}).n || 0;
+    // Si había un estado abierto, refréscalo
+    if (pySegAbierto) pySegPintarDetalle(pySegAbierto);
   } catch (e) {
     document.getElementById('pySegTotal').textContent = '❌';
   }
+}
+
+function pySegVer(estado) {
+  // Segundo clic sobre el mismo estado = cerrar
+  if (pySegAbierto === estado) {
+    pySegAbierto = null;
+    document.getElementById('pySegDetalle').style.display = 'none';
+    ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k =>
+      document.getElementById('pySegCaret' + k).textContent = '▸');
+    return;
+  }
+  pySegAbierto = estado;
+  ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k =>
+    document.getElementById('pySegCaret' + k).textContent = (k === estado ? '▾' : '▸'));
+  pySegPintarDetalle(estado);
+}
+
+function pySegPintarDetalle(estado) {
+  const cont = document.getElementById('pySegDetalle');
+  const lista = (pySegDetalleData || {})[estado] || [];
+  const tot = lista.reduce((s, it) => s + (it.valor || 0), 0);
+  if (!lista.length) {
+    cont.style.display = 'block';
+    cont.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);">No hay ofertas en «${PY_SEG_TIT[estado]}».</div>`;
+    return;
+  }
+  const filas = lista.map(it => `
+    <tr>
+      <td style="padding:8px 11px;border-top:1px solid #eef2f4;color:var(--text-muted);font-size:12px;white-space:nowrap;">${pyEscape(it.oferta_num)}</td>
+      <td style="padding:8px 11px;border-top:1px solid #eef2f4;font-weight:700;">${pyEscape(it.cliente)}</td>
+      <td style="padding:8px 11px;border-top:1px solid #eef2f4;font-size:12px;">${pyEscape(it.descripcion)}</td>
+      <td style="padding:8px 11px;border-top:1px solid #eef2f4;font-size:12px;">${pyEscape(it.mes)}</td>
+      <td style="padding:8px 11px;border-top:1px solid #eef2f4;text-align:right;font-weight:700;white-space:nowrap;">${fmtCop(it.valor || 0)}</td>
+    </tr>`).join('');
+  cont.style.display = 'block';
+  cont.innerHTML = `
+    <div style="padding:9px 13px;background:#eef4f6;font-weight:800;color:#0a4f5c;font-size:13px;display:flex;justify-content:space-between;">
+      <span>${PY_SEG_TIT[estado]} — ${lista.length} ofertas</span><span>${fmtCop(tot)}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 11px;background:#f7fbfc;font-size:11px;text-transform:uppercase;color:#0a4f5c;">Oferta</th>
+        <th style="text-align:left;padding:8px 11px;background:#f7fbfc;font-size:11px;text-transform:uppercase;color:#0a4f5c;">Cliente</th>
+        <th style="text-align:left;padding:8px 11px;background:#f7fbfc;font-size:11px;text-transform:uppercase;color:#0a4f5c;">Servicio</th>
+        <th style="text-align:left;padding:8px 11px;background:#f7fbfc;font-size:11px;text-transform:uppercase;color:#0a4f5c;">Mes</th>
+        <th style="text-align:right;padding:8px 11px;background:#f7fbfc;font-size:11px;text-transform:uppercase;color:#0a4f5c;">Valor</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
 }
 
 // ---------- BLOQUE 3: Contratos pendientes (líneas manuales) ----------

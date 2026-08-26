@@ -3025,11 +3025,34 @@ def facturacion_estado_proyecto():
                 "COUNT(*) n, COALESCE(SUM(valor),0) v "
                 "FROM facturas GROUP BY 1")
             filas = fetchall(cur)
+            # Detalle línea a línea de las ofertas que aún NO se han facturado
+            # (por ejecutar / en ejecución / ejecutado) para desplegar en el panel.
+            cur.execute(
+                "SELECT oferta_num, cliente, descripcion, mes, responsable, "
+                "COALESCE(valor,0) valor, UPPER(TRIM(COALESCE(estado_proyecto,''))) e "
+                "FROM facturas "
+                "WHERE UPPER(TRIM(COALESCE(estado_proyecto,''))) IN "
+                "('POR EJECUTAR','EN EJECUCION','EN EJECUCIÓN','EJECUTADO') "
+                "ORDER BY valor DESC")
+            filas_det = fetchall(cur)
 
         facturado_mes = {}     # mes -> {valor, n}
         proyeccion = {"POR EJECUTAR": {"valor": 0, "n": 0},
                       "EN EJECUCION": {"valor": 0, "n": 0},
                       "EJECUTADO": {"valor": 0, "n": 0}}
+        detalle = {"POR EJECUTAR": [], "EN EJECUCION": [], "EJECUTADO": []}
+        for r in filas_det:
+            e_norm = (r.get("e") or "").strip().replace("Ó", "O").replace("Í", "I")
+            if e_norm not in detalle:
+                continue
+            detalle[e_norm].append({
+                "oferta_num": r.get("oferta_num") or "",
+                "cliente": r.get("cliente") or "",
+                "descripcion": r.get("descripcion") or "",
+                "mes": r.get("mes") or "",
+                "responsable": r.get("responsable") or "",
+                "valor": int(r.get("valor") or 0),
+            })
         cancelado = {"valor": 0, "n": 0}
         otros = {"valor": 0, "n": 0}
 
@@ -3081,6 +3104,11 @@ def facturacion_estado_proyecto():
                 "en_ejecucion": proyeccion["EN EJECUCION"],
                 "ejecutado": proyeccion["EJECUTADO"],
                 "total": proy_total,
+            },
+            "detalle": {
+                "por_ejecutar": detalle["POR EJECUTAR"],
+                "en_ejecucion": detalle["EN EJECUCION"],
+                "ejecutado": detalle["EJECUTADO"],
             },
             "cancelado": cancelado,
             "otros": otros,
