@@ -3082,6 +3082,12 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         if not fields:
             raise HTTPException(400, "No hay campos para actualizar")
 
+        # Nombres SIEMPRE en MAYÚSCULA también al editar (cliente + comercial),
+        # para que una edición no vuelva a dejarlos en minúscula/mixta.
+        for _campo in ("cliente", "realizada", "formalizada"):
+            if fields.get(_campo):
+                fields[_campo] = re.sub(r"\s+", " ", str(fields[_campo]).strip()).upper()
+
         # Fields tracked for history
         TRACKED = {"respuesta", "estado", "valor", "facturacion", "mes_aceptado",
                    "seguimiento", "no_factura", "valor_facturado"}
