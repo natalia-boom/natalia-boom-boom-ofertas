@@ -2556,6 +2556,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 <script>
 // ========== STATE ==========
 let allOfertas = [];
+let facturasPorOferta = {};   // { oferta_num: {n, facturado_real, total_lineas, lineas:[...]} }
 let controlFiltered = [];
 let controlPage = 1;
 const PAGE_SIZE = 25;
@@ -2927,6 +2928,9 @@ async function loadAll() {
     const res = await fetch('/api/ofertas');
     if (!res.ok) throw new Error('Error cargando ofertas');
     allOfertas = await res.json();
+    // Facturas por oferta (1 oferta -> N facturas). No bloquea si falla.
+    try { facturasPorOferta = await (await fetch('/api/facturas/por_oferta')).json(); }
+    catch(e) { facturasPorOferta = {}; }
     populateControlFilters();
     renderDashboard();
     filterControl();
@@ -3402,6 +3406,14 @@ function filterAprobadas() {
   tbody.innerHTML = aprobadas.map(o => {
     const vencida = esVencida(o);
     const diasAtraso = diasDesde(o.fecha);
+    // Facturas de esta oferta (1 oferta -> N facturas)
+    const fg = facturasPorOferta[o.num];
+    const nFact = fg ? fg.n : 0;
+    // Badge desplegable con el # de facturas (partes). Si hay más de una parte,
+    // muestra el total facturado real de las partes al pasar el mouse.
+    const badgeFact = nFact > 0
+      ? `<span onclick="toggleFacturas('${o.num}')" title="Ver ${nFact} factura(s) · Facturado real: ${formatCOP(fg.facturado_real)}" style="cursor:pointer;display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:4px;">📄 ${nFact}</span>`
+      : '';
     return `
     <tr class="${vencida ? 'tr-cobro' : ''}" style="${vencida ? 'border-left:3px solid #dc2626;' : ''}">
       <td><span class="num-badge">${o.num||''}</span>${vencida ? `<span title="Sin facturar hace ${diasAtraso} días" style="margin-left:4px;color:#dc2626;font-size:13px;">⚠️</span>` : ''}</td>
@@ -3413,7 +3425,7 @@ function filterAprobadas() {
       <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
       <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
       <td>${o.fecha_facturacion||''}</td>
-      <td>${o.no_factura||''}</td>
+      <td>${o.no_factura||''}${badgeFact}</td>
       <td>
         <select class="seg-select seg-${slugSeg(o.seguimiento)}" onchange="saveSeguimiento(${o.id}, this.value)">
           <option value="">— Sin estado —</option>
@@ -3428,8 +3440,35 @@ function filterAprobadas() {
         ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">✏️ Facturación</button>` : ''}
       </td>
     </tr>
+    ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
+      <td colspan="12" style="padding:8px 16px;">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Facturas de la oferta ${o.num} · ${nFact} línea(s) · Facturado real: ${formatCOP(fg.facturado_real)}${fg.total_lineas!==fg.facturado_real?` · Total con proyección: ${formatCOP(fg.total_lineas)}`:''}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead><tr style="color:#64748b;text-align:left;">
+            <th style="padding:2px 6px;">Mes</th><th style="padding:2px 6px;">Estado</th>
+            <th style="padding:2px 6px;">N° factura</th><th style="padding:2px 6px;text-align:right;">Valor</th>
+            <th style="padding:2px 6px;">Descripción</th>
+          </tr></thead>
+          <tbody>
+          ${fg.lineas.map(l => `<tr style="border-top:1px solid #e2e8f0;">
+            <td style="padding:2px 6px;">${l.mes||''}</td>
+            <td style="padding:2px 6px;">${l.estado||''}</td>
+            <td style="padding:2px 6px;">${l.no_factura||'—'}</td>
+            <td style="padding:2px 6px;text-align:right;">${l.valor?formatCOP(l.valor):'—'}</td>
+            <td style="padding:2px 6px;color:#475569;">${(l.descripcion||'').slice(0,60)}</td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </td>
+    </tr>` : ''}
   `;
   }).join('');
+}
+
+// Despliega/oculta el detalle de facturas (partes) de una oferta.
+function toggleFacturas(num) {
+  const row = document.getElementById('fdet-' + num);
+  if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 }
 
 // ========== FACTURACIÓN 2025 / CONTRATOS / OTROS ==========

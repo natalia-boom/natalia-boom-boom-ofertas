@@ -2842,6 +2842,60 @@ def list_ofertas():
 CONTRATOS_FACTURADO_2026 = 2_623_851_133
 
 
+@app.get("/api/facturas")
+def list_facturas(oferta: Optional[str] = Query(None)):
+    """Facturas (1 oferta -> N facturas). Cada fila de la hoja 'Ofertas Aprobadas'
+    es UNA línea facturable. Un mismo N° de factura puede cubrir varias ofertas.
+    Si se pasa ?oferta=260123 devuelve solo las líneas de esa oferta."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            if oferta:
+                cur.execute(
+                    "SELECT oferta_num,ref_original,mes,cliente,descripcion,origen,destino,"
+                    "valor,estado_proyecto,responsable,no_factura "
+                    "FROM facturas WHERE oferta_num=%s ORDER BY id", (oferta,))
+            else:
+                cur.execute(
+                    "SELECT oferta_num,ref_original,mes,cliente,descripcion,origen,destino,"
+                    "valor,estado_proyecto,responsable,no_factura FROM facturas ORDER BY id")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/facturas/por_oferta")
+def facturas_por_oferta():
+    """Agrupa las facturas por número de oferta para el módulo Ofertas Aprobadas.
+    Devuelve un dict { oferta_num: {n, facturado_real, total_lineas, lineas:[...]} }.
+    'facturado_real' suma solo estados FACTURADO% (facturación real);
+    'total_lineas' suma todo (incluye proyección: POR EJECUTAR / EN EJECUCIÓN / EJECUTADO)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT oferta_num,mes,estado_proyecto,valor,no_factura,descripcion "
+                "FROM facturas WHERE oferta_num IS NOT NULL ORDER BY oferta_num, id")
+            out = {}
+            for num, mes, estado, valor, nofact, desc in cur.fetchall():
+                g = out.setdefault(num, {"n": 0, "facturado_real": 0,
+                                         "total_lineas": 0, "lineas": []})
+                v = int(valor or 0)
+                g["n"] += 1
+                g["total_lineas"] += v
+                if (estado or "").upper().startswith("FACTURADO"):
+                    g["facturado_real"] += v
+                g["lineas"].append({
+                    "mes": mes, "estado": estado, "valor": v,
+                    "no_factura": nofact, "descripcion": desc,
+                })
+            return out
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/ofertas_2025")
 def list_ofertas_2025():
     """Ofertas 2025 (histórico facturado), tabla separada."""
