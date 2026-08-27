@@ -3643,15 +3643,31 @@ function renderControlTable() {
     tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
   } else {
     tbody.innerHTML = page.map((o, i) => {
-      const sinResp = !(o.respuesta) && (o.estado||'') === 'ENVIADO';
+      const anulada = o.anulada || (o.estado||'') === 'ANULADA';
+      const sinResp = !anulada && !(o.respuesta) && (o.estado||'') === 'ENVIADO';
       const dias = sinResp ? diasDesde(o.fecha) : 0;
       const vencida = dias >= 15;
+      const anulTitle = anulada
+        ? `ANULADA — ${o.anulada_motivo||'sin motivo'}${o.anulada_por ? ' · por '+o.anulada_por : ''}${o.anulada_fecha ? ' · '+String(o.anulada_fecha).slice(0,10) : ''}`
+        : '';
+      const esAdmin = currentUser && currentUser.rol === 'admin';
+      const nEsc = (o.num||'').replace(/'/g,"\\'");
+      const cEsc = (o.cliente||'').replace(/'/g,"\\'");
+      const accionesAnular = anulada
+        ? `<span title="${anulTitle}" style="font-size:11px;color:var(--danger);font-weight:700;">🚫 ANULADA</span>${esAdmin ? `
+          <button class="action-btn" onclick="deleteOferta(${o.id},'${nEsc}','${cEsc}')" title="Eliminar definitivo (solo admin)" style="color:var(--danger)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>` : ''}`
+        : `<button class="action-btn" onclick="anularOferta(${o.id},'${nEsc}','${cEsc}')" title="Anular (conserva el número)" style="font-size:14px;">🚫</button>${esAdmin ? `
+          <button class="action-btn" onclick="deleteOferta(${o.id},'${nEsc}','${cEsc}')" title="Eliminar definitivo (solo admin)" style="color:var(--danger)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>` : ''}`;
       return `
-      <tr class="${vencida ? 'tr-vencida' : ''}">
+      <tr class="${vencida ? 'tr-vencida' : ''}" ${anulada ? 'style="opacity:.6;background:#fbfbfb;"' : ''} ${anulada ? `title="${anulTitle}"` : ''}>
         <td style="text-align:center;color:var(--text-muted);font-size:11px">${start + i + 1}</td>
         <td style="font-size:11px;white-space:nowrap">${o.mes||''}</td>
         <td style="font-size:11px;white-space:nowrap">${o.fecha||''}${vencida ? `<span class="alerta-dias" title="Sin respuesta hace ${dias} días">⚠ ${dias}d</span>` : ''}</td>
-        <td><span class="num-badge">${o.num||''}</span></td>
+        <td><span class="num-badge" ${anulada ? 'style="text-decoration:line-through;"' : ''}>${o.num||''}</span></td>
         <td style="font-size:12px">${o.realizada||''}</td>
         <td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.cliente||''}">${o.cliente||''}</td>
         <td style="font-size:11px">${o.tipo||''}</td>
@@ -3662,13 +3678,11 @@ function renderControlTable() {
           <button class="action-btn" onclick="openEdit(${o.id})" title="Editar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="action-btn" onclick="openHistorial(${o.id},'${(o.num||'').replace(/'/g,"\\'")}')" title="Historial de cambios" style="font-size:14px;">🕐</button>
-          <button class="action-btn" onclick="downloadPdfOferta(${o.id},'${(o.num||'').replace(/'/g,"\\'")}','${(o.cliente||'').replace(/'/g,"\\'")}')" title="Descargar PDF">
+          <button class="action-btn" onclick="openHistorial(${o.id},'${nEsc}')" title="Historial de cambios" style="font-size:14px;">🕐</button>
+          <button class="action-btn" onclick="downloadPdfOferta(${o.id},'${nEsc}','${cEsc}')" title="Descargar PDF">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
-          <button class="action-btn" onclick="deleteOferta(${o.id},'${(o.num||'').replace(/'/g,"\\'")}','${(o.cliente||'').replace(/'/g,"\\'")}')" title="Eliminar" style="color:var(--danger)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>
+          ${accionesAnular}
         </td>
       </tr>
     `;
@@ -4412,9 +4426,38 @@ function exportExcel(type) {
 }
 
 // ========== DELETE OFERTA ==========
+async function anularOferta(id, num, cliente) {
+  const _cu = currentUser && currentUser.nombre;
+  if (!_cu) { showToast('No hay sesión activa', 'warning'); return; }
+  const motivo = prompt(
+    `Anular la oferta ${num} (${cliente}).\n\n` +
+    `La oferta NO se borra: conserva su número y queda registrada como ANULADA ` +
+    `con tu nombre y la fecha (trazabilidad ISO).\n\n` +
+    `Escribe el MOTIVO de la anulación:`
+  );
+  if (motivo === null) return;              // canceló
+  if (!motivo.trim()) { showToast('Debes indicar un motivo para anular', 'warning'); return; }
+  try {
+    const res = await fetch(`/api/ofertas/${id}/anular`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: motivo.trim() })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error anulando la oferta'); }
+    showToast(`Oferta ${num} anulada · el número queda reservado`, 'success');
+    await loadAll();
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
 async function deleteOferta(id, num, cliente) {
   const _cu = currentUser && currentUser.nombre;
   if (!_cu) { showToast('No hay sesión activa', 'warning'); return; }
+  if (!(currentUser && currentUser.rol === 'admin')) {
+    showToast('Solo un administrador puede eliminar. Usa 🚫 Anular para conservar el número.', 'warning');
+    return;
+  }
   // Triple confirmación: hay que aceptar las 3 preguntas para poder eliminar.
   if (!confirm(`1 de 3 · ¿Eliminar la oferta ${num} (${cliente})?`)) return;
   if (!confirm(`2 de 3 · Confirma otra vez: se eliminará la oferta ${num} (${cliente}).\n\nEsta acción NO se puede deshacer.`)) return;
@@ -6238,6 +6281,7 @@ function formatCOP(val) {
 
 function badgeEstado(e) {
   if (!e) return '';
+  if (e === 'ANULADA') return `<span class="badge badge-rechazada">🚫 ANULADA</span>`;
   const map = {'ENVIADO':'enviado','EN PROCESO':'proceso','CERRADO':'rechazada'};
   const cls = map[e] || 'enviado';
   return `<span class="badge badge-${cls}">${e}</span>`;

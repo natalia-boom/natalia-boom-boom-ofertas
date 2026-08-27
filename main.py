@@ -1594,6 +1594,12 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS sector text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS pdf_data jsonb")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS costo_proyecto bigint DEFAULT NULL")
+        # Anulación (ISO 9001 · trazabilidad): la oferta conserva su número,
+        # no se borra ni se reutiliza el consecutivo. Queda motivo, quién y cuándo.
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada boolean DEFAULT false")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_motivo text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_por text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_fecha timestamptz")
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -3543,8 +3549,64 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         raise HTTPException(500, str(e))
 
 
+class AnularBody(BaseModel):
+    motivo: str
+
+
+@app.post("/api/ofertas/{oferta_id}/anular")
+def anular_oferta(oferta_id: int, body: AnularBody, request: Request):
+    """Anula una oferta SIN borrarla (ISO 9001 · trazabilidad). La oferta
+    conserva su número: el consecutivo no se libera ni se reutiliza. Queda
+    registro del motivo, quién y cuándo, y una entrada en el historial."""
+    motivo = (body.motivo or "").strip()
+    if not motivo:
+        raise HTTPException(400, "Debes indicar el motivo de la anulación")
+    usuario = ""
+    if hasattr(request.state, "user") and request.state.user:
+        usuario = request.state.user.get("nombre", "") or ""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT num, anulada FROM ofertas WHERE id = %s", (oferta_id,))
+            prev = fetchone(cur)
+            if prev is None:
+                raise HTTPException(404, "Oferta no encontrada")
+            if prev.get("anulada"):
+                raise HTTPException(409, "La oferta ya está anulada")
+            cur.execute("""
+                UPDATE ofertas
+                   SET anulada = true, estado = 'ANULADA',
+                       anulada_motivo = %s, anulada_por = %s, anulada_fecha = now()
+                 WHERE id = %s
+                 RETURNING *
+            """, (motivo, usuario, oferta_id))
+            row = fetchone(cur)
+            # Traza en el historial de la oferta
+            try:
+                cur.execute("""
+                    INSERT INTO oferta_historial
+                        (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario)
+                    VALUES (%s, %s, 'ANULACIÓN', 'VIGENTE', %s, %s)
+                """, (oferta_id, prev.get("num", ""), f"ANULADA — {motivo}", usuario))
+            except Exception as he:
+                print(f"[ANULAR] No se pudo guardar historial: {he}")
+        return row
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.delete("/api/ofertas/{oferta_id}")
-def delete_oferta(oferta_id: int):
+def delete_oferta(oferta_id: int, request: Request):
+    # Borrado FÍSICO: solo admin, y solo para casos excepcionales. Para el uso
+    # normal se debe ANULAR (conserva el número y la trazabilidad ISO).
+    rol = ""
+    if hasattr(request.state, "user") and request.state.user:
+        rol = request.state.user.get("rol", "") or ""
+    if rol != "admin":
+        raise HTTPException(403, "Solo un administrador puede eliminar. Usa 'Anular' para conservar el número.")
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -4511,6 +4573,7 @@ def operaciones_aceptadas(request: Request):
                        seguimiento, no_factura, valor_facturado
                 FROM ofertas
                 WHERE UPPER(respuesta) = 'ACEPTADA'
+                  AND NOT COALESCE(anulada, false)
                 ORDER BY fecha DESC NULLS LAST, CAST(num AS INTEGER) DESC
             """)
             filas = fetchall(cur)
