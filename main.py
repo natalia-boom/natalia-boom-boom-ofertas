@@ -4181,16 +4181,18 @@ def get_stats():
             def q1(sql, params=None):
                 cur = conn.cursor(); cur.execute(sql, params or ()); return fetchone(cur)
 
-            total     = q1("SELECT COUNT(*) AS total FROM ofertas")["total"]
-            aceptadas = q1("SELECT COUNT(*) AS total FROM ofertas WHERE UPPER(respuesta)='ACEPTADA'")["total"]
-            seguim    = q1("SELECT COUNT(*) AS total FROM ofertas WHERE UPPER(respuesta)='EN SEGUIMIENTO'")["total"]
-            valor     = q1("SELECT COALESCE(SUM(valor),0) AS total FROM ofertas")["total"]
+            # Las ofertas ANULADAS no cuentan en el dashboard (conservan el número
+            # para trazabilidad, pero no suman en KPIs ni en valor ofertado).
+            total     = q1("SELECT COUNT(*) AS total FROM ofertas WHERE NOT COALESCE(anulada,false)")["total"]
+            aceptadas = q1("SELECT COUNT(*) AS total FROM ofertas WHERE UPPER(respuesta)='ACEPTADA' AND NOT COALESCE(anulada,false)")["total"]
+            seguim    = q1("SELECT COUNT(*) AS total FROM ofertas WHERE UPPER(respuesta)='EN SEGUIMIENTO' AND NOT COALESCE(anulada,false)")["total"]
+            valor     = q1("SELECT COALESCE(SUM(valor),0) AS total FROM ofertas WHERE NOT COALESCE(anulada,false)")["total"]
             meses_es  = {"January":"ENERO","February":"FEBRERO","March":"MARZO",
                           "April":"ABRIL","May":"MAYO","June":"JUNIO",
                           "July":"JULIO","August":"AGOSTO","September":"SEPTIEMBRE",
                           "October":"OCTUBRE","November":"NOVIEMBRE","December":"DICIEMBRE"}
             mes_es    = meses_es.get(datetime.now().strftime("%B"), "")
-            este_mes  = q1("SELECT COUNT(*) AS total FROM ofertas WHERE mes=%s", (mes_es,))["total"]
+            este_mes  = q1("SELECT COUNT(*) AS total FROM ofertas WHERE mes=%s AND NOT COALESCE(anulada,false)", (mes_es,))["total"]
             return {
                 "total": total,
                 "aceptadas": aceptadas,
@@ -4198,12 +4200,12 @@ def get_stats():
                 "seguimiento": seguim,
                 "valor_total": valor,
                 "este_mes": este_mes,
-                "aceptadas_por_cliente": q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE UPPER(respuesta)='ACEPTADA' AND cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
-                "por_tipo":      q("SELECT tipo, COUNT(*) AS cnt FROM ofertas WHERE tipo IS NOT NULL AND tipo<>'' GROUP BY tipo ORDER BY cnt DESC"),
-                "por_cliente":   q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
-                "por_unidad":    q("SELECT unidad, COUNT(*) AS cnt FROM ofertas WHERE unidad IS NOT NULL AND unidad<>'' GROUP BY unidad ORDER BY cnt DESC"),
-                "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE mes IS NOT NULL GROUP BY mes"),
-                "ultimas":       q("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
+                "aceptadas_por_cliente": q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE UPPER(respuesta)='ACEPTADA' AND NOT COALESCE(anulada,false) AND cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
+                "por_tipo":      q("SELECT tipo, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND tipo IS NOT NULL AND tipo<>'' GROUP BY tipo ORDER BY cnt DESC"),
+                "por_cliente":   q("SELECT cliente, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND cliente IS NOT NULL AND cliente<>'' GROUP BY cliente ORDER BY cnt DESC LIMIT 10"),
+                "por_unidad":    q("SELECT unidad, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND unidad IS NOT NULL AND unidad<>'' GROUP BY unidad ORDER BY cnt DESC"),
+                "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
+                "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
             }
     except Exception as e:
         traceback.print_exc()
