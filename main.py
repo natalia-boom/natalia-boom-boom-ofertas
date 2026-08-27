@@ -1856,8 +1856,29 @@ def _ensure_db():
                 created_at timestamptz default now()
             )
         """)
+        # Versiones del documento de una oferta (re-cotizaciones): cada guardado
+        # desde el asistente crea una versión. Mantiene el MISMO número de oferta.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS oferta_versiones (
+                id          bigserial primary key,
+                oferta_id   bigint not null,
+                oferta_num  text,
+                version     int not null default 1,
+                valor       bigint default 0,
+                moneda      text default 'COP',
+                descripcion text,
+                forma_pago  text,
+                html        text,        -- documento de la oferta (HTML)
+                pdf_b64     text,        -- PDF original subido (ej. v1 externa)
+                resumen     text,        -- qué cambió en esta versión
+                creado_por  text,
+                vigente     boolean default true,
+                created_at  timestamptz default now()
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_oferta_versiones_of ON oferta_versiones(oferta_id)")
         conn.close()
-        print("[DB] Tablas 'areas', 'area_permisos', 'notificaciones', 'osi', 'oferta_historial' y 'sessions' listas.")
+        print("[DB] Tablas 'areas', 'area_permisos', 'notificaciones', 'osi', 'oferta_historial', 'oferta_versiones' y 'sessions' listas.")
     except Exception as e:
         print(f"[DB] Error: {e}")
         raise
@@ -3810,6 +3831,212 @@ def oferta_ia_endpoint(body: OfertaIABody):
                 cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
                 ref = str(fetchone(cur)["next"])
         return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante, body.forma_pago)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+def _fmt_cop_py(v):
+    """Formatea un entero en pesos estilo es-CO ($ 19.300.000)."""
+    try:
+        return "$ " + "{:,}".format(int(v or 0)).replace(",", ".")
+    except Exception:
+        return "$ 0"
+
+
+class OfertaVersionBody(BaseModel):
+    num: str
+    cliente: Optional[str] = None
+    valor: Optional[int] = 0
+    moneda: Optional[str] = "COP"
+    descripcion: Optional[str] = None
+    forma_pago: Optional[str] = None
+    tipo: Optional[str] = None
+    sector: Optional[str] = None
+    unidad: Optional[str] = None
+    estado: Optional[str] = "ENVIADO"
+    respuesta: Optional[str] = None
+    seguimiento: Optional[str] = None
+    mes: Optional[str] = None
+    fecha: Optional[str] = None
+    realizada: Optional[str] = None
+    html: Optional[str] = None            # documento de la oferta (ia_html)
+    pdf_original: Optional[str] = None    # base64 del PDF original (para v1 externa)
+    resumen: Optional[str] = None         # nota manual opcional de qué cambió
+
+
+@app.post("/api/ofertas/guardar-version")
+def guardar_version(body: OfertaVersionBody, request: Request):
+    """Guarda una oferta desde el asistente COMO NUEVA VERSIÓN, respetando el
+    número. Si el número ya existe (interna o importada del Excel) actualiza esa
+    misma oferta; si no existe, la crea con ese número. Cada llamada añade una
+    versión (v1, v2, …), marca la nueva como vigente y actualiza el valor de la
+    oferta al de la versión vigente (cambio de valor automático)."""
+    try:
+        num = re.sub(r"\D", "", body.num or "")
+        if not num:
+            raise HTTPException(400, "Falta el número de oferta")
+        usuario = ""
+        try:
+            usuario = request.state.user.get("nombre", "") if hasattr(request.state, "user") else ""
+        except Exception:
+            pass
+        cliente = re.sub(r"\s+", " ", (body.cliente or "").strip()).upper() or "SIN CLIENTE"
+        realizada = re.sub(r"\s+", " ", (body.realizada or usuario or "").strip()).upper() or None
+        pdf_data = {
+            "ref": num, "cliente": cliente, "descripcion": body.descripcion,
+            "moneda": body.moneda or "COP", "modo": "ia",
+            "forma_pago": body.forma_pago, "ia_html": body.html or "",
+        }
+        nuevo_valor = int(body.valor or 0)
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
+            ex = fetchone(cur)
+            if ex:
+                oferta_id = ex["id"]
+                valor_ant = int(ex.get("valor") or 0)
+                creada = False
+                cur.execute(
+                    """UPDATE ofertas SET
+                         cliente = %s, valor = %s,
+                         mes = COALESCE(%s, mes), tipo = COALESCE(%s, tipo),
+                         sector = COALESCE(%s, sector), unidad = COALESCE(%s, unidad),
+                         estado = COALESCE(%s, estado), respuesta = COALESCE(%s, respuesta),
+                         seguimiento = COALESCE(%s, seguimiento), general = COALESCE(%s, general),
+                         pdf_data = %s
+                       WHERE id = %s""",
+                    (cliente, nuevo_valor, body.mes, body.tipo, body.sector, body.unidad,
+                     body.estado, body.respuesta, body.seguimiento, body.descripcion,
+                     json.dumps(pdf_data), oferta_id),
+                )
+            else:
+                valor_ant = None
+                creada = True
+                cur.execute(
+                    """INSERT INTO ofertas
+                         (num, mes, fecha, cliente, realizada, tipo, sector, unidad,
+                          valor, estado, respuesta, seguimiento, general, pdf_data)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                       RETURNING id""",
+                    (num, body.mes, body.fecha or None, cliente, realizada, body.tipo,
+                     body.sector, body.unidad, nuevo_valor, body.estado or "ENVIADO",
+                     body.respuesta, body.seguimiento, body.descripcion, json.dumps(pdf_data)),
+                )
+                oferta_id = fetchone(cur)["id"]
+                cur.execute(
+                    """INSERT INTO clientes (nombre_corto)
+                       SELECT %s WHERE NOT EXISTS (
+                           SELECT 1 FROM clientes WHERE lower(nombre_corto) = lower(%s))""",
+                    (cliente, cliente),
+                )
+
+            cur.execute("SELECT COALESCE(MAX(version), 0) + 1 AS n FROM oferta_versiones WHERE oferta_id = %s",
+                        (oferta_id,))
+            vnum = int(fetchone(cur)["n"])
+
+            resumen = (body.resumen or "").strip()
+            if not resumen:
+                if vnum == 1:
+                    resumen = "Versión inicial." + (" PDF original adjunto." if body.pdf_original else "")
+                elif valor_ant is not None and nuevo_valor != valor_ant:
+                    resumen = "Valor %s → %s." % (_fmt_cop_py(valor_ant), _fmt_cop_py(nuevo_valor))
+                else:
+                    resumen = "Ajuste de la cotización."
+
+            cur.execute("UPDATE oferta_versiones SET vigente = false WHERE oferta_id = %s", (oferta_id,))
+            cur.execute(
+                """INSERT INTO oferta_versiones
+                     (oferta_id, oferta_num, version, valor, moneda, descripcion,
+                      forma_pago, html, pdf_b64, resumen, creado_por, vigente)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, true)
+                   RETURNING id, version, created_at""",
+                (oferta_id, num, vnum, nuevo_valor, body.moneda or "COP", body.descripcion,
+                 body.forma_pago, body.html or "", body.pdf_original, resumen, usuario),
+            )
+            vrow = fetchone(cur)
+
+            if valor_ant is not None and nuevo_valor != valor_ant:
+                cur.execute(
+                    """INSERT INTO oferta_historial
+                         (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario)
+                       VALUES (%s,%s,'valor',%s,%s,%s)""",
+                    (oferta_id, num, str(valor_ant), str(nuevo_valor), usuario),
+                )
+        num_fmt = num.zfill(6)
+        num_fmt = num_fmt[:2] + "-" + num_fmt[2:]
+        return {"ok": True, "oferta_id": oferta_id, "num": num, "num_fmt": num_fmt,
+                "version": vrow["version"], "creada": creada, "resumen": resumen}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/ofertas/{oferta_id}/versiones")
+def listar_versiones(oferta_id: int):
+    """Lista las versiones de una oferta (más reciente primero)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """SELECT id, version, valor, moneda, resumen, creado_por, vigente, created_at,
+                          (html IS NOT NULL AND html <> '')     AS tiene_html,
+                          (pdf_b64 IS NOT NULL AND pdf_b64 <> '') AS tiene_pdf
+                     FROM oferta_versiones WHERE oferta_id = %s
+                     ORDER BY version DESC""",
+                (oferta_id,),
+            )
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/ofertas/{oferta_id}/versiones/{ver_id}/documento")
+def ver_version_documento(oferta_id: int, ver_id: int):
+    """Devuelve el HTML del documento de una versión para previsualizar."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT html FROM oferta_versiones WHERE id = %s AND oferta_id = %s",
+                        (ver_id, oferta_id))
+            r = fetchone(cur)
+        if not r:
+            raise HTTPException(404, "Versión no encontrada")
+        html = r.get("html") or "<p style='font-family:sans-serif;padding:24px'>Esta versión no tiene documento HTML (solo PDF original o datos).</p>"
+        return Response(content=html, media_type="text/html; charset=utf-8")
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/ofertas/{oferta_id}/versiones/{ver_id}/pdf")
+def ver_version_pdf(oferta_id: int, ver_id: int):
+    """Descarga/abre el PDF de una versión: usa el PDF original subido si existe,
+    o convierte el HTML de la versión a PDF."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT version, pdf_b64, html FROM oferta_versiones WHERE id = %s AND oferta_id = %s",
+                        (ver_id, oferta_id))
+            r = fetchone(cur)
+        if not r:
+            raise HTTPException(404, "Versión no encontrada")
+        if r.get("pdf_b64"):
+            data = base64.b64decode(r["pdf_b64"].split(",", 1)[-1])
+        elif r.get("html"):
+            data = _html_to_pdf_bytes(r["html"])
+        else:
+            raise HTTPException(404, "Esta versión no tiene documento")
+        fn = "Oferta_v%s.pdf" % r["version"]
+        return Response(content=data, media_type="application/pdf",
+                        headers={"Content-Disposition": 'inline; filename="%s"' % fn})
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

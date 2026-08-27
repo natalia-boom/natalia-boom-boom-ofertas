@@ -5459,52 +5459,46 @@ async function iaGenerarOferta() {
     const found = MESES.find(x => x.substring(0, 3) === m3);
     if (found) mes = found;
   }
-  // Valor a COP para el Control: si la oferta es en USD lo dejamos igual (número),
-  // el Control muestra el número; el detalle en USD queda en el HTML guardado.
-  const payload = {
+  // PDF original adjunto en el chat (si lo hay) → se guarda como documento de esta
+  // versión. Ideal para la v1 de una oferta hecha en OTRA plataforma.
+  let pdfOriginal = null;
+  try {
+    const pf = (iaFotos || []).find(f => f.kind === 'pdf' && f.data);
+    if (pf) pdfOriginal = pf.data;
+  } catch (e) {}
+
+  // El NÚMERO manda: el backend reconoce si la oferta ya existe (interna o
+  // importada del Excel) y guarda como nueva VERSIÓN bajo ese mismo número;
+  // si no existe, la crea con ese número. Nunca inventa un consecutivo nuevo.
+  const vpayload = {
     num:        numRaw,
-    mes:        mes,
-    fecha:      now.toISOString().slice(0, 10),
     cliente:    iaMeta.cliente || 'SIN CLIENTE',
-    realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
+    valor:      parseInt(iaMeta.valor) || 0,
+    moneda:     iaMeta.moneda || 'COP',
+    descripcion: iaMeta.descripcion || null,
+    forma_pago: document.getElementById('iaFormaPago').value || null,
+    tipo:       document.getElementById('iaTipo').value || iaMeta.tipo || null,
     sector:     document.getElementById('iaSector').value || null,
     unidad:     document.getElementById('iaUnidad').value || null,
-    tipo:       document.getElementById('iaTipo').value || iaMeta.tipo || null,
-    valor:      parseInt(iaMeta.valor) || 0,
     estado:     document.getElementById('iaEstado').value || 'ENVIADO',
     respuesta:  document.getElementById('iaRespuesta').value || null,
     seguimiento: document.getElementById('iaSeguimiento').value || null,
-    general:    iaMeta.descripcion || null,
-    pdf_data: {
-      ref:        numRaw,
-      cliente:    iaMeta.cliente,
-      descripcion: iaMeta.descripcion,
-      moneda:     iaMeta.moneda || 'COP',
-      modo:       'ia',
-      forma_pago: document.getElementById('iaFormaPago').value || null,
-      ia_html:    iaHtml
-    }
+    mes:        mes,
+    fecha:      now.toISOString().slice(0, 10),
+    realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
+    html:       iaHtml || null,
+    pdf_original: pdfOriginal
   };
   try {
-    let res, ok, numFinal = numRaw;
-    if (iaEditingId !== null) {
-      res = await fetch('/api/ofertas/' + iaEditingId, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      ok = res.ok;
-      if (ok) showToast('✅ Oferta ' + numRaw + ' actualizada', 'success');
-    } else {
-      res = await fetch('/api/ofertas', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      ok = res.ok;
-      if (ok) {
-        const g = await res.json();
-        numFinal = (g && g.num) ? g.num : numRaw;
-        showToast('✅ Oferta ' + numFinal + ' guardada en el Control', 'success');
-      }
-    }
-    if (!ok) { const e = await res.json(); throw new Error(e.detail || 'Error guardando'); }
+    const res = await fetch('/api/ofertas/guardar-version', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vpayload)
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Error guardando'); }
+    const g = await res.json();
+    const msg = g.creada
+      ? ('✅ Oferta ' + g.num_fmt + ' guardada (versión 1)')
+      : ('✅ Oferta ' + g.num_fmt + ' actualizada — versión ' + g.version);
+    showToast(msg, 'success');
     await loadAll();
     iaResetChat(true);   // limpia el generador y toma el próximo consecutivo automáticamente
     switchTab('control');
@@ -6708,53 +6702,93 @@ async function guardarOSI() {
   }
 }
 
-// ── FEATURE 4: Historial de cambios ──────────────────────────────────────────
+// ── FEATURE 4: Historial de cambios + versiones del documento ─────────────────
 async function openHistorial(id, num) {
   document.getElementById('historialNum').textContent = '#' + num;
   document.getElementById('historialContent').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   document.getElementById('modalHistorial').style.display = 'flex';
   try {
-    const res = await fetch('/api/ofertas/' + id + '/historial');
-    const data = await res.json();
-    if (!data.length) {
-      document.getElementById('historialContent').innerHTML =
-        '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-muted);">Sin cambios registrados para esta oferta</div>';
-      return;
-    }
-    const CAMPO_LABELS = {
-      respuesta: 'Respuesta', estado: 'Estado', valor: 'Valor',
-      facturacion: 'Facturación', mes_aceptado: 'Mes Aceptado',
-      seguimiento: 'Seguimiento', no_factura: 'No. Factura',
-      valor_facturado: 'Valor Facturado'
-    };
-    document.getElementById('historialContent').innerHTML = `
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Campo</th>
-              <th>Valor Anterior</th>
-              <th>Valor Nuevo</th>
-              <th>Usuario</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(h => `
-              <tr>
-                <td style="font-weight:600;color:var(--petrol);">${CAMPO_LABELS[h.campo] || h.campo}</td>
-                <td style="color:#dc2626;text-decoration:line-through;font-size:12px;">${h.valor_ant || '—'}</td>
-                <td style="color:#16a34a;font-weight:600;font-size:12px;">${h.valor_nuevo || '—'}</td>
-                <td style="font-size:12px;">${h.usuario || 'Sistema'}</td>
-                <td style="font-size:11px;color:var(--text-muted);">${h.created_at ? new Date(h.created_at).toLocaleString('es-CO') : '—'}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
+    const [rV, rH] = await Promise.all([
+      fetch('/api/ofertas/' + id + '/versiones'),
+      fetch('/api/ofertas/' + id + '/historial')
+    ]);
+    const versiones = rV.ok ? await rV.json() : [];
+    const data = rH.ok ? await rH.json() : [];
+    document.getElementById('historialContent').innerHTML =
+      renderVersiones(id, versiones) + renderCambios(data);
   } catch(e) {
     document.getElementById('historialContent').innerHTML =
       '<div style="color:var(--danger);padding:20px;">Error cargando historial</div>';
   }
+}
+
+// Línea de tiempo de VERSIONES del documento de la oferta
+function renderVersiones(id, versiones) {
+  if (!versiones || !versiones.length) {
+    return '<div style="background:#f7fbfc;border:1px dashed var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-muted);">'
+      + '🗂️ Esta oferta aún no tiene versiones guardadas. Cuando la ajustes desde el asistente y la guardes, aquí quedará el historial de versiones (v1, v2…).</div>';
+  }
+  const filas = versiones.map(v => {
+    const est = v.vigente
+      ? '<span style="background:#e5f5ec;color:#16a34a;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;">● VIGENTE</span>'
+      : '<span style="background:#f0f3f5;color:var(--text-muted);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;">anterior</span>';
+    const dotBg = v.vigente ? '#16a34a' : '#b9c6cc';
+    const fecha = v.created_at ? new Date(v.created_at).toLocaleString('es-CO') : '';
+    const btnVer = v.tiene_html
+      ? `<button class="btn btn-sm" style="background:var(--petrol);color:#fff;border:none;" onclick="window.open('/api/ofertas/${id}/versiones/${v.id}/documento','_blank')">👁️ Ver</button>` : '';
+    const btnPdf = (v.tiene_html || v.tiene_pdf)
+      ? `<button class="btn btn-sm" style="background:#fff;color:var(--petrol-dark,#0a4f5c);border:1px solid var(--border);" onclick="window.open('/api/ofertas/${id}/versiones/${v.id}/pdf','_blank')">⬇️ PDF</button>` : '';
+    return `
+      <div style="display:flex;gap:12px;padding:12px 0;border-top:1px solid #eef2f4;">
+        <div style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:${dotBg};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;">v${v.version}</div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+            <div style="font-weight:800;font-size:13px;">Versión ${v.version} ${est}</div>
+            <div style="font-weight:800;white-space:nowrap;">${fmtCop(v.valor || 0)}</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${fecha}${v.creado_por ? ' · ' + pyEscape(v.creado_por) : ''}</div>
+          ${v.resumen ? `<div style="font-size:12px;margin-top:5px;background:#f7fbfc;border:1px solid var(--border);border-radius:8px;padding:6px 9px;">🔧 ${pyEscape(v.resumen)}</div>` : ''}
+          <div style="margin-top:7px;display:flex;gap:7px;flex-wrap:wrap;">${btnVer}${btnPdf}</div>
+        </div>
+      </div>`;
+  }).join('');
+  return `<div style="margin-bottom:18px;">
+      <div style="font-size:14px;font-weight:800;color:var(--petrol-dark,#0a4f5c);margin-bottom:6px;">🗂️ Versiones del documento</div>
+      ${filas}
+    </div>`;
+}
+
+// Tabla de cambios de seguimiento comercial (lo que ya existía)
+function renderCambios(data) {
+  if (!data || !data.length) {
+    return '<div style="font-size:14px;font-weight:800;color:var(--petrol-dark,#0a4f5c);margin:6px 0;">📝 Cambios de seguimiento</div>'
+      + '<div class="empty-state" style="padding:20px;text-align:center;color:var(--text-muted);">Sin cambios de seguimiento registrados</div>';
+  }
+  const CAMPO_LABELS = {
+    respuesta: 'Respuesta', estado: 'Estado', valor: 'Valor',
+    facturacion: 'Facturación', mes_aceptado: 'Mes Aceptado',
+    seguimiento: 'Seguimiento', no_factura: 'No. Factura',
+    valor_facturado: 'Valor Facturado'
+  };
+  return `
+    <div style="font-size:14px;font-weight:800;color:var(--petrol-dark,#0a4f5c);margin:6px 0;">📝 Cambios de seguimiento</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Campo</th><th>Valor Anterior</th><th>Valor Nuevo</th><th>Usuario</th><th>Fecha</th></tr>
+        </thead>
+        <tbody>
+          ${data.map(h => `
+            <tr>
+              <td style="font-weight:600;color:var(--petrol);">${CAMPO_LABELS[h.campo] || h.campo}</td>
+              <td style="color:#dc2626;text-decoration:line-through;font-size:12px;">${h.valor_ant || '—'}</td>
+              <td style="color:#16a34a;font-weight:600;font-size:12px;">${h.valor_nuevo || '—'}</td>
+              <td style="font-size:12px;">${h.usuario || 'Sistema'}</td>
+              <td style="font-size:11px;color:var(--text-muted);">${h.created_at ? new Date(h.created_at).toLocaleString('es-CO') : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 function cerrarHistorial() {
