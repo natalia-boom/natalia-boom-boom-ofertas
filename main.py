@@ -644,7 +644,7 @@ def generar_html_oferta(data: dict) -> str:
     cond_num = sec + (2 if note_items else 1)
     excl_num = cond_num + 1
 
-    return f"""<!DOCTYPE html>
+    _html_oferta = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -785,6 +785,7 @@ table.cond td:first-child{{font-weight:bold;width:40%;background:#f5f5f5;}}
 </div>
 </body>
 </html>"""
+    return _inject_anexo(_html_oferta)
 
 
 # ── PDF helpers ───────────────────────────────────────────────────────────────
@@ -2147,7 +2148,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
@@ -2816,6 +2817,7 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
         html = _limpiar_oferta_html(html)
+        html = _inject_anexo(html)
 
     return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt}
 
@@ -2830,6 +2832,19 @@ def index():
 def manual():
     """Manual interactivo para el equipo (Willy, Boris). Público, sin login."""
     return FileResponse("templates/manual.html")
+
+
+@app.get("/anexo-legal")
+def anexo_legal():
+    """Anexo 1 – Condiciones Legales de la Cotización. Público (el cliente lo
+    abre desde el enlace de la oferta). Fuente única: se actualiza aquí y todas
+    las ofertas nuevas apuntan a la versión vigente."""
+    path = os.path.join(os.path.dirname(__file__), "templates", "anexo1_cotizacion.pdf")
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline; filename=BOOM_Anexo1_Cotizacion.pdf"},
+    )
 
 
 @app.get("/api/logo")
@@ -3744,8 +3759,43 @@ def _inject_pdf_css(html_str: str, extra_css: str = "") -> str:
     return html_str.replace("</head>", _PDF_PAGE_CSS + extra_css + "\n</head>", 1)
 
 
+# ── Anexo 1 legal (enlace en cada oferta) ────────────────────────────────────
+ANEXO_URL = "https://web-production-73608.up.railway.app/anexo-legal"
+
+def _bloque_anexo_html() -> str:
+    """Recuadro con el hipervínculo al Anexo 1 legal. Lleva el sentinel
+    <!--ANEXO1--> para no duplicarlo si el HTML ya lo tenía."""
+    return (
+        '<!--ANEXO1-->'
+        '<div style="margin:22px 0 4px 0;padding:14px 16px;border:1px solid #d9e2e6;'
+        'border-left:5px solid #E8601C;border-radius:8px;background:#fff8f3;'
+        'font-family:Arial,sans-serif;font-size:13px;color:#1B2A4A;line-height:1.5;">'
+        '📎 <strong>Anexo 1 &ndash; Condiciones Legales de la Cotizaci&oacute;n.</strong> '
+        'Este documento hace parte integral de la presente oferta y regula seguros, '
+        'obligaciones de las partes, exclusiones, m&eacute;rito ejecutivo y dem&aacute;s '
+        'condiciones legales.<br>'
+        f'<a href="{ANEXO_URL}" target="_blank" '
+        'style="display:inline-block;margin-top:8px;color:#0e6b7d;font-weight:bold;'
+        'text-decoration:underline;">👉 Ver / descargar el Anexo 1 (PDF)</a>'
+        '</div>'
+    )
+
+def _inject_anexo(html: str) -> str:
+    """Inserta el recuadro del Anexo 1 justo encima de la firma (div.footer).
+    Idempotente: si el HTML ya trae el sentinel, no lo vuelve a poner."""
+    if not html or "<!--ANEXO1-->" in html:
+        return html
+    bloque = _bloque_anexo_html()
+    if '<div class="footer">' in html:
+        return html.replace('<div class="footer">', bloque + '\n<div class="footer">', 1)
+    if "</body>" in html:
+        return html.replace("</body>", bloque + "\n</body>", 1)
+    return html + bloque
+
+
 def _html_to_pdf_bytes(html_str: str) -> bytes:
     """Convierte HTML → PDF. Prioridad: WeasyPrint > xhtml2pdf."""
+    html_str = _inject_anexo(html_str)
     if WEASYPRINT_OK:
         prepared = _inject_pdf_css(html_str)
         return _weasyprint.HTML(string=prepared).write_pdf()
