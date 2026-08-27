@@ -5425,8 +5425,19 @@ function iaFilename(ext) {
   return `Oferta_BOOM_${ref}_${cli}.${ext}`;
 }
 
+// 🛡️ Bloquea generar/descargar cualquier documento sin nombre de cliente válido.
+function iaClienteFalta() {
+  const _cli = (iaMeta && iaMeta.cliente ? iaMeta.cliente : '').trim().toUpperCase();
+  if (!_cli || _cli === 'SIN CLIENTE' || _cli === 'CLIENTE') {
+    showToast('⚠️ La oferta no tiene nombre de cliente. Escríbelo antes de generar o descargar.', 'warning');
+    return true;
+  }
+  return false;
+}
+
 async function iaDescargarPDF() {
   if (!iaHtml) return;
+  if (iaClienteFalta()) return;
   const btn = document.getElementById('iaBtnPDF');
   const old = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Generando PDF...';
@@ -5457,6 +5468,7 @@ async function iaDescargarPDF() {
 
 function iaDescargarHTML() {
   if (!iaHtml) return;
+  if (iaClienteFalta()) return;
   const blob = new Blob([iaHtml], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -4158,6 +4158,10 @@ def ver_version_pdf(oferta_id: int, ver_id: int):
 def html_a_pdf(body: HtmlToPdf):
     """Convierte un HTML de oferta ya generado (modo IA avanzada) en PDF descargable."""
     try:
+        # 🛡️ No permitir generar PDF sin nombre de cliente (el filename lo codifica).
+        _fn_up = (body.filename or "").upper()
+        if "_CLIENTE." in _fn_up or "SIN_CLIENTE" in _fn_up:
+            raise HTTPException(status_code=400, detail="La oferta no tiene nombre de cliente. Escríbelo antes de generar el PDF.")
         pdf_bytes = _html_to_pdf_bytes(body.html)
         fn = re.sub(r'[^A-Za-z0-9_.\-]', "_", body.filename or "Oferta_BOOM.pdf")
         if not fn.lower().endswith(".pdf"):
