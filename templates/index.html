@@ -282,6 +282,11 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .toast.warning { background: #92400e; color: #fef3c7; border-left-color: #fbbf24; }
 @keyframes slideIn { from { transform: translateX(110px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110px); opacity: 0; } }
+/* 🔔 Alarma de notificaciones: globito que late + campanita que salta */
+@keyframes notifPulse { 0%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(232,96,28,.55); } 50%{ transform:scale(1.18); box-shadow:0 0 0 6px rgba(232,96,28,0); } }
+.notif-pulse { animation: notifPulse 1.4s ease-in-out infinite; }
+@keyframes notifShake { 0%,100%{ transform:rotate(0); } 15%{ transform:rotate(-14deg); } 30%{ transform:rotate(12deg); } 45%{ transform:rotate(-10deg); } 60%{ transform:rotate(8deg); } 75%{ transform:rotate(-4deg); } }
+.notif-shake { animation: notifShake 0.7s ease-in-out 2; }
 
 /* APPROVED HEADER */
 .approved-header {
@@ -6693,24 +6698,96 @@ async function marcarTodasLeidas() {
   showToast('✅ Todas las alertas marcadas como leídas', 'success');
 }
 
-// Polling badge cada 60s y carga al entrar al módulo
-setInterval(async () => {
-  const r = await fetch('/api/notificaciones/count').then(x=>x.json()).catch(()=>({count:0}));
+// ══════════════════════════════════════════════════════════════════════════
+// 🔔 ALARMA DE NOTIFICACIONES — campanita + sonido + aviso de Windows
+// ══════════════════════════════════════════════════════════════════════════
+let _notifAudioCtx = null;
+let _notifSoundReady = false;
+
+// Los navegadores no dejan sonar audio hasta que la persona interactúe con la
+// página. Al primer clic/tecla, habilitamos el sonido y pedimos permiso a Windows.
+function _habilitarAlarma() {
+  if (_notifSoundReady) return;
+  try {
+    _notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_notifAudioCtx.state === 'suspended') _notifAudioCtx.resume();
+    _notifSoundReady = true;
+  } catch (e) { /* sin audio disponible */ }
+  // Permiso para avisos de escritorio de Windows
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  } catch (e) {}
+}
+document.addEventListener('click', _habilitarAlarma, { once: false });
+document.addEventListener('keydown', _habilitarAlarma, { once: false });
+
+// "Ding" agradable de dos tonos, generado sin archivo (Web Audio).
+function _sonarCampana() {
+  if (!_notifAudioCtx) return;
+  try {
+    const ctx = _notifAudioCtx;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    [[880, 0], [1174, 0.16]].forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      const t = now + delay;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.start(t); osc.stop(t + 0.4);
+    });
+  } catch (e) {}
+}
+
+// Aviso de escritorio de Windows (aunque la app no esté al frente).
+function _avisoWindows(titulo, cuerpo) {
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification(titulo, { body: cuerpo, tag: 'boom-oferta', renotify: true });
+      setTimeout(() => { try { n.close(); } catch(_){} }, 8000);
+    }
+  } catch (e) {}
+}
+
+// Núcleo de la alarma: revisa el conteo y, si llegó una NUEVA, dispara todo.
+async function _revisarNotificaciones() {
+  const r = await fetch('/api/notificaciones/count').then(x=>x.json()).catch(()=>null);
+  if (!r) return;
   const badge = document.getElementById('notifBadge');
   if (badge) {
     badge.textContent = r.count;
     badge.style.display = r.count > 0 ? 'inline-flex' : 'none';
+    badge.classList.toggle('notif-pulse', r.count > 0);
   }
-}, 60000);
+  // ¿Llegó una notificación nueva? (id más alto que el último visto)
+  const visto = parseInt(localStorage.getItem('boom_last_notif_id') || '0', 10) || 0;
+  const ahora = parseInt(r.latest_id || 0, 10) || 0;
+  if (visto === 0) {
+    // Primera vez que carga: no suena, solo memoriza el estado actual.
+    localStorage.setItem('boom_last_notif_id', String(ahora));
+  } else if (ahora > visto) {
+    localStorage.setItem('boom_last_notif_id', String(ahora));
+    const cli = (r.latest_cliente || 'Cliente').toString();
+    const num = (r.latest_num || '').toString();
+    const numFmt = num.length === 6 ? '26-' + num.slice(2) : num;
+    _sonarCampana();
+    showToast('🔔 Nueva oferta aprobada: ' + cli + (numFmt ? ' — ' + numFmt : ''), 'success');
+    _avisoWindows('🔔 Nueva oferta aprobada', cli + (numFmt ? '  ·  ' + numFmt : '') + '\nGenera la OSI en el módulo de Operaciones.');
+    // La campanita "salta" para llamar la atención
+    const btn = document.getElementById('btnCambiarModulo');
+    if (btn) { btn.classList.remove('notif-shake'); void btn.offsetWidth; btn.classList.add('notif-shake'); }
+  }
+}
 
-// Carga inicial del badge
-fetch('/api/notificaciones/count').then(r=>r.json()).then(r=>{
-  const badge = document.getElementById('notifBadge');
-  if (badge && r.count > 0) {
-    badge.textContent = r.count;
-    badge.style.display = 'inline-flex';
-  }
-}).catch(()=>{});
+// Chequeo cada 30s + carga inicial
+setInterval(_revisarNotificaciones, 30000);
+_revisarNotificaciones();
 
 // ── FEATURE 3: OSI actualizada (con nuevos campos) ────────────────────────────
 function abrirModalOSI(osi) {

@@ -4523,7 +4523,18 @@ def count_notificaciones(request: Request):
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) AS total FROM notificaciones WHERE leida = false")
             row = fetchone(cur)
-            return {"count": row["total"] if row else 0}
+            count = row["total"] if row else 0
+            # Última notificación (para el sonido/aviso: saber QUÉ llegó)
+            cur.execute(
+                "SELECT id, oferta_num, cliente FROM notificaciones ORDER BY id DESC LIMIT 1"
+            )
+            last = fetchone(cur)
+            return {
+                "count": count,
+                "latest_id": last["id"] if last else 0,
+                "latest_num": (last["oferta_num"] if last else "") or "",
+                "latest_cliente": (last["cliente"] if last else "") or "",
+            }
     except Exception as e:
         raise HTTPException(500, str(e))
 
