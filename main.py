@@ -1600,6 +1600,8 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_motivo text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_por text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_fecha timestamptz")
+        # Ofertas de PRUEBA: no gastan consecutivo real ni afectan la numeración
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS es_prueba boolean DEFAULT false")
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -2878,7 +2880,7 @@ def get_consecutivo():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
+            cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
             return {"consecutivo": fetchone(cur)["next"]}
     except Exception as e:
         traceback.print_exc()
@@ -3392,7 +3394,7 @@ def create_oferta(oferta: OfertaCreate):
                 # Si no vino, o si un intento anterior chocó, recalcula el siguiente
                 # consecutivo disponible en este preciso momento.
                 if not oferta.num or intento > 0:
-                    cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
+                    cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
                     oferta.num = str(fetchone(cur)["next"])
                 cur.execute(
                     """INSERT INTO ofertas
@@ -3979,7 +3981,7 @@ def oferta_ia_endpoint(body: OfertaIABody):
         if not ref:
             with get_conn() as conn:
                 cur = conn.cursor()
-                cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas")
+                cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
                 ref = str(fetchone(cur)["next"])
         return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante, body.forma_pago)
     except Exception as e:
