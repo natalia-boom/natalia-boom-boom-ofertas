@@ -4722,6 +4722,15 @@ def crear_osi(body: CrearOSIBody, request: Request):
             def _d(v):
                 v = (v or "").strip()
                 return v or None
+            # El VALOR de la OSI se lee directo de la oferta en la base de datos
+            # (no del dato que viaja por pantalla), para que sea la base exacta
+            # de rentabilidad. Si por algo no se encuentra, usa el valor enviado.
+            valor_osi = int(body.valor or 0)
+            if body.oferta_id:
+                cur.execute("SELECT valor FROM ofertas WHERE id=%s", (body.oferta_id,))
+                _vr = fetchone(cur)
+                if _vr and _vr.get("valor") is not None:
+                    valor_osi = int(_vr["valor"] or 0)
             cur.execute("""
                 INSERT INTO osi (numero_osi, oferta_id, oferta_num, responsable, equipo,
                                  cliente, origen, destino, valor, estado,
@@ -4730,7 +4739,7 @@ def crear_osi(body: CrearOSIBody, request: Request):
                 RETURNING id
             """, (numero_osi, body.oferta_id or None, body.oferta_num.strip(),
                   body.lider.strip(), body.equipo.strip(), body.cliente.strip(),
-                  body.origen.strip(), body.destino.strip(), body.valor or 0,
+                  body.origen.strip(), body.destino.strip(), valor_osi,
                   'PROGRAMADO', _d(body.fecha_inicio), body.conductor.strip(),
                   body.placa.strip().upper(),
                   # Guardamos el detalle operativo en observaciones (mañana se
