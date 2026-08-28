@@ -5216,7 +5216,7 @@ async function sendChatMessage() {
     const res = await fetch('/api/chat-oferta-stream', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ messages: chatHistory })
+      body: JSON.stringify({ messages: chatHistory, estado_actual: _snapshotOfertaActual() })
     });
     if (!res.ok) throw new Error('Error de conexión con Claude');
 
@@ -6006,6 +6006,34 @@ function clearExcelAttach() {
   pendingExcelContent = null;
   pendingFiles = pendingFiles.filter(f => !/\.(xlsx|xls)$/i.test(f.name));
   renderFilePreviews();
+}
+
+// Construye una foto de la oferta que Naty tiene cargada AHORA, para que la IA
+// conserve intacto todo lo que no se pide cambiar (evita "desajustar" la oferta).
+function _snapshotOfertaActual() {
+  const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
+  const snap = {
+    cliente:       v('gCliente'),
+    contacto:      v('gContacto'),
+    email_cliente: v('gEmailCliente'),
+    ref_cliente:   v('gRefCliente'),
+    cliente_final: v('gClienteFinal'),
+    origen:        v('gOrigen'),
+    destino:       v('gDestino'),
+    descripcion:   v('gDescripcion'),
+    forma_pago:    v('gFormaPago'),
+    vigencia:      v('gVigencia'),
+    notas:         v('gNotas'),
+    cargo_items:   _collectCargoItems(),
+    equipos:       _collectEquipos(),
+  };
+  // ¿Hay algo cargado? Si todo está vacío, es una oferta nueva → no enviar snapshot.
+  const hayTexto = ['cliente','contacto','origen','destino','descripcion']
+    .some(k => snap[k]);
+  const hayCarga = (snap.cargo_items || []).some(c => c.descripcion || c.tipo);
+  const hayEquipos = (snap.equipos || []).some(e => e.equipo);
+  if (!hayTexto && !hayCarga && !hayEquipos) return null;
+  return JSON.stringify(snap);
 }
 
 function applyExtractedFields(data) {

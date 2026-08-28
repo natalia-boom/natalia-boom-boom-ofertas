@@ -2375,6 +2375,7 @@ class ChatMsg(BaseModel):
 
 class ChatOfertaBody(BaseModel):
     messages: List[ChatMsg]
+    estado_actual: Optional[str] = None
 
 
 class ParseDetalle(BaseModel):
@@ -2516,7 +2517,22 @@ FORMATO DE RESPUESTA:
 {"cliente":"...","contacto":"...","email_cliente":"...","ref_cliente":"...","cliente_final":"...","origen":"...","destino":"...","descripcion":"...","cargo_items":[{"descripcion":"","tipo":"","cant":1,"dimensiones":"","peso":"","volumen":"","origen_detalle":"","destino_detalle":""}],"equipos":[{"equipo":"","config":"","cant":1,"valor_unit":0}],"notas":"...","forma_pago":"...","vigencia":30}
 <<<FIN>>>
 
-3. Si el usuario pide un ajuste puntual (ej: "cambia la vigencia", "agrega un escolta"), incluye el bloque JSON completo con el ajuste aplicado.
+═══ REGLA CRÍTICA: NO DESAJUSTAR UNA OFERTA EXISTENTE ═══
+Si el mensaje incluye "ESTADO ACTUAL DE LA OFERTA", significa que YA existe una oferta cargada y
+Naty solo quiere AJUSTARLA. En ese caso el bloque <<<DATOS>>> es un PARCHE, NO una oferta nueva:
+
+  A. Incluye ÚNICAMENTE los campos que el ajuste solicitado modifica. OMITE todos los demás.
+     Ej: "cambia la vigencia a 15 días" → <<<DATOS>>>{"vigencia":15}<<<FIN>>>  (nada más).
+     Ej: "el contacto ahora es Pedro" → <<<DATOS>>>{"contacto":"Pedro"}<<<FIN>>>.
+  B. NO incluyas "cargo_items" ni "equipos" a menos que el ajuste sea específicamente sobre la
+     carga o los equipos. Si NO los tocas, OMÍTELOS por completo (así se conservan intactos).
+  C. Si el ajuste SÍ cambia la carga o los equipos, incluye el ARRAY COMPLETO: copia EXACTAMENTE
+     las filas que no cambian (tal cual vienen en el ESTADO ACTUAL) y aplica solo el cambio pedido.
+     Nunca reconstruyas de memoria: copia los valores literales del ESTADO ACTUAL.
+  D. NUNCA reformatees, traduzcas, redondees, reordenes ni borres valores que Naty no pidió cambiar.
+
+3. Si NO hay "ESTADO ACTUAL DE LA OFERTA" (oferta nueva desde cero), incluye el bloque JSON con
+   todos los campos que tengas disponibles.
 4. Si falta información clave, pídela conversacionalmente sin incluir el bloque JSON.
 5. valor_unit: entero sin separadores (ej: 19500000). Sin precio → 0.
 6. Aplica SIEMPRE las reglas de negocio BOOM: stand-by, escoltas, tiempos libres.
@@ -3784,13 +3800,28 @@ def chat_oferta_stream(body: ChatOfertaBody):
                 [{"role": m.role, "content": m.content} for m in body.messages]
             )
 
+            system_prompt = CHAT_SYSTEM_PROMPT
+            if body.estado_actual and body.estado_actual.strip():
+                _estado = body.estado_actual.strip()
+                if len(_estado) > _MAX_TEXT_CHARS:
+                    _estado = _estado[:_MAX_TEXT_CHARS] + "\n[…truncado]"
+                system_prompt = CHAT_SYSTEM_PROMPT + (
+                    "\n\n════════════════════════════════════════\n"
+                    "ESTADO ACTUAL DE LA OFERTA (VERDAD ABSOLUTA)\n"
+                    "════════════════════════════════════════\n"
+                    "Esta es la oferta que Naty tiene cargada AHORA MISMO. Es la fuente de verdad.\n"
+                    "Conserva SIN CAMBIOS todo lo que ella no pida modificar. Aplica la REGLA CRÍTICA\n"
+                    "de parche: en el bloque <<<DATOS>>> incluye SOLO los campos que el ajuste cambia.\n\n"
+                    + _estado
+                )
+
             full_text  = ""
             datos_seen = False
 
             with client.messages.stream(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=2000,
-                system=CHAT_SYSTEM_PROMPT,
+                system=system_prompt,
                 messages=api_messages,
             ) as stream:
                 for chunk in stream.text_stream:
