@@ -6601,9 +6601,11 @@ async function cargarNotificaciones() {
     if (!rN.length) {
       tbody.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#9aa3b0;"><div style="font-size:38px;margin-bottom:8px;">🔕</div>Sin alertas pendientes</div>';
     } else {
-      // Ordena: primero las nuevas (no leídas), luego por fecha reciente
-      const orden = [...rN].sort((a,b)=> (a.leida-b.leida) || (new Date(b.created_at)-new Date(a.created_at)));
-      tbody.innerHTML = orden.map(n => {
+      // Separa en dos grupos: nuevas (no leídas) arriba, leídas abajo
+      const porFecha = (a,b)=> (new Date(b.created_at)-new Date(a.created_at));
+      const nuevas = rN.filter(n=>!n.leida).sort(porFecha);
+      const leidas = rN.filter(n=>n.leida).sort(porFecha);
+      const tarjeta = (n) => {
         const leida = n.leida;
         const ruta = n.origen && n.destino ? `${n.origen} → ${n.destino}` : (n.origen || n.destino || 'Ruta por definir');
         const fecha = n.created_at ? new Date(n.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'}) : '—';
@@ -6623,7 +6625,15 @@ async function cargarNotificaciones() {
             ${!leida ? `<button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>` : ''}
           </div>
         </div>`;
-      }).join('');
+      };
+      const encabezado = (texto, color) => `<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:6px 0 2px;">
+          <span style="font-weight:800;font-size:13px;letter-spacing:.4px;color:${color};text-transform:uppercase;">${texto}</span>
+          <span style="flex:1;height:1px;background:linear-gradient(90deg,${color}33,transparent);"></span>
+        </div>`;
+      let html = '';
+      if (nuevas.length) html += encabezado(`🔔 Nuevas (${nuevas.length})`, '#c2410c') + nuevas.map(tarjeta).join('');
+      if (leidas.length) html += encabezado(`✓ Leídas (${leidas.length})`, '#9aa3b0') + leidas.map(tarjeta).join('');
+      tbody.innerHTML = html;
     }
   }
 
