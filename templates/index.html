@@ -2421,7 +2421,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);margin-bottom:28px;overflow:hidden;">
       <div style="background:#1B2A4A;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-weight:700;font-size:14px;">🔔 ALERTAS DE PROYECTOS ACEPTADOS</span>
-        <button onclick="marcarTodasLeidas()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">Marcar todas leídas</button>
+        <button id="btnMarcarTodas" onclick="marcarTodasLeidas()" style="display:none;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">Marcar todas leídas (admin)</button>
       </div>
       <div id="notifBody" style="padding:18px 20px;">
         <div style="padding:24px;text-align:center;color:var(--text-muted);">Cargando alertas...</div>
@@ -6932,6 +6932,11 @@ async function cargarNotificaciones() {
   aceptadasOps = Array.isArray(rA) ? rA : [];
   renderAceptadas();
 
+  // El botón "Marcar todas leídas" solo lo ve el admin: los operadores no pueden
+  // descartar alertas sin crear la OSI (así ninguna OSI pendiente se pierde).
+  const _btnTodas = document.getElementById('btnMarcarTodas');
+  if (_btnTodas) _btnTodas.style.display = (currentUser && currentUser.rol === 'admin') ? '' : 'none';
+
   // Badge
   const noLeidas = rN.filter(n=>!n.leida).length;
   const badge = document.getElementById('notifBadge');
@@ -6977,9 +6982,9 @@ async function cargarNotificaciones() {
             <div style="font-weight:800;font-size:15px;color:#15803d;margin-bottom:10px;">${fmtCOP(n.valor)}</div>
             <button onclick='abrirCrearOSI(${JSON.stringify(n).replace(/'/g,"&#39;")})' style="width:100%;background:var(--petrol);color:#fff;border:none;border-radius:8px;padding:11px 10px;font-size:13.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 6px rgba(27,42,74,.25);">📋 Crear OSI</button>
             ${n.oferta_id ? `<button onclick="window.open('/api/ofertas/${n.oferta_id}/pdf','_blank')" style="width:100%;margin-top:8px;background:#fff;color:var(--petrol);border:1.5px solid var(--petrol);border-radius:8px;padding:9px 10px;font-size:12.5px;font-weight:700;cursor:pointer;">⬇️ Descargar oferta</button>` : ''}
-            <div style="text-align:center;margin-top:8px;">
-              <button onclick="marcarLeida(${n.id})" style="background:none;border:none;color:#9aa3b0;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline;">Marcar como leída sin crear OSI</button>
-            </div>
+            ${(currentUser && currentUser.rol === 'admin') ? `<div style="text-align:center;margin-top:8px;">
+              <button onclick="marcarLeida(${n.id})" style="background:none;border:none;color:#c0c6cf;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;">Descartar sin crear OSI (solo admin)</button>
+            </div>` : ''}
           </div>
         </div>`;
       if (!nuevas.length) {
@@ -7129,11 +7134,21 @@ function renderAceptadas() {
 }
 
 async function marcarLeida(id) {
+  // Solo el admin puede descartar una alerta sin crear la OSI. Los operadores
+  // deben crear la OSI: así ninguna alerta pendiente se pierde.
+  if (!currentUser || currentUser.rol !== 'admin') {
+    showToast('Para quitar la alerta debes crear la OSI', 'warning');
+    return;
+  }
   await fetch(`/api/notificaciones/${id}/leer`, { method:'PATCH' });
   cargarNotificaciones();
 }
 
 async function marcarTodasLeidas() {
+  if (!currentUser || currentUser.rol !== 'admin') {
+    showToast('Solo el administrador puede descartar alertas sin OSI', 'warning');
+    return;
+  }
   await fetch('/api/notificaciones/leer-todas', { method:'PATCH' });
   cargarNotificaciones();
   showToast('✅ Todas las alertas marcadas como leídas', 'success');
