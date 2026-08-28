@@ -6601,18 +6601,13 @@ async function cargarNotificaciones() {
     if (!rN.length) {
       tbody.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#9aa3b0;"><div style="font-size:38px;margin-bottom:8px;">🔕</div>Sin alertas pendientes</div>';
     } else {
-      // Separa en dos grupos: nuevas (no leídas) como tarjetas arriba, leídas en tabla abajo
+      // El panel de alertas muestra SOLO las nuevas (no leídas) como tarjetas.
+      // Las leídas ya viven en el cuadro verde "TODO LO ACEPTADO" (las 222 aceptadas).
       const porFecha = (a,b)=> (new Date(b.created_at)-new Date(a.created_at));
       const nuevas = rN.filter(n=>!n.leida).sort(porFecha);
-      const leidas = rN.filter(n=>n.leida).sort(porFecha);
       const fmtFecha = (n) => n.created_at ? new Date(n.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'}) : '—';
       const fmtNum = (n) => (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
       const fmtRuta = (n) => n.origen && n.destino ? `${n.origen} → ${n.destino}` : (n.origen || n.destino || 'Ruta por definir');
-      const encabezado = (texto, color) => `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px;">
-          <span style="font-weight:800;font-size:13px;letter-spacing:.4px;color:${color};text-transform:uppercase;">${texto}</span>
-          <span style="flex:1;height:1px;background:linear-gradient(90deg,${color}33,transparent);"></span>
-        </div>`;
-      // Tarjetas nuevas
       const tarjeta = (n) => `<div class="notif-card nueva">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <span class="notif-chip nueva"><span class="notif-dot"></span> NUEVA</span>
@@ -6628,33 +6623,11 @@ async function cargarNotificaciones() {
             <button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>
           </div>
         </div>`;
-      // Fila de tabla para leídas
-      const fila = (n) => `<tr style="border-bottom:1px solid #f0f2f5;">
-          <td style="padding:9px 12px;font-size:12px;color:#9aa3b0;white-space:nowrap;">${fmtFecha(n)}</td>
-          <td style="padding:9px 12px;font-size:12px;font-weight:700;color:#8a94a3;white-space:nowrap;">${fmtNum(n)}</td>
-          <td style="padding:9px 12px;font-weight:700;color:var(--petrol);">${n.cliente||'—'}</td>
-          <td style="padding:9px 12px;font-size:12px;color:#556;">${fmtRuta(n)}</td>
-          <td style="padding:9px 12px;text-align:right;font-weight:700;color:#15803d;white-space:nowrap;">${fmtCOP(n.valor)}</td>
-        </tr>`;
-      let html = '';
-      if (nuevas.length) {
-        html += encabezado(`🔔 Nuevas (${nuevas.length})`, '#c2410c');
-        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:22px;">${nuevas.map(tarjeta).join('')}</div>`;
+      if (!nuevas.length) {
+        tbody.innerHTML = '<div style="padding:32px;text-align:center;color:#9aa3b0;"><div style="font-size:34px;margin-bottom:8px;">✅</div>No hay alertas nuevas. Todo lo aceptado está en el cuadro de abajo.</div>';
+      } else {
+        tbody.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${nuevas.map(tarjeta).join('')}</div>`;
       }
-      if (leidas.length) {
-        html += encabezado(`✓ Leídas (${leidas.length})`, '#9aa3b0');
-        html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f7f8fa;color:#8a94a3;text-align:left;">
-            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Fecha</th>
-            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Oferta</th>
-            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Cliente</th>
-            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Ruta</th>
-            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;">Valor</th>
-          </tr></thead>
-          <tbody>${leidas.map(fila).join('')}</tbody>
-        </table></div>`;
-      }
-      tbody.innerHTML = html;
     }
   }
 
