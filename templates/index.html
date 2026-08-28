@@ -4226,6 +4226,15 @@ function filterAprobadas() {
     return true;
   });
 
+  // Orden: lo ÚLTIMO ACEPTADO va ARRIBA (por fecha de aceptación). Si una oferta no
+  // tiene fecha de aceptación registrada, se ordena por número (mayor arriba).
+  const _tAcept = o => o.aceptada_fecha ? new Date(o.aceptada_fecha).getTime() : 0;
+  aprobadas.sort((a, b) => {
+    const d = _tAcept(b) - _tAcept(a);
+    if (d !== 0) return d;
+    return (parseInt(b.num) || 0) - (parseInt(a.num) || 0);
+  });
+
   // KPIs — universo de aceptadas VIVAS (sin las canceladas)
   const todas   = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !esCancelado(o.seguimiento));
   const valEsp  = aprobadas.reduce((s,o) => s+(o.valor||0), 0);

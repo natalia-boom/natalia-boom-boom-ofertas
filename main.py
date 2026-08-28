@@ -2997,7 +2997,19 @@ def list_ofertas():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
+            # aceptada_fecha: cuándo se aceptó la oferta (fecha de su notificación de
+            # "proyecto aceptado"). Sirve para que el módulo de Aprobadas ordene lo
+            # último aceptado ARRIBA, sin cambiar el número de la oferta.
+            cur.execute("""
+                SELECT o.*, n.aceptada_fecha
+                FROM ofertas o
+                LEFT JOIN (
+                    SELECT oferta_id, MAX(created_at) AS aceptada_fecha
+                    FROM notificaciones
+                    GROUP BY oferta_id
+                ) n ON n.oferta_id = o.id
+                ORDER BY CAST(o.num AS INTEGER) DESC
+            """)
             return fetchall(cur)
     except Exception as e:
         traceback.print_exc()
