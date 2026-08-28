@@ -15,6 +15,7 @@ import pg8000.dbapi as pgdb
 
 import hashlib
 import secrets
+import time
 
 from fastapi import FastAPI, HTTPException, Request, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, Response as FastResponse, JSONResponse, StreamingResponse
@@ -1949,8 +1950,31 @@ def _session_save(token: str, user: dict, max_age_s: int = 86400 * 7):
     except Exception as e:
         print(f"[AUTH] Error guardando sesión en DB: {e}")
 
+# ── Cierre por inactividad ────────────────────────────────────────────────────
+# La sesión se cierra tras 2 horas SIN actividad real del usuario (mouse/teclado/
+# clics). Los refrescos automáticos en segundo plano NO cuentan como actividad;
+# solo el "ping" que envía el navegador ante interacción real renueva el reloj.
+INACTIVITY_LIMIT_S = 2 * 3600
+_session_activity: dict = {}   # token -> epoch de la última actividad real
+
+def _activity_touch(token: str):
+    if token:
+        _session_activity[token] = time.time()
+
+def _activity_expired(token: str) -> bool:
+    """True si la sesión superó el límite de inactividad. Si no hay marca previa
+    (p. ej. tras un reinicio del servidor), la inicializa como activa ahora."""
+    if not token:
+        return False
+    last = _session_activity.get(token)
+    if last is None:
+        _session_activity[token] = time.time()   # gracia: primera vez que la vemos
+        return False
+    return (time.time() - last) > INACTIVITY_LIMIT_S
+
 def _session_delete(token: str):
     _sessions.pop(token, None)
+    _session_activity.pop(token, None)
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -2186,6 +2210,12 @@ async def auth_middleware(request: Request, call_next):
 
     if not user:
         return JSONResponse({"detail": "No autenticado"}, status_code=401)
+
+    # Cierre por inactividad (2h). Los refrescos automáticos pasan por aquí pero
+    # NO renuevan el reloj; solo lo comprueban. El reloj se renueva vía /auth/ping.
+    if _activity_expired(token):
+        _session_delete(token)
+        return JSONResponse({"detail": "Sesión cerrada por inactividad"}, status_code=401)
 
     request.state.user = user
 
@@ -4265,6 +4295,7 @@ def login(body: LoginBody, response: Response):
         user_data = {"id": row["id"], "username": row["username"],
                      "nombre": row["nombre"], "rol": row["rol"], "modulos": modulos}
         _session_save(token, user_data, max_age_s=86400 * 7)
+        _activity_touch(token)   # arranca el reloj de inactividad
         response.set_cookie("boom_session", token, httponly=True, samesite="lax",
                             max_age=86400 * 7)
         return {"nombre": row["nombre"], "rol": row["rol"], "username": row["username"], "modulos": modulos}
@@ -4288,9 +4319,28 @@ def logout(request: Request, response: Response):
 def me(request: Request):
     token = request.cookies.get("boom_session")
     user = _session_get(token)
+    # Consultar el estado NO cuenta como actividad: solo verifica la inactividad.
+    if user and _activity_expired(token):
+        _session_delete(token)
+        user = None
     if not user:
         raise HTTPException(401, "No autenticado")
     return user
+
+
+@app.post("/auth/ping")
+def auth_ping(request: Request):
+    """El navegador llama a esto ante actividad real del usuario (throttled) para
+    renovar el reloj de inactividad. Si ya venció, cierra la sesión."""
+    token = request.cookies.get("boom_session")
+    user = _session_get(token)
+    if not user:
+        return JSONResponse({"activo": False}, status_code=401)
+    if _activity_expired(token):
+        _session_delete(token)
+        return JSONResponse({"activo": False}, status_code=401)
+    _activity_touch(token)
+    return {"activo": True}
 
 
 # ── Gestión de usuarios ───────────────────────────────────────────────────────

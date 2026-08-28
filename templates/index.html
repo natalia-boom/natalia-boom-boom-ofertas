@@ -2982,6 +2982,7 @@ function prepareUser(user) {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('headerUserName').textContent = user.nombre;
   document.getElementById('headerUserRol').textContent = ROL_LABEL[user.rol] || user.rol;
+  _iniciarVigilanciaInactividad();   // arranca el reloj de 2h de inactividad
 }
 
 function showModuloSelector(user) {
@@ -3082,12 +3083,60 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  _detenerVigilanciaInactividad();
   await fetch('/auth/logout', {method:'POST'});
   currentUser = null;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').style.display = 'none';
   showLoginOverlay();
+}
+
+// ── Cierre automático por inactividad (2 horas) ───────────────────────────────
+// Si el usuario deja de usar la plataforma (sin mover mouse, teclado ni clics)
+// durante 2 horas, la sesión se cierra sola y pide usuario y contraseña de nuevo.
+// Los refrescos automáticos de datos NO cuentan como actividad.
+const INACTIVITY_MS = 2 * 60 * 60 * 1000;   // 2 horas
+let _inactivityTimer = null;
+let _lastActivityPing = 0;
+
+function _cerrarPorInactividad() {
+  _detenerVigilanciaInactividad();
+  fetch('/auth/logout', {method:'POST'}).catch(()=>{});
+  currentUser = null;
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  showLoginOverlay();
+  const err = document.getElementById('loginError');
+  if (err) {
+    err.textContent = '🔒 Tu sesión se cerró por 2 horas de inactividad. Ingresa de nuevo.';
+    err.style.display = '';
+  }
+}
+
+function _reiniciarInactividad() {
+  if (!currentUser) return;
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(_cerrarPorInactividad, INACTIVITY_MS);
+  // Renueva el reloj en el servidor, como máximo una vez por minuto.
+  const now = Date.now();
+  if (now - _lastActivityPing > 60000) {
+    _lastActivityPing = now;
+    fetch('/auth/ping', {method:'POST'}).then(r => {
+      if (r.status === 401) _cerrarPorInactividad();
+    }).catch(()=>{});
+  }
+}
+
+const _ACT_EVENTS = ['mousemove','mousedown','keydown','scroll','touchstart','click'];
+function _iniciarVigilanciaInactividad() {
+  _ACT_EVENTS.forEach(ev => document.addEventListener(ev, _reiniciarInactividad, {passive:true}));
+  _lastActivityPing = 0;
+  _reiniciarInactividad();
+}
+function _detenerVigilanciaInactividad() {
+  _ACT_EVENTS.forEach(ev => document.removeEventListener(ev, _reiniciarInactividad, {passive:true}));
+  if (_inactivityTimer) { clearTimeout(_inactivityTimer); _inactivityTimer = null; }
 }
 
 function applyRoleUI(rol) {
