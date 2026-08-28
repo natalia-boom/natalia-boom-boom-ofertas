@@ -2979,6 +2979,7 @@ function showLoginOverlay() {
 
 function prepareUser(user) {
   currentUser = user;
+  _sesionCaidaAvisada = false;   // nueva sesión válida: rearma el aviso de sesión caída
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('headerUserName').textContent = user.nombre;
   document.getElementById('headerUserRol').textContent = ROL_LABEL[user.rol] || user.rol;
@@ -3137,6 +3138,26 @@ function _iniciarVigilanciaInactividad() {
 function _detenerVigilanciaInactividad() {
   _ACT_EVENTS.forEach(ev => document.removeEventListener(ev, _reiniciarInactividad, {passive:true}));
   if (_inactivityTimer) { clearTimeout(_inactivityTimer); _inactivityTimer = null; }
+}
+
+// La sesión dejó de ser válida (la plataforma se actualizó o se cerró la sesión
+// en el servidor). En vez de quedarnos mostrando datos viejos en silencio, llevamos
+// al usuario a ingresar de nuevo para que vea la información al día.
+let _sesionCaidaAvisada = false;
+function _sesionCaida() {
+  if (_sesionCaidaAvisada) return;   // evita mensajes repetidos de los distintos pollers
+  _sesionCaidaAvisada = true;
+  _detenerVigilanciaInactividad();
+  try { if (typeof autoRefreshTimer !== 'undefined') clearInterval(autoRefreshTimer); } catch(e){}
+  currentUser = null;
+  const u = document.getElementById('loginUser'); if (u) u.value = '';
+  const p = document.getElementById('loginPass'); if (p) p.value = '';
+  showLoginOverlay();
+  const err = document.getElementById('loginError');
+  if (err) {
+    err.textContent = '🔄 La plataforma se actualizó o tu sesión se cerró. Ingresa de nuevo para ver la información al día.';
+    err.style.display = '';
+  }
 }
 
 function applyRoleUI(rol) {
@@ -3370,6 +3391,7 @@ async function loadAll() {
   setSyncState('syncing');
   try {
     const res = await fetch('/api/ofertas');
+    if (res.status === 401) { setSyncState('error'); _sesionCaida(); return; }
     if (!res.ok) throw new Error('Error cargando ofertas');
     allOfertas = await res.json();
     // Facturas por oferta (1 oferta -> N facturas). No bloquea si falla.
@@ -7419,7 +7441,11 @@ function _avisoWindows(titulo, cuerpo) {
 
 // Núcleo de la alarma: revisa el conteo y, si llegó una NUEVA, dispara todo.
 async function _revisarNotificaciones() {
-  const r = await fetch('/api/notificaciones/count').then(x=>x.json()).catch(()=>null);
+  if (!currentUser) return;   // sin sesión no consultamos
+  let resp;
+  try { resp = await fetch('/api/notificaciones/count'); } catch(e){ return; }
+  if (resp.status === 401) { _sesionCaida(); return; }   // sesión caída → a ingresar de nuevo
+  const r = await resp.json().catch(()=>null);
   if (!r) return;
   const badge = document.getElementById('notifBadge');
   if (badge) {
