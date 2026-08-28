@@ -4749,6 +4749,32 @@ def crear_osi(body: CrearOSIBody, request: Request):
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/ofertas/{oferta_id}/osi-prefill")
+def osi_prefill(oferta_id: int, request: Request):
+    """Datos de la oferta para pre-llenar el formulario de OSI:
+    solicitante = comercial que la realizó, tipo, y equipo ofertado."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT realizada, tipo, pdf_data FROM ofertas WHERE id=%s", (oferta_id,))
+            row = fetchone(cur)
+        if not row:
+            return {"solicitante": "", "tipo": "", "equipo": ""}
+        pdf = row.get("pdf_data")
+        if isinstance(pdf, str):
+            try: pdf = json.loads(pdf)
+            except Exception: pdf = {}
+        pdf = pdf or {}
+        equipo = "; ".join(e.get("equipo", "") for e in (pdf.get("equipos") or []) if e.get("equipo"))
+        return {
+            "solicitante": row.get("realizada") or "",
+            "tipo": row.get("tipo") or "",
+            "equipo": equipo,
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/osi/proximo-numero")
 def osi_proximo_numero(request: Request):
     try:

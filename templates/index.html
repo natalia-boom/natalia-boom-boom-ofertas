@@ -913,6 +913,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
   <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
+  <button class="tab-btn" id="tabOsiBtn" style="display:none;" onclick="switchTab('osi')">📋 OSI</button>
   <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')">🚛 Equipos</button>
   <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
   <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
@@ -2453,7 +2454,12 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       </div>
     </div>
 
-    <!-- OSI -->
+  </div>
+</section>
+
+<!-- ==================== OSI (dentro de Operaciones) ==================== -->
+<section class="tab-panel" id="tab-osi">
+  <div style="max-width:1200px;margin:0 auto;">
     <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
       <div style="background:#1B2A4A;color:#fff;padding:12px 20px;">
         <span style="font-weight:700;font-size:14px;">📋 ÓRDENES DE SERVICIO INTERNAS (OSI)</span>
@@ -2481,7 +2487,6 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         </table>
       </div>
     </div>
-
   </div>
 </section>
 
@@ -2625,7 +2630,16 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✅ Datos de la oferta (pre-llenado)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">CLIENTE</label><input id="cosiCliente" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-          <div><label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE OPERACIÓN</label><input id="cosiTipoOp" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE OPERACIÓN</label>
+            <select id="cosiTipoOp" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <option value="">— Selecciona —</option>
+              <option value="TRANSPORTE">Transporte</option>
+              <option value="SERVICIO">Servicio</option>
+              <option value="MIXTO">Mixto</option>
+            </select>
+          </div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">SOLICITANTE (COMERCIAL)</label><input id="cosiSolicitante" readonly style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;background:#f8fafc;color:#556;"></div>
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">ORIGEN</label><input id="cosiOrigen" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">DESTINO</label><input id="cosiDestino" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         </div>
@@ -2635,8 +2649,6 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <div style="font-size:11px;font-weight:800;color:var(--petrol);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✍️ Información del líder / operación</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">LÍDER DE PROYECTO</label><input id="cosiLider" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">NIT CLIENTE</label><input id="cosiNit" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">SOLICITANTE</label><input id="cosiSolicitante" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO PARA REPORTE</label><input id="cosiContactoReporte" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE CARGUE</label><input id="cosiContactoCargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE DESCARGUE</label><input id="cosiContactoDescargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
@@ -2650,7 +2662,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
       <!-- Bloque: asignación de equipo (jala del catálogo Equipos) -->
       <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
-        <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">🚛 Asignación de equipo</div>
+        <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">🚛 Asignación de equipo</div>
+        <div id="cosiEquipoInfo" style="font-size:11.5px;color:#9a3412;margin-bottom:10px;font-style:italic;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <label style="font-size:11px;font-weight:700;color:#64748b;">EQUIPO (del catálogo)</label>
@@ -2994,6 +3007,7 @@ function enterModulo(modulo) {
   });
   document.getElementById('tabClientesBtn').style.display    = info.tabsComercial ? '' : 'none';
   document.getElementById('tabOperacionesBtn').style.display   = modulo === 'operaciones'   ? '' : 'none';
+  document.getElementById('tabOsiBtn').style.display           = modulo === 'operaciones'   ? '' : 'none';
   document.getElementById('tabEquiposBtn').style.display       = modulo === 'operaciones'   ? '' : 'none';
   document.getElementById('tabTarifarioBtn').style.display     = modulo === 'tarifario'     ? '' : 'none';
   document.getElementById('tabUsuariosBtn').style.display      = 'none'; // Usuarios está dentro del módulo TI
@@ -3334,6 +3348,7 @@ function switchTab(name) {
   if (name === 'iaoferta')   iaInit();
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
+  if (name === 'osi')         cargarOSI();
   if (name === 'equipos')     cargarEquipos();
   if (name === 'clientes')   cargarClientes();
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
@@ -6813,6 +6828,7 @@ async function cargarNotificaciones() {
           <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #eef0f3;">
             <div style="font-weight:800;font-size:15px;color:#15803d;margin-bottom:10px;">${fmtCOP(n.valor)}</div>
             <button onclick='abrirCrearOSI(${JSON.stringify(n).replace(/'/g,"&#39;")})' style="width:100%;background:var(--petrol);color:#fff;border:none;border-radius:8px;padding:11px 10px;font-size:13.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 6px rgba(27,42,74,.25);">📋 Crear OSI</button>
+            ${n.oferta_id ? `<button onclick="window.open('/api/ofertas/${n.oferta_id}/pdf','_blank')" style="width:100%;margin-top:8px;background:#fff;color:var(--petrol);border:1.5px solid var(--petrol);border-radius:8px;padding:9px 10px;font-size:12.5px;font-weight:700;cursor:pointer;">⬇️ Descargar oferta</button>` : ''}
             <div style="text-align:center;margin-top:8px;">
               <button onclick="marcarLeida(${n.id})" style="background:none;border:none;color:#9aa3b0;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline;">Marcar como leída sin crear OSI</button>
             </div>
@@ -6826,35 +6842,52 @@ async function cargarNotificaciones() {
     }
   }
 
-  // Tabla OSI
+  // KPIs de OSI viven en su propia pestaña; se refrescan al abrirla.
+  renderOSI(rO);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 📋 OSI — pestaña propia dentro de Operaciones
+// ══════════════════════════════════════════════════════════════════════════
+async function cargarOSI() {
+  let rO = [];
+  try { rO = await fetch('/api/osi').then(r=>r.json()); } catch(e){ rO = []; }
+  if (!Array.isArray(rO)) rO = [];
+  const kpiP = document.getElementById('osiKpiProg');
+  const kpiE = document.getElementById('osiKpiEjec');
+  if (kpiP) kpiP.textContent = rO.filter(o=>o.estado==='PROGRAMADO').length;
+  if (kpiE) kpiE.textContent = rO.filter(o=>o.estado==='EN EJECUCIÓN').length;
+  renderOSI(rO);
+}
+
+function renderOSI(rO) {
   const osiTbody = document.getElementById('osiBody');
-  if (osiTbody) {
-    if (!rO.length) {
-      osiTbody.innerHTML = '<tr><td colspan="11" style="padding:32px;text-align:center;color:#999;">Sin OSI generadas aún</td></tr>';
-    } else {
-      osiTbody.innerHTML = rO.map(o => {
-        const est = OSI_ESTADOS[o.estado] || { bg:'#f0f0f0', color:'#666' };
-        const ruta = o.origen && o.destino ? `${o.origen} → ${o.destino}` : (o.origen || o.destino || '—');
-        return `<tr>
-          <td style="padding:10px 12px;font-weight:700;color:var(--petrol);">${o.numero_osi}</td>
-          <td style="padding:10px 12px;font-size:12px;">${o.oferta_num||'—'}</td>
-          <td style="padding:10px 12px;">${o.cliente||'—'}</td>
-          <td style="padding:10px 12px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.equipo||''}">${o.equipo||'—'}</td>
-          <td style="padding:10px 12px;font-size:12px;">${o.conductor||'—'}</td>
-          <td style="padding:10px 12px;font-size:12px;">${o.placa||'—'}</td>
-          <td style="padding:10px 12px;font-size:12px;text-align:center;">${o.fecha_despacho||'—'}</td>
-          <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtCOP(o.valor)}</td>
-          <td style="padding:10px 12px;text-align:center;">
-            <span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${o.estado}</span>
-          </td>
-          <td style="padding:10px 12px;text-align:center;font-size:12px;">${o.responsable||'—'}</td>
-          <td style="padding:10px 12px;text-align:center;">
-            <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 12px;font-size:11px;cursor:pointer;">Editar</button>
-          </td>
-        </tr>`;
-      }).join('');
-    }
+  if (!osiTbody) return;
+  rO = Array.isArray(rO) ? rO : [];
+  if (!rO.length) {
+    osiTbody.innerHTML = '<tr><td colspan="11" style="padding:32px;text-align:center;color:#999;">Sin OSI generadas aún</td></tr>';
+    return;
   }
+  osiTbody.innerHTML = rO.map(o => {
+    const est = OSI_ESTADOS[o.estado] || { bg:'#f0f0f0', color:'#666' };
+    return `<tr>
+      <td style="padding:10px 12px;font-weight:700;color:var(--petrol);">${o.numero_osi}</td>
+      <td style="padding:10px 12px;font-size:12px;">${o.oferta_num||'—'}</td>
+      <td style="padding:10px 12px;">${o.cliente||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.equipo||''}">${o.equipo||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;">${o.conductor||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;">${o.placa||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;text-align:center;">${o.fecha_despacho||'—'}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtCOP(o.valor)}</td>
+      <td style="padding:10px 12px;text-align:center;">
+        <span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${o.estado}</span>
+      </td>
+      <td style="padding:10px 12px;text-align:center;font-size:12px;">${o.responsable||'—'}</td>
+      <td style="padding:10px 12px;text-align:center;">
+        <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 12px;font-size:11px;cursor:pointer;">Editar</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function renderAceptadas() {
@@ -6912,10 +6945,11 @@ async function abrirCrearOSI(n) {
   g('cosiOrigen').value    = n.origen || '';
   g('cosiDestino').value   = n.destino || '';
   g('cosiTipoOp').value    = '';
+  g('cosiSolicitante').value = '';
   const numFmt = (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
   g('osiOfertaPrev').textContent = numFmt;
   // Limpia campos del líder
-  ['cosiLider','cosiNit','cosiSolicitante','cosiContactoReporte','cosiContactoCargue',
+  ['cosiLider','cosiContactoReporte','cosiContactoCargue',
    'cosiContactoDescargue','cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
    'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiPlaca','cosiConductor',
    'cosiRequerimientos','cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
@@ -6926,11 +6960,31 @@ async function abrirCrearOSI(n) {
     if (r.ok) { const d = await r.json(); g('osiNumeroPrev').textContent = d.numero_osi; }
   } catch(e){}
 
+  // Pre-llena solicitante (comercial), tipo de operación y equipo desde la oferta
+  let prefillEquipo = '';
+  if (n.oferta_id) {
+    try {
+      const rp = await fetch('/api/ofertas/' + n.oferta_id + '/osi-prefill');
+      if (rp.ok) {
+        const p = await rp.json();
+        g('cosiSolicitante').value = p.solicitante || '';
+        if (p.tipo) {
+          const t = String(p.tipo).toUpperCase();
+          if (t.indexOf('MIXT') >= 0) g('cosiTipoOp').value = 'MIXTO';
+          else if (t.indexOf('SERV') >= 0) g('cosiTipoOp').value = 'SERVICIO';
+          else if (t.indexOf('TRANS') >= 0) g('cosiTipoOp').value = 'TRANSPORTE';
+        }
+        prefillEquipo = p.equipo || '';
+      }
+    } catch(e){}
+  }
+
   // Llena el desplegable de equipos desde el catálogo
   if (!_equipos.length) { try { const re=await fetch('/api/equipos'); _equipos = re.ok?await re.json():[]; } catch(e){ _equipos=[]; } }
   const sel = g('cosiEquipoSel');
   sel.innerHTML = '<option value="">— Selecciona un equipo —</option>' +
     _equipos.map(e => `<option value="${e.id}">${e.placa||'?'} · ${e.tipo||''} ${(e.propiedad||'')==='subcontrato'?'(Subc.)':''}</option>`).join('');
+  if (prefillEquipo) g('cosiEquipoInfo') && (g('cosiEquipoInfo').textContent = '📦 Equipo ofertado: ' + prefillEquipo);
 
   g('modalCrearOSI').style.display = 'flex';
 }
@@ -6954,7 +7008,7 @@ async function guardarCrearOSI() {
     oferta_id: parseInt(v('cosiOfertaId')) || 0,
     oferta_num: v('cosiOfertaNum'),
     cliente: v('cosiCliente'),
-    nit: v('cosiNit'),
+    nit: '',
     solicitante: v('cosiSolicitante'),
     contacto_cargue: v('cosiContactoCargue'),
     contacto_descargue: v('cosiContactoDescargue'),
