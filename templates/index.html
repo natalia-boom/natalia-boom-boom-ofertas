@@ -2607,6 +2607,73 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </div>
 
+<!-- MODAL CREAR OSI (desde la tarjeta de alerta) -->
+<div id="modalCrearOSI" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:720px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="background:#1B2A4A;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-radius:14px 14px 0 0;position:sticky;top:0;">
+      <div>
+        <div style="font-weight:800;font-size:16px;">📋 Crear OSI</div>
+        <div style="font-size:12px;opacity:.85;margin-top:2px;">N° <span id="osiNumeroPrev">O26—</span> · Oferta <span id="osiOfertaPrev">—</span></div>
+      </div>
+      <button onclick="cerrarCrearOSI()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fff;">&times;</button>
+    </div>
+    <div style="padding:22px 24px;">
+      <input type="hidden" id="cosiOfertaId"><input type="hidden" id="cosiOfertaNum"><input type="hidden" id="cosiValor">
+
+      <!-- Bloque: viene de la oferta -->
+      <div style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✅ Datos de la oferta (pre-llenado)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">CLIENTE</label><input id="cosiCliente" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE OPERACIÓN</label><input id="cosiTipoOp" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">ORIGEN</label><input id="cosiOrigen" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">DESTINO</label><input id="cosiDestino" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <!-- Bloque: lo llena el líder -->
+      <div style="font-size:11px;font-weight:800;color:var(--petrol);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✍️ Información del líder / operación</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">LÍDER DE PROYECTO</label><input id="cosiLider" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">NIT CLIENTE</label><input id="cosiNit" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">SOLICITANTE</label><input id="cosiSolicitante" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO PARA REPORTE</label><input id="cosiContactoReporte" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE CARGUE</label><input id="cosiContactoCargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE DESCARGUE</label><input id="cosiContactoDescargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">LUGAR DE CARGUE</label><input id="cosiLugarCargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">LUGAR DE DESCARGUE</label><input id="cosiLugarDescargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA INICIO</label><input id="cosiFechaInicio" type="date" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">HORA SERVICIO</label><input id="cosiHora" type="time" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA FINAL ESTIMADA</label><input id="cosiFechaFinal" type="date" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESPECIFICACIÓN DE LA CARGA</label><input id="cosiEspecificacion" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+      </div>
+
+      <!-- Bloque: asignación de equipo (jala del catálogo Equipos) -->
+      <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">🚛 Asignación de equipo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">EQUIPO (del catálogo)</label>
+            <select id="cosiEquipoSel" onchange="cosiEquipoElegido()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <option value="">— Selecciona un equipo —</option>
+            </select>
+          </div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">PLACA</label><input id="cosiPlaca" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONDUCTOR</label><input id="cosiConductor" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">REQUERIMIENTOS ESPECIALES / ESCOLTAS</label><input id="cosiRequerimientos" placeholder="(mañana: automático por resolución)" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#64748b;">OBSERVACIONES</label><textarea id="cosiObs" rows="2" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;resize:vertical;"></textarea></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="cerrarCrearOSI()" style="background:#eef0f3;border:none;color:#556;border-radius:6px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="guardarCrearOSI()" style="background:var(--petrol);border:none;color:#fff;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">Generar OSI</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR OSI -->
 <div id="modalOSI" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;padding:28px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);">
@@ -6743,9 +6810,12 @@ async function cargarNotificaciones() {
           <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#556;margin-top:10px;">
             <span style="font-size:14px;">📍</span><span>${fmtRuta(n)}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed #eef0f3;">
-            <span style="font-weight:800;font-size:15px;color:#15803d;">${fmtCOP(n.valor)}</span>
-            <button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #eef0f3;">
+            <div style="font-weight:800;font-size:15px;color:#15803d;margin-bottom:10px;">${fmtCOP(n.valor)}</div>
+            <div style="display:flex;gap:8px;">
+              <button onclick='abrirCrearOSI(${JSON.stringify(n).replace(/'/g,"&#39;")})' style="flex:1;background:var(--petrol);color:#fff;border:none;border-radius:6px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;">📋 Crear OSI</button>
+              <button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>
+            </div>
           </div>
         </div>`;
       if (!nuevas.length) {
@@ -6827,6 +6897,97 @@ async function marcarTodasLeidas() {
   await fetch('/api/notificaciones/leer-todas', { method:'PATCH' });
   cargarNotificaciones();
   showToast('✅ Todas las alertas marcadas como leídas', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 📋 CREAR OSI — desde la tarjeta de alerta (formulario pre-llenado)
+// ══════════════════════════════════════════════════════════════════════════
+async function abrirCrearOSI(n) {
+  const g = (id) => document.getElementById(id);
+  // Datos que vienen de la oferta (pre-llenado)
+  g('cosiOfertaId').value  = n.oferta_id || '';
+  g('cosiOfertaNum').value = n.oferta_num || '';
+  g('cosiValor').value     = n.valor || 0;
+  g('cosiCliente').value   = n.cliente || '';
+  g('cosiOrigen').value    = n.origen || '';
+  g('cosiDestino').value   = n.destino || '';
+  g('cosiTipoOp').value    = '';
+  const numFmt = (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
+  g('osiOfertaPrev').textContent = numFmt;
+  // Limpia campos del líder
+  ['cosiLider','cosiNit','cosiSolicitante','cosiContactoReporte','cosiContactoCargue',
+   'cosiContactoDescargue','cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
+   'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiPlaca','cosiConductor',
+   'cosiRequerimientos','cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+
+  // Carga el próximo número O26XXX
+  try {
+    const r = await fetch('/api/osi/proximo-numero');
+    if (r.ok) { const d = await r.json(); g('osiNumeroPrev').textContent = d.numero_osi; }
+  } catch(e){}
+
+  // Llena el desplegable de equipos desde el catálogo
+  if (!_equipos.length) { try { const re=await fetch('/api/equipos'); _equipos = re.ok?await re.json():[]; } catch(e){ _equipos=[]; } }
+  const sel = g('cosiEquipoSel');
+  sel.innerHTML = '<option value="">— Selecciona un equipo —</option>' +
+    _equipos.map(e => `<option value="${e.id}">${e.placa||'?'} · ${e.tipo||''} ${(e.propiedad||'')==='subcontrato'?'(Subc.)':''}</option>`).join('');
+
+  g('modalCrearOSI').style.display = 'flex';
+}
+
+function cosiEquipoElegido() {
+  const id = document.getElementById('cosiEquipoSel').value;
+  const eq = _equipos.find(e => String(e.id) === String(id));
+  if (eq) {
+    document.getElementById('cosiPlaca').value = eq.placa || '';
+    document.getElementById('cosiConductor').value = eq.conductor || '';
+  }
+}
+
+function cerrarCrearOSI() {
+  document.getElementById('modalCrearOSI').style.display = 'none';
+}
+
+async function guardarCrearOSI() {
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const body = {
+    oferta_id: parseInt(v('cosiOfertaId')) || 0,
+    oferta_num: v('cosiOfertaNum'),
+    cliente: v('cosiCliente'),
+    nit: v('cosiNit'),
+    solicitante: v('cosiSolicitante'),
+    contacto_cargue: v('cosiContactoCargue'),
+    contacto_descargue: v('cosiContactoDescargue'),
+    lider: v('cosiLider'),
+    tipo_operacion: v('cosiTipoOp'),
+    especificacion: v('cosiEspecificacion'),
+    origen: v('cosiOrigen'),
+    destino: v('cosiDestino'),
+    lugar_cargue: v('cosiLugarCargue'),
+    lugar_descargue: v('cosiLugarDescargue'),
+    fecha_inicio: v('cosiFechaInicio'),
+    hora_servicio: v('cosiHora'),
+    fecha_final: v('cosiFechaFinal'),
+    equipo: v('cosiEquipoSel') ? (document.querySelector('#cosiEquipoSel option:checked')?.textContent||'').trim() : '',
+    conductor: v('cosiConductor'),
+    placa: v('cosiPlaca'),
+    requerimientos: v('cosiRequerimientos'),
+    contacto_reporte: v('cosiContactoReporte'),
+    valor: parseInt(v('cosiValor')) || 0,
+    observaciones: v('cosiObs')
+  };
+  try {
+    const res = await fetch('/api/osi/crear', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('No se pudo generar la OSI');
+    const d = await res.json();
+    cerrarCrearOSI();
+    cargarNotificaciones();
+    showToast(`✅ OSI ${d.numero_osi} generada`, 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════

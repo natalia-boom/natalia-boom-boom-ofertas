@@ -3520,7 +3520,9 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
                     pdf_payload = {}
             pdf_payload = pdf_payload or {}
 
-            # Persist notification + OSI in DB
+            # Persist notification in DB.
+            # La OSI ya NO se crea automáticamente: la genera el líder desde la
+            # tarjeta con el botón "Crear OSI" (formulario pre-llenado).
             try:
                 with get_conn() as conn2:
                     cur2 = conn2.cursor()
@@ -3528,24 +3530,6 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
                         INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
                         VALUES (%s,%s,%s,%s,%s,%s)
                     """, (oferta_id, row.get("num",""), row.get("cliente",""),
-                          pdf_payload.get("origen",""), pdf_payload.get("destino",""),
-                          row.get("valor",0) or 0))
-
-                    # Auto-generate OSI number
-                    cur2.execute("SELECT COUNT(*)+1 AS n FROM osi")
-                    n = (fetchone(cur2) or {}).get("n", 1)
-                    numero_osi = f"OSI-{datetime.now().year}-{str(n).zfill(4)}"
-                    equipo_str = "; ".join(
-                        e.get("equipo","") for e in (pdf_payload.get("equipos") or []) if e.get("equipo")
-                    )
-                    cur2.execute("""
-                        INSERT INTO osi (numero_osi, oferta_id, oferta_num, responsable, equipo,
-                                         cliente, origen, destino, valor)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (numero_osi) DO NOTHING
-                    """, (numero_osi, oferta_id, row.get("num",""),
-                          request.state.user.get("nombre","") if hasattr(request.state,"user") else "",
-                          equipo_str, row.get("cliente",""),
                           pdf_payload.get("origen",""), pdf_payload.get("destino",""),
                           row.get("valor",0) or 0))
             except Exception as db_exc:
@@ -4670,6 +4654,107 @@ def eliminar_equipo(eid: int, request: Request):
             cur = conn.cursor()
             cur.execute("DELETE FROM equipos WHERE id=%s", (eid,))
         return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 📋 OSI — creación manual por el líder (formato real O26XXX)
+# ══════════════════════════════════════════════════════════════════════════
+class CrearOSIBody(BaseModel):
+    oferta_id: int = 0
+    oferta_num: str = ""
+    cliente: str = ""
+    nit: str = ""
+    solicitante: str = ""
+    contacto_cargue: str = ""
+    contacto_descargue: str = ""
+    lider: str = ""
+    tipo_operacion: str = ""
+    especificacion: str = ""
+    origen: str = ""
+    destino: str = ""
+    lugar_cargue: str = ""
+    lugar_descargue: str = ""
+    fecha_inicio: str = ""
+    hora_servicio: str = ""
+    fecha_final: str = ""
+    equipo: str = ""
+    conductor: str = ""
+    placa: str = ""
+    requerimientos: str = ""
+    contacto_reporte: str = ""
+    valor: int = 0
+    observaciones: str = ""
+
+
+def _proximo_numero_osi(cur) -> str:
+    """Genera el próximo consecutivo con el formato real O26XXX.
+    Continúa desde el último real del Excel (O26276)."""
+    cur.execute("SELECT numero_osi FROM osi WHERE numero_osi ~ '^O26[0-9]+$'")
+    maxn = 276  # piso: último real cargado en el Excel de Proyectos
+    for r in cur.fetchall():
+        try:
+            n = int(r[0][3:])   # después de 'O26'
+            if n > maxn:
+                maxn = n
+        except Exception:
+            pass
+    return f"O26{str(maxn + 1).zfill(3)}"
+
+
+@app.post("/api/osi/crear")
+def crear_osi(body: CrearOSIBody, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            numero_osi = _proximo_numero_osi(cur)
+            def _d(v):
+                v = (v or "").strip()
+                return v or None
+            cur.execute("""
+                INSERT INTO osi (numero_osi, oferta_id, oferta_num, responsable, equipo,
+                                 cliente, origen, destino, valor, estado,
+                                 fecha_despacho, conductor, placa, observaciones)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
+            """, (numero_osi, body.oferta_id or None, body.oferta_num.strip(),
+                  body.lider.strip(), body.equipo.strip(), body.cliente.strip(),
+                  body.origen.strip(), body.destino.strip(), body.valor or 0,
+                  'PROGRAMADO', _d(body.fecha_inicio), body.conductor.strip(),
+                  body.placa.strip().upper(),
+                  # Guardamos el detalle operativo en observaciones (mañana se
+                  # detallan columnas propias si hace falta).
+                  json.dumps({
+                      "nit": body.nit, "solicitante": body.solicitante,
+                      "contacto_cargue": body.contacto_cargue,
+                      "contacto_descargue": body.contacto_descargue,
+                      "tipo_operacion": body.tipo_operacion,
+                      "especificacion": body.especificacion,
+                      "lugar_cargue": body.lugar_cargue,
+                      "lugar_descargue": body.lugar_descargue,
+                      "hora_servicio": body.hora_servicio,
+                      "fecha_final": body.fecha_final,
+                      "requerimientos": body.requerimientos,
+                      "contacto_reporte": body.contacto_reporte,
+                      "observaciones": body.observaciones,
+                  }, ensure_ascii=False)))
+            new_id = fetchone(cur)["id"]
+            # Al crear la OSI, marca la alerta de esa oferta como leída
+            if body.oferta_id:
+                cur.execute("UPDATE notificaciones SET leida = true WHERE oferta_id=%s",
+                            (body.oferta_id,))
+        return {"ok": True, "id": new_id, "numero_osi": numero_osi}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/osi/proximo-numero")
+def osi_proximo_numero(request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            return {"numero_osi": _proximo_numero_osi(cur)}
     except Exception as e:
         raise HTTPException(500, str(e))
 
