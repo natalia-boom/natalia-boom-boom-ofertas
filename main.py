@@ -4708,6 +4708,10 @@ def crear_osi(body: CrearOSIBody, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+            # Candado de sesión: si dos líderes generan OSI al mismo tiempo, el
+            # segundo espera a que el primero termine y toma el siguiente número.
+            # Así nunca chocan ni sale error de "número duplicado".
+            cur.execute("SELECT pg_advisory_xact_lock(720261)")
             numero_osi = _proximo_numero_osi(cur)
             def _d(v):
                 v = (v or "").strip()
