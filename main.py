@@ -2517,25 +2517,18 @@ FORMATO DE RESPUESTA:
 {"cliente":"...","contacto":"...","email_cliente":"...","ref_cliente":"...","cliente_final":"...","origen":"...","destino":"...","descripcion":"...","cargo_items":[{"descripcion":"","tipo":"","cant":1,"dimensiones":"","peso":"","volumen":"","origen_detalle":"","destino_detalle":""}],"equipos":[{"equipo":"","config":"","cant":1,"valor_unit":0}],"notas":"...","forma_pago":"...","vigencia":30}
 <<<FIN>>>
 
-═══ REGLA CRÍTICA: NO DESAJUSTAR UNA OFERTA EXISTENTE ═══
-Si el mensaje incluye "ESTADO ACTUAL DE LA OFERTA", significa que YA existe una oferta cargada y
-Naty solo quiere AJUSTARLA. En ese caso el bloque <<<DATOS>>> es un PARCHE, NO una oferta nueva:
-
-  A. Incluye ÚNICAMENTE los campos que el ajuste solicitado modifica. OMITE todos los demás.
-     Ej: "cambia la vigencia a 15 días" → <<<DATOS>>>{"vigencia":15}<<<FIN>>>  (nada más).
-     Ej: "el contacto ahora es Pedro" → <<<DATOS>>>{"contacto":"Pedro"}<<<FIN>>>.
-  B. NO incluyas "cargo_items" ni "equipos" a menos que el ajuste sea específicamente sobre la
-     carga o los equipos. Si NO los tocas, OMÍTELOS por completo (así se conservan intactos).
-  C. Si el ajuste SÍ cambia la carga o los equipos, incluye el ARRAY COMPLETO: copia EXACTAMENTE
-     las filas que no cambian (tal cual vienen en el ESTADO ACTUAL) y aplica solo el cambio pedido.
-     Nunca reconstruyas de memoria: copia los valores literales del ESTADO ACTUAL.
-  D. NUNCA reformatees, traduzcas, redondees, reordenes ni borres valores que Naty no pidió cambiar.
-
-3. Si NO hay "ESTADO ACTUAL DE LA OFERTA" (oferta nueva desde cero), incluye el bloque JSON con
-   todos los campos que tengas disponibles.
-4. Si falta información clave, pídela conversacionalmente sin incluir el bloque JSON.
-5. valor_unit: entero sin separadores (ej: 19500000). Sin precio → 0.
-6. Aplica SIEMPRE las reglas de negocio BOOM: stand-by, escoltas, tiempos libres.
+   El bloque <<<DATOS>>> SIEMPRE incluye TODOS los campos (cliente, contacto, origen, destino,
+   descripción, carga, equipos, etc.), no un subconjunto. Llena todo lo que puedas deducir del
+   correo/firma. Identifica SIEMPRE el cliente por la firma del correo (nombre, empresa, cargo).
+3. Si el usuario pide un ajuste a una oferta que ya está cargada, devuelve el bloque JSON COMPLETO
+   con TODOS los campos, aplicando ÚNICAMENTE el cambio pedido y copiando TODO lo demás EXACTAMENTE
+   igual (mismo cliente, origen, destino, carga, equipos, valores, redacción). No reformatees,
+   traduzcas, redondees, reordenes ni borres nada que Naty no pidió cambiar.
+4. Si el mensaje trae "ESTADO ACTUAL DE LA OFERTA", esa es la VERDAD ABSOLUTA de lo que hay cargado:
+   copia de ahí, literalmente, todos los valores que no cambian. No los reconstruyas de memoria.
+5. Si falta información clave, pídela conversacionalmente sin incluir el bloque JSON.
+6. valor_unit: entero sin separadores (ej: 19500000). Sin precio → 0.
+7. Aplica SIEMPRE las reglas de negocio BOOM: stand-by, escoltas, tiempos libres.
 """
 
 
@@ -3810,8 +3803,10 @@ def chat_oferta_stream(body: ChatOfertaBody):
                     "ESTADO ACTUAL DE LA OFERTA (VERDAD ABSOLUTA)\n"
                     "════════════════════════════════════════\n"
                     "Esta es la oferta que Naty tiene cargada AHORA MISMO. Es la fuente de verdad.\n"
-                    "Conserva SIN CAMBIOS todo lo que ella no pida modificar. Aplica la REGLA CRÍTICA\n"
-                    "de parche: en el bloque <<<DATOS>>> incluye SOLO los campos que el ajuste cambia.\n\n"
+                    "Si te pide un ajuste, devuelve el bloque <<<DATOS>>> COMPLETO con todos los\n"
+                    "campos: aplica SOLO el cambio pedido y copia de aquí, literalmente, todo lo\n"
+                    "demás (cliente, origen, destino, carga, equipos, valores). No reconstruyas de\n"
+                    "memoria ni cambies nada que no se pidió.\n\n"
                     + _estado
                 )
 
