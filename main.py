@@ -2517,18 +2517,10 @@ FORMATO DE RESPUESTA:
 {"cliente":"...","contacto":"...","email_cliente":"...","ref_cliente":"...","cliente_final":"...","origen":"...","destino":"...","descripcion":"...","cargo_items":[{"descripcion":"","tipo":"","cant":1,"dimensiones":"","peso":"","volumen":"","origen_detalle":"","destino_detalle":""}],"equipos":[{"equipo":"","config":"","cant":1,"valor_unit":0}],"notas":"...","forma_pago":"...","vigencia":30}
 <<<FIN>>>
 
-   El bloque <<<DATOS>>> SIEMPRE incluye TODOS los campos (cliente, contacto, origen, destino,
-   descripción, carga, equipos, etc.), no un subconjunto. Llena todo lo que puedas deducir del
-   correo/firma. Identifica SIEMPRE el cliente por la firma del correo (nombre, empresa, cargo).
-3. Si el usuario pide un ajuste a una oferta que ya está cargada, devuelve el bloque JSON COMPLETO
-   con TODOS los campos, aplicando ÚNICAMENTE el cambio pedido y copiando TODO lo demás EXACTAMENTE
-   igual (mismo cliente, origen, destino, carga, equipos, valores, redacción). No reformatees,
-   traduzcas, redondees, reordenes ni borres nada que Naty no pidió cambiar.
-4. Si el mensaje trae "ESTADO ACTUAL DE LA OFERTA", esa es la VERDAD ABSOLUTA de lo que hay cargado:
-   copia de ahí, literalmente, todos los valores que no cambian. No los reconstruyas de memoria.
-5. Si falta información clave, pídela conversacionalmente sin incluir el bloque JSON.
-6. valor_unit: entero sin separadores (ej: 19500000). Sin precio → 0.
-7. Aplica SIEMPRE las reglas de negocio BOOM: stand-by, escoltas, tiempos libres.
+3. Si el usuario pide un ajuste puntual (ej: "cambia la vigencia", "agrega un escolta"), incluye el bloque JSON completo con el ajuste aplicado.
+4. Si falta información clave, pídela conversacionalmente sin incluir el bloque JSON.
+5. valor_unit: entero sin separadores (ej: 19500000). Sin precio → 0.
+6. Aplica SIEMPRE las reglas de negocio BOOM: stand-by, escoltas, tiempos libres.
 """
 
 
@@ -3793,30 +3785,13 @@ def chat_oferta_stream(body: ChatOfertaBody):
                 [{"role": m.role, "content": m.content} for m in body.messages]
             )
 
-            system_prompt = CHAT_SYSTEM_PROMPT
-            if body.estado_actual and body.estado_actual.strip():
-                _estado = body.estado_actual.strip()
-                if len(_estado) > _MAX_TEXT_CHARS:
-                    _estado = _estado[:_MAX_TEXT_CHARS] + "\n[…truncado]"
-                system_prompt = CHAT_SYSTEM_PROMPT + (
-                    "\n\n════════════════════════════════════════\n"
-                    "ESTADO ACTUAL DE LA OFERTA (VERDAD ABSOLUTA)\n"
-                    "════════════════════════════════════════\n"
-                    "Esta es la oferta que Naty tiene cargada AHORA MISMO. Es la fuente de verdad.\n"
-                    "Si te pide un ajuste, devuelve el bloque <<<DATOS>>> COMPLETO con todos los\n"
-                    "campos: aplica SOLO el cambio pedido y copia de aquí, literalmente, todo lo\n"
-                    "demás (cliente, origen, destino, carga, equipos, valores). No reconstruyas de\n"
-                    "memoria ni cambies nada que no se pidió.\n\n"
-                    + _estado
-                )
-
             full_text  = ""
             datos_seen = False
 
             with client.messages.stream(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=2000,
-                system=system_prompt,
+                system=CHAT_SYSTEM_PROMPT,
                 messages=api_messages,
             ) as stream:
                 for chunk in stream.text_stream:
