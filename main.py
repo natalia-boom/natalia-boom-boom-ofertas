@@ -1839,6 +1839,21 @@ def _ensure_db():
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS placa text")
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS observaciones text")
 
+        # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS equipos (
+                id          bigserial primary key,
+                placa       text,
+                tipo        text,
+                propiedad   text default 'propio',
+                tenedor     text,
+                conductor   text,
+                celular     text,
+                estado      text default 'DISPONIBLE',
+                created_at  timestamptz default now()
+            )
+        """)
+
         # Feature 4: Historial de cambios
         cur.execute("""
             CREATE TABLE IF NOT EXISTS oferta_historial (
@@ -4580,6 +4595,78 @@ def marcar_todas_leidas(request: Request):
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("UPDATE notificaciones SET leida = true")
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 🚛 EQUIPOS — catálogo (propios + subcontratos) del módulo Operaciones
+# ══════════════════════════════════════════════════════════════════════════
+class EquipoBody(BaseModel):
+    placa: str = ""
+    tipo: str = ""
+    propiedad: str = "propio"
+    tenedor: str = ""
+    conductor: str = ""
+    celular: str = ""
+    estado: str = "DISPONIBLE"
+
+
+@app.get("/api/equipos")
+def listar_equipos(request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, placa, tipo, propiedad, tenedor, conductor, celular, estado
+                FROM equipos ORDER BY placa
+            """)
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/equipos")
+def crear_equipo(body: EquipoBody, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO equipos (placa, tipo, propiedad, tenedor, conductor, celular, estado)
+                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            """, (body.placa.strip().upper(), body.tipo.strip(), body.propiedad.strip(),
+                  body.tenedor.strip(), body.conductor.strip(), body.celular.strip(),
+                  body.estado.strip()))
+            new_id = fetchone(cur)["id"]
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.put("/api/equipos/{eid}")
+def actualizar_equipo(eid: int, body: EquipoBody, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE equipos SET placa=%s, tipo=%s, propiedad=%s, tenedor=%s,
+                       conductor=%s, celular=%s, estado=%s WHERE id=%s
+            """, (body.placa.strip().upper(), body.tipo.strip(), body.propiedad.strip(),
+                  body.tenedor.strip(), body.conductor.strip(), body.celular.strip(),
+                  body.estado.strip(), eid))
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.delete("/api/equipos/{eid}")
+def eliminar_equipo(eid: int, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM equipos WHERE id=%s", (eid,))
         return {"ok": True}
     except Exception as e:
         raise HTTPException(500, str(e))

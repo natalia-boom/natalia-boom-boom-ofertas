@@ -913,6 +913,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
   <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
+  <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')">🚛 Equipos</button>
   <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
   <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
   <button class="tab-btn" id="tabRentabilidadBtn" style="display:none;" onclick="switchTab('rentabilidad')">💹 Rentabilidad</button>
@@ -2484,6 +2485,128 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </section>
 
+<!-- ==================== EQUIPOS (dentro de Operaciones) ==================== -->
+<section class="tab-panel" id="tab-equipos">
+  <div style="max-width:1200px;margin:0 auto;">
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+      <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);border-left:4px solid #1B2A4A;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Total equipos</div>
+        <div id="eqKpiTotal" style="font-size:28px;font-weight:800;color:#1B2A4A;margin-top:4px;">—</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);border-left:4px solid #E8601C;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Propios</div>
+        <div id="eqKpiPropios" style="font-size:28px;font-weight:800;color:#E8601C;margin-top:4px;">—</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);border-left:4px solid #7c3aed;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Subcontratos</div>
+        <div id="eqKpiSub" style="font-size:28px;font-weight:800;color:#7c3aed;margin-top:4px;">—</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);border-left:4px solid #10b981;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Disponibles</div>
+        <div id="eqKpiDisp" style="font-size:28px;font-weight:800;color:#10b981;margin-top:4px;">—</div>
+      </div>
+    </div>
+
+    <!-- Tabla equipos -->
+    <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+      <div style="background:#1B2A4A;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span style="font-weight:700;font-size:14px;">🚛 CATÁLOGO DE EQUIPOS</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="eqBuscar" placeholder="Buscar placa, tenedor…" oninput="renderEquipos()"
+                 style="padding:6px 12px;border:none;border-radius:6px;font-size:12px;min-width:180px;">
+          <div id="eqFiltros" style="display:flex;gap:6px;">
+            <button class="eq-chip eq-chip-on" data-f="todos" onclick="equiposFiltrar('todos')" style="background:rgba(255,255,255,.9);color:#1B2A4A;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Todos</button>
+            <button class="eq-chip" data-f="propio" onclick="equiposFiltrar('propio')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Propios</button>
+            <button class="eq-chip" data-f="subcontrato" onclick="equiposFiltrar('subcontrato')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Subcontratos</button>
+          </div>
+          <button onclick="abrirModalEquipo()" style="background:#E8601C;border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">＋ Agregar equipo</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f5f7fa;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Placa</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Tipo / Configuración</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Propiedad</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Tenedor</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Conductor</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Celular</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Estado</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="equiposBody">
+            <tr><td colspan="8" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando equipos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- MODAL AGREGAR/EDITAR EQUIPO -->
+<div id="modalEquipo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 id="modalEquipoTitulo" style="margin:0;color:var(--petrol);font-size:16px;">Agregar equipo</h3>
+      <button onclick="cerrarModalEquipo()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;">&times;</button>
+    </div>
+    <input type="hidden" id="eqEditId">
+    <div style="display:grid;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">PLACA</label>
+          <input id="eqPlaca" type="text" placeholder="Ej: ABC123" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">PROPIEDAD</label>
+          <select id="eqPropiedad" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <option value="propio">Propio</option>
+            <option value="subcontrato">Subcontrato</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">TIPO / CONFIGURACIÓN</label>
+        <input id="eqTipo" type="text" placeholder="Ej: Tractocamión / Cama baja 3 ejes" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">TENEDOR / PROPIETARIO</label>
+          <input id="eqTenedor" type="text" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">ESTADO</label>
+          <select id="eqEstado" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <option>DISPONIBLE</option>
+            <option>EN RUTA</option>
+            <option>MANTENIMIENTO</option>
+            <option>INACTIVO</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">CONDUCTOR</label>
+          <input id="eqConductor" type="text" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">CELULAR</label>
+          <input id="eqCelular" type="text" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+        <button onclick="cerrarModalEquipo()" style="background:#eef0f3;border:none;color:#556;border-radius:6px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="guardarEquipo()" style="background:var(--petrol);border:none;color:#fff;border-radius:6px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR OSI -->
 <div id="modalOSI" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;padding:28px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);">
@@ -2804,6 +2927,7 @@ function enterModulo(modulo) {
   });
   document.getElementById('tabClientesBtn').style.display    = info.tabsComercial ? '' : 'none';
   document.getElementById('tabOperacionesBtn').style.display   = modulo === 'operaciones'   ? '' : 'none';
+  document.getElementById('tabEquiposBtn').style.display       = modulo === 'operaciones'   ? '' : 'none';
   document.getElementById('tabTarifarioBtn').style.display     = modulo === 'tarifario'     ? '' : 'none';
   document.getElementById('tabUsuariosBtn').style.display      = 'none'; // Usuarios está dentro del módulo TI
   document.getElementById('tabTiBtn').style.display            = modulo === 'ti'            ? '' : 'none';
@@ -3143,6 +3267,7 @@ function switchTab(name) {
   if (name === 'iaoferta')   iaInit();
   if (name === 'usuarios')   loadUsuarios();
   if (name === 'operaciones') cargarNotificaciones();
+  if (name === 'equipos')     cargarEquipos();
   if (name === 'clientes')   cargarClientes();
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
   if (name === 'tablero')    loadTablero();
@@ -6702,6 +6827,146 @@ async function marcarTodasLeidas() {
   await fetch('/api/notificaciones/leer-todas', { method:'PATCH' });
   cargarNotificaciones();
   showToast('✅ Todas las alertas marcadas como leídas', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🚛 EQUIPOS — catálogo dentro del módulo de Operaciones
+// ══════════════════════════════════════════════════════════════════════════
+let _equipos = [];
+let _eqFiltro = 'todos';
+
+const EQ_ESTADO_COLOR = {
+  'DISPONIBLE':   { bg:'#dcfce7', color:'#15803d' },
+  'EN RUTA':      { bg:'#fef3c7', color:'#b45309' },
+  'MANTENIMIENTO':{ bg:'#e0e7ff', color:'#4338ca' },
+  'INACTIVO':     { bg:'#f1f5f9', color:'#64748b' }
+};
+
+async function cargarEquipos() {
+  try {
+    const res = await fetch('/api/equipos');
+    _equipos = res.ok ? await res.json() : [];
+  } catch (e) {
+    _equipos = [];
+  }
+  renderEquipos();
+}
+
+function equiposFiltrar(f) {
+  _eqFiltro = f;
+  document.querySelectorAll('#eqFiltros .eq-chip').forEach(c => {
+    const on = c.dataset.f === f;
+    c.classList.toggle('eq-chip-on', on);
+    c.style.background = on ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)';
+    c.style.color = on ? '#1B2A4A' : '#fff';
+  });
+  renderEquipos();
+}
+
+function renderEquipos() {
+  const tbody = document.getElementById('equiposBody');
+  if (!tbody) return;
+  const buscar = (document.getElementById('eqBuscar')?.value || '').toLowerCase().trim();
+
+  // KPIs
+  const total = _equipos.length;
+  const propios = _equipos.filter(e => (e.propiedad||'').toLowerCase() === 'propio').length;
+  const subs = _equipos.filter(e => (e.propiedad||'').toLowerCase() === 'subcontrato').length;
+  const disp = _equipos.filter(e => (e.estado||'').toUpperCase() === 'DISPONIBLE').length;
+  const set = (id,v) => { const el=document.getElementById(id); if (el) el.textContent = v; };
+  set('eqKpiTotal', total); set('eqKpiPropios', propios); set('eqKpiSub', subs); set('eqKpiDisp', disp);
+
+  let lista = _equipos.slice();
+  if (_eqFiltro !== 'todos') lista = lista.filter(e => (e.propiedad||'').toLowerCase() === _eqFiltro);
+  if (buscar) lista = lista.filter(e =>
+    (`${e.placa||''} ${e.tenedor||''} ${e.conductor||''} ${e.tipo||''}`).toLowerCase().includes(buscar));
+
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:40px;text-align:center;color:#9aa3b0;">
+      <div style="font-size:34px;margin-bottom:8px;">🚛</div>
+      ${total ? 'Ningún equipo coincide con el filtro.' : 'Aún no hay equipos cargados.<br>Usa <b>＋ Agregar equipo</b> o cargamos tu base mañana.'}
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(e => {
+    const est = EQ_ESTADO_COLOR[(e.estado||'').toUpperCase()] || { bg:'#f1f5f9', color:'#64748b' };
+    const propBadge = (e.propiedad||'').toLowerCase() === 'subcontrato'
+      ? '<span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">Subcontrato</span>'
+      : '<span style="background:#ffedd5;color:#c2410c;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">Propio</span>';
+    return `<tr style="border-bottom:1px solid #f0f2f5;">
+      <td style="padding:10px 12px;font-weight:800;color:var(--petrol);">${e.placa||'—'}</td>
+      <td style="padding:10px 12px;font-size:12.5px;color:#556;">${e.tipo||'—'}</td>
+      <td style="padding:10px 12px;text-align:center;">${propBadge}</td>
+      <td style="padding:10px 12px;font-size:12.5px;">${e.tenedor||'—'}</td>
+      <td style="padding:10px 12px;font-size:12.5px;">${e.conductor||'—'}</td>
+      <td style="padding:10px 12px;font-size:12.5px;">${e.celular||'—'}</td>
+      <td style="padding:10px 12px;text-align:center;"><span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${e.estado||'—'}</span></td>
+      <td style="padding:10px 12px;text-align:center;">
+        <button onclick='abrirModalEquipo(${JSON.stringify(e).replace(/'/g,"&#39;")})' style="background:none;border:none;cursor:pointer;font-size:15px;" title="Editar">✏️</button>
+        <button onclick="eliminarEquipo(${e.id})" style="background:none;border:none;cursor:pointer;font-size:15px;" title="Eliminar">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirModalEquipo(eq) {
+  const g = (id) => document.getElementById(id);
+  g('modalEquipoTitulo').textContent = eq && eq.id ? 'Editar equipo' : 'Agregar equipo';
+  g('eqEditId').value   = eq && eq.id ? eq.id : '';
+  g('eqPlaca').value    = eq ? (eq.placa||'') : '';
+  g('eqPropiedad').value= eq ? (eq.propiedad||'propio') : 'propio';
+  g('eqTipo').value     = eq ? (eq.tipo||'') : '';
+  g('eqTenedor').value  = eq ? (eq.tenedor||'') : '';
+  g('eqEstado').value   = eq ? (eq.estado||'DISPONIBLE') : 'DISPONIBLE';
+  g('eqConductor').value= eq ? (eq.conductor||'') : '';
+  g('eqCelular').value  = eq ? (eq.celular||'') : '';
+  g('modalEquipo').style.display = 'flex';
+}
+
+function cerrarModalEquipo() {
+  document.getElementById('modalEquipo').style.display = 'none';
+}
+
+async function guardarEquipo() {
+  const g = (id) => document.getElementById(id).value.trim();
+  const id = g('eqEditId');
+  const body = {
+    placa: g('eqPlaca').toUpperCase(),
+    propiedad: g('eqPropiedad'),
+    tipo: g('eqTipo'),
+    tenedor: g('eqTenedor'),
+    estado: g('eqEstado'),
+    conductor: g('eqConductor'),
+    celular: g('eqCelular')
+  };
+  if (!body.placa) { showToast('⚠️ La placa es obligatoria', 'error'); return; }
+  try {
+    const url = id ? `/api/equipos/${id}` : '/api/equipos';
+    const res = await fetch(url, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('No se pudo guardar');
+    cerrarModalEquipo();
+    cargarEquipos();
+    showToast('✅ Equipo guardado', 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
+async function eliminarEquipo(id) {
+  if (!confirm('¿Eliminar este equipo del catálogo?')) return;
+  try {
+    const res = await fetch(`/api/equipos/${id}`, { method:'DELETE' });
+    if (!res.ok) throw new Error('No se pudo eliminar');
+    cargarEquipos();
+    showToast('🗑️ Equipo eliminado', 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
