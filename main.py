@@ -2848,7 +2848,13 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return FileResponse("templates/index.html")
+    # Sin caché: así el equipo siempre carga la última versión al recargar,
+    # sin tener que hacer Ctrl+Shift+R.
+    return FileResponse("templates/index.html", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    })
 
 
 @app.get("/manual", response_class=HTMLResponse)
