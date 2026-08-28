@@ -2459,13 +2459,14 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
 <!-- ==================== OSI (dentro de Operaciones) ==================== -->
 <section class="tab-panel" id="tab-osi">
-  <div style="max-width:1200px;margin:0 auto;">
+  <div style="max-width:1600px;margin:0 auto;">
     <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
-      <div style="background:#1B2A4A;color:#fff;padding:12px 20px;">
+      <div style="background:#1B2A4A;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-weight:700;font-size:14px;">📋 ÓRDENES DE SERVICIO INTERNAS (OSI)</span>
+        <span style="font-size:11.5px;opacity:.75;">Desliza la tabla → para ver todas las columnas</span>
       </div>
       <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1400px;">
           <thead>
             <tr style="background:#f5f7fa;">
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">No. OSI</th>
@@ -2478,7 +2479,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Conductor</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Placa</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">F. Despacho</th>
-              <th style="padding:10px 12px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Valor</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;color:#15803d;font-weight:800;text-transform:uppercase;white-space:nowrap;">Valor oferta</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Estado</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Responsable</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Acción</th>
@@ -6871,27 +6872,28 @@ function renderOSI(rO) {
     osiTbody.innerHTML = '<tr><td colspan="14" style="padding:32px;text-align:center;color:#999;">Sin OSI generadas aún</td></tr>';
     return;
   }
-  osiTbody.innerHTML = rO.map(o => {
+  osiTbody.innerHTML = rO.map((o, i) => {
     const est = OSI_ESTADOS[o.estado] || { bg:'#f0f0f0', color:'#666' };
     const ruta = (o.origen && o.destino) ? `${o.origen} → ${o.destino}` : (o.origen || o.destino || '—');
-    return `<tr>
-      <td style="padding:10px 12px;font-weight:700;color:var(--petrol);">${o.numero_osi}</td>
-      <td style="padding:10px 12px;font-size:12px;">${o.oferta_num||'—'}</td>
-      <td style="padding:10px 12px;">${o.cliente||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;">${o.tipo_operacion||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;">${ruta}</td>
-      <td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o.especificacion||'').replace(/"/g,'&quot;')}">${o.especificacion||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.equipo||''}">${o.equipo||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;">${o.conductor||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;">${o.placa||'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;text-align:center;">${o.fecha_despacho||'—'}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;">${fmtCOP(o.valor)}</td>
-      <td style="padding:10px 12px;text-align:center;">
-        <span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${o.estado}</span>
+    const rowBg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+    return `<tr style="background:${rowBg};border-bottom:1px solid #eef1f4;">
+      <td style="padding:11px 14px;font-weight:800;color:var(--petrol);white-space:nowrap;">${o.numero_osi}</td>
+      <td style="padding:11px 14px;font-size:12px;color:#64748b;white-space:nowrap;">${o.oferta_num||'—'}</td>
+      <td style="padding:11px 14px;font-weight:600;">${o.cliente||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;white-space:nowrap;">${o.tipo_operacion||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;">${ruta}</td>
+      <td style="padding:11px 14px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o.especificacion||'').replace(/"/g,'&quot;')}">${o.especificacion||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.equipo||''}">${o.equipo||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;">${o.conductor||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;white-space:nowrap;">${o.placa||'—'}</td>
+      <td style="padding:11px 14px;font-size:12px;text-align:center;white-space:nowrap;">${o.fecha_despacho||'—'}</td>
+      <td style="padding:11px 16px;text-align:right;font-weight:800;color:#15803d;white-space:nowrap;font-size:13px;">${fmtCOP(o.valor)}</td>
+      <td style="padding:11px 14px;text-align:center;">
+        <span style="background:${est.bg};color:${est.color};padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">${o.estado}</span>
       </td>
-      <td style="padding:10px 12px;text-align:center;font-size:12px;">${o.responsable||'—'}</td>
-      <td style="padding:10px 12px;text-align:center;">
-        <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 12px;font-size:11px;cursor:pointer;">Editar</button>
+      <td style="padding:11px 14px;text-align:center;font-size:12px;white-space:nowrap;">${o.responsable||'—'}</td>
+      <td style="padding:11px 14px;text-align:center;">
+        <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Editar</button>
       </td>
     </tr>`;
   }).join('');
