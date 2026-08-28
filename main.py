@@ -2713,6 +2713,14 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
     · Camión Grúa: tarifa pactada (NO es fija)
   Si el equipo no coincide exacto con una categoría, usa la más cercana por tipo de cama/estructura.
   Nunca dejes el stand-by en blanco ni en "a confirmar". Solo cámbialo si el usuario lo pide expresamente.
+  ⚠️ OBLIGATORIO Y NO NEGOCIABLE: el stand-by DEBE aparecer como una nota/línea PROPIA y visible dentro
+  de las Condiciones Comerciales (o su propia sección), con el VALOR EN PESOS del equipo de la oferta,
+  por ejemplo: "Stand-by Cama Alta 3 ejes: $1.200.000/día. Las horas adicionales se cobran
+  proporcionalmente según tarifa establecida." NO es suficiente mencionarlo solo en las exclusiones.
+  QUEDA PROHIBIDO escribir el stand-by como "según tarifa vigente", "según tarifa", "a confirmar" o
+  cualquier frase sin número: SIEMPRE va el valor fijo en pesos. Si la oferta tiene varios equipos,
+  incluye el stand-by de CADA uno. Antes de entregar la oferta, verifica que esta nota con su valor esté
+  presente; si falta, agrégala.
 - Seguros: póliza RCE y de carga hasta $4.000.000.000 COP c/u. Maquinaria USADA: la carga solo ampara
   pérdida total. Si el valor supera el límite, alerta y recomienda top-up. Si no se sabe nueva/usada,
   deja la pregunta abierta en el cierre.
