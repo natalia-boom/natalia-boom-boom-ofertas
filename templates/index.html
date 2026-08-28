@@ -2471,6 +2471,9 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">No. OSI</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Oferta</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Cliente</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Tipo</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Ruta (Origen → Destino)</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Especificación carga</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Equipo</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Conductor</th>
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Placa</th>
@@ -2482,7 +2485,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             </tr>
           </thead>
           <tbody id="osiBody">
-            <tr><td colspan="11" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando OSI...</td></tr>
+            <tr><td colspan="14" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando OSI...</td></tr>
           </tbody>
         </table>
       </div>
@@ -6865,15 +6868,19 @@ function renderOSI(rO) {
   if (!osiTbody) return;
   rO = Array.isArray(rO) ? rO : [];
   if (!rO.length) {
-    osiTbody.innerHTML = '<tr><td colspan="11" style="padding:32px;text-align:center;color:#999;">Sin OSI generadas aún</td></tr>';
+    osiTbody.innerHTML = '<tr><td colspan="14" style="padding:32px;text-align:center;color:#999;">Sin OSI generadas aún</td></tr>';
     return;
   }
   osiTbody.innerHTML = rO.map(o => {
     const est = OSI_ESTADOS[o.estado] || { bg:'#f0f0f0', color:'#666' };
+    const ruta = (o.origen && o.destino) ? `${o.origen} → ${o.destino}` : (o.origen || o.destino || '—');
     return `<tr>
       <td style="padding:10px 12px;font-weight:700;color:var(--petrol);">${o.numero_osi}</td>
       <td style="padding:10px 12px;font-size:12px;">${o.oferta_num||'—'}</td>
       <td style="padding:10px 12px;">${o.cliente||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;">${o.tipo_operacion||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;">${ruta}</td>
+      <td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o.especificacion||'').replace(/"/g,'&quot;')}">${o.especificacion||'—'}</td>
       <td style="padding:10px 12px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${o.equipo||''}">${o.equipo||'—'}</td>
       <td style="padding:10px 12px;font-size:12px;">${o.conductor||'—'}</td>
       <td style="padding:10px 12px;font-size:12px;">${o.placa||'—'}</td>

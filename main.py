@@ -4856,7 +4856,19 @@ def get_osi(request: Request):
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("SELECT * FROM osi ORDER BY created_at DESC")
-            return fetchall(cur)
+            rows = fetchall(cur)
+        # Desglosa el detalle operativo guardado como JSON en 'observaciones'
+        # para que la tabla pueda mostrar tipo de operación y especificación.
+        for r in rows:
+            det = r.get("observaciones")
+            if isinstance(det, str):
+                try: det = json.loads(det)
+                except Exception: det = {}
+            det = det or {}
+            r["tipo_operacion"] = det.get("tipo_operacion") or ""
+            r["especificacion"] = det.get("especificacion") or ""
+            r["solicitante"] = det.get("solicitante") or ""
+        return rows
     except Exception as e:
         raise HTTPException(500, str(e))
 
