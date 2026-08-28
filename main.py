@@ -1603,6 +1603,9 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_fecha timestamptz")
         # Ofertas de PRUEBA: no gastan consecutivo real ni afectan la numeración
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS es_prueba boolean DEFAULT false")
+        # Fecha en que la oferta se marcó ACEPTADA. Sirve para que el módulo de
+        # Aprobadas ordene lo último aceptado ARRIBA (sin cambiar el número).
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS aceptada_fecha timestamptz")
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -2997,19 +3000,7 @@ def list_ofertas():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            # aceptada_fecha: cuándo se aceptó la oferta (fecha de su notificación de
-            # "proyecto aceptado"). Sirve para que el módulo de Aprobadas ordene lo
-            # último aceptado ARRIBA, sin cambiar el número de la oferta.
-            cur.execute("""
-                SELECT o.*, n.aceptada_fecha
-                FROM ofertas o
-                LEFT JOIN (
-                    SELECT oferta_id, MAX(created_at) AS aceptada_fecha
-                    FROM notificaciones
-                    GROUP BY oferta_id
-                ) n ON n.oferta_id = o.id
-                ORDER BY CAST(o.num AS INTEGER) DESC
-            """)
+            cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
     except Exception as e:
         traceback.print_exc()
@@ -3603,6 +3594,13 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         prev_respuesta  = (prev.get("respuesta") or "").upper()
         if nueva_respuesta == "ACEPTADA" and prev_respuesta != "ACEPTADA":
             import threading
+            # Sella la fecha de aceptación → el módulo de Aprobadas la pone ARRIBA.
+            try:
+                with get_conn() as connA:
+                    curA = connA.cursor()
+                    curA.execute("UPDATE ofertas SET aceptada_fecha = now() WHERE id = %s", (oferta_id,))
+            except Exception as _e:
+                print(f"[ACEPTADA] No se pudo sellar aceptada_fecha: {_e}")
             pdf_payload = row.get("pdf_data")
             if isinstance(pdf_payload, str):
                 try:
