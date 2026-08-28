@@ -5270,6 +5270,7 @@ let iaHistory   = [];      // historial de chat [{role, content}]
 let iaFotos     = [];      // fotos de referencia [{dataUrl, name}]
 let iaHtml      = '';      // último HTML generado
 let iaMeta      = null;    // última meta {cliente, valor, moneda, mes, tipo, descripcion, realizada}
+let iaVersionHtml = '';    // HTML de la oferta cargada por "Versionar": se inyecta en el 1er ajuste
 let iaRefAssigned = false; // ¿ya se pidió consecutivo?
 let iaEditingId = null;    // id de oferta que se versiona (o null)
 let iaDropBound = false;
@@ -5506,8 +5507,18 @@ async function iaSendMessage() {
 
   // Construir el contenido para la API (texto + imágenes/PDF/archivos que Claude pueda leer)
   let apiContent;
-  if (fotosNow.length) {
+  if (fotosNow.length || iaVersionHtml) {
     apiContent = [];
+    // Al versionar: adjuntamos el HTML original como verdad absoluta para que
+    // el asistente CONSERVE la estructura exacta y solo aplique lo que se pide.
+    if (iaVersionHtml) {
+      apiContent.push({ type: 'text', text:
+        'OFERTA ACTUAL EN HTML (versión vigente de esta misma oferta). Debes CONSERVAR ' +
+        'EXACTAMENTE esta estructura, diseño, secciones, orden, textos y estilo. Aplica ' +
+        'ÚNICAMENTE el cambio que te indique abajo y devuelve el HTML COMPLETO con solo ese ' +
+        'cambio, sin alterar ni reorganizar nada más:\n```html\n' + iaVersionHtml + '\n```' });
+      iaVersionHtml = '';
+    }
     fotosNow.forEach(f => {
       if (f.kind === 'image' || (!f.kind && f.dataUrl)) {
         const parts = f.dataUrl.split(',');
@@ -5893,14 +5904,21 @@ function iaCargarOferta() {
   document.getElementById('iaFormaPago').value     = (o.pdf_data && o.pdf_data.forma_pago) || '50% anticipo / 50% a 30 días tras radicación de factura';
   // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
   const stored = o.pdf_data;
+  iaVersionHtml = '';
   if (stored && stored.ia_html) {
     iaHtml = iaLimpiarHtml(stored.ia_html);
     iaMeta = { cliente: o.cliente, valor: o.valor, moneda: stored.moneda || 'COP', mes: o.mes, descripcion: o.general, realizada: o.realizada };
+    // Guardamos el HTML original para enviárselo al asistente en el primer ajuste,
+    // de modo que conserve EXACTAMENTE la estructura (igual que si lo adjuntaras).
+    iaVersionHtml = iaHtml;
     iaRenderPreview();
     iaSetButtons(true);
   }
-  const ctx = 'Estoy ajustando/versionando la oferta ' + fmt + ' del cliente ' + (o.cliente || '') +
-              '. Dime qué cambios necesitas y regeneraré la oferta completa manteniendo el mismo número.';
+  const ctx = (iaVersionHtml
+      ? 'Estoy ajustando/versionando la oferta ' + fmt + ' del cliente ' + (o.cliente || '') +
+        '. Dime qué cambios necesitas: haré ÚNICAMENTE esos cambios y conservaré el mismo diseño y estructura, con el mismo número.'
+      : 'Estoy ajustando/versionando la oferta ' + fmt + ' del cliente ' + (o.cliente || '') +
+        '. Dime qué cambios necesitas y regeneraré la oferta manteniendo el mismo número.');
   iaAppendMsg('assistant', ctx);
   iaHistory.push({ role: 'assistant', content: ctx });
   iaRenderResumen();
