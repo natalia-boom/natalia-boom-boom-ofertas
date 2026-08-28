@@ -2797,7 +2797,7 @@ function enterModulo(modulo) {
   const rol = currentUser ? currentUser.rol : 'viewer';
   const info = MODULO_INFO[modulo] || MODULO_INFO.comercial;
   // Tabs comerciales (dashboard, generar, control, aprobadas)
-  const tabIds = ['dashboard','generar','control','aprobadas','proyeccion'];
+  const tabIds = ['dashboard','generar','iaoferta','control','aprobadas','proyeccion'];
   tabIds.forEach(t => {
     const btn = document.querySelector(`.tab-btn[onclick="switchTab('${t}')"]`);
     if (btn) btn.style.display = info.tabsComercial ? '' : 'none';
