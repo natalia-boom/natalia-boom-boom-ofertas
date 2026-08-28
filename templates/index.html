@@ -2417,8 +2417,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <span style="font-weight:700;font-size:14px;">🔔 ALERTAS DE PROYECTOS ACEPTADOS</span>
         <button onclick="marcarTodasLeidas()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">Marcar todas leídas</button>
       </div>
-      <div id="notifBody" style="padding:18px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">
-        <div style="padding:24px;text-align:center;color:var(--text-muted);grid-column:1/-1;">Cargando alertas...</div>
+      <div id="notifBody" style="padding:18px 20px;">
+        <div style="padding:24px;text-align:center;color:var(--text-muted);">Cargando alertas...</div>
       </div>
     </div>
 
@@ -6601,38 +6601,59 @@ async function cargarNotificaciones() {
     if (!rN.length) {
       tbody.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#9aa3b0;"><div style="font-size:38px;margin-bottom:8px;">🔕</div>Sin alertas pendientes</div>';
     } else {
-      // Separa en dos grupos: nuevas (no leídas) arriba, leídas abajo
+      // Separa en dos grupos: nuevas (no leídas) como tarjetas arriba, leídas en tabla abajo
       const porFecha = (a,b)=> (new Date(b.created_at)-new Date(a.created_at));
       const nuevas = rN.filter(n=>!n.leida).sort(porFecha);
       const leidas = rN.filter(n=>n.leida).sort(porFecha);
-      const tarjeta = (n) => {
-        const leida = n.leida;
-        const ruta = n.origen && n.destino ? `${n.origen} → ${n.destino}` : (n.origen || n.destino || 'Ruta por definir');
-        const fecha = n.created_at ? new Date(n.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'}) : '—';
-        const numFmt = (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
-        return `<div class="notif-card ${leida?'leida':'nueva'}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <span class="notif-chip ${leida?'leida':'nueva'}">${leida ? '&#10003; LEÍDA' : '<span class="notif-dot"></span> NUEVA'}</span>
-            <span style="font-size:11px;color:#9aa3b0;">${fecha}</span>
-          </div>
-          <div style="font-weight:800;font-size:16px;color:var(--petrol);line-height:1.2;">${n.cliente||'—'}</div>
-          <div style="font-size:12px;color:#8a94a3;font-weight:700;margin-top:2px;">Oferta ${numFmt}</div>
-          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#556;margin-top:10px;">
-            <span style="font-size:14px;">📍</span><span>${ruta}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed #eef0f3;">
-            <span style="font-weight:800;font-size:15px;color:#15803d;">${fmtCOP(n.valor)}</span>
-            ${!leida ? `<button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>` : ''}
-          </div>
-        </div>`;
-      };
-      const encabezado = (texto, color) => `<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:6px 0 2px;">
+      const fmtFecha = (n) => n.created_at ? new Date(n.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+      const fmtNum = (n) => (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
+      const fmtRuta = (n) => n.origen && n.destino ? `${n.origen} → ${n.destino}` : (n.origen || n.destino || 'Ruta por definir');
+      const encabezado = (texto, color) => `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px;">
           <span style="font-weight:800;font-size:13px;letter-spacing:.4px;color:${color};text-transform:uppercase;">${texto}</span>
           <span style="flex:1;height:1px;background:linear-gradient(90deg,${color}33,transparent);"></span>
         </div>`;
+      // Tarjetas nuevas
+      const tarjeta = (n) => `<div class="notif-card nueva">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span class="notif-chip nueva"><span class="notif-dot"></span> NUEVA</span>
+            <span style="font-size:11px;color:#9aa3b0;">${fmtFecha(n)}</span>
+          </div>
+          <div style="font-weight:800;font-size:16px;color:var(--petrol);line-height:1.2;">${n.cliente||'—'}</div>
+          <div style="font-size:12px;color:#8a94a3;font-weight:700;margin-top:2px;">Oferta ${fmtNum(n)}</div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#556;margin-top:10px;">
+            <span style="font-size:14px;">📍</span><span>${fmtRuta(n)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed #eef0f3;">
+            <span style="font-weight:800;font-size:15px;color:#15803d;">${fmtCOP(n.valor)}</span>
+            <button class="notif-btn" onclick="marcarLeida(${n.id})">Marcar leída</button>
+          </div>
+        </div>`;
+      // Fila de tabla para leídas
+      const fila = (n) => `<tr style="border-bottom:1px solid #f0f2f5;">
+          <td style="padding:9px 12px;font-size:12px;color:#9aa3b0;white-space:nowrap;">${fmtFecha(n)}</td>
+          <td style="padding:9px 12px;font-size:12px;font-weight:700;color:#8a94a3;white-space:nowrap;">${fmtNum(n)}</td>
+          <td style="padding:9px 12px;font-weight:700;color:var(--petrol);">${n.cliente||'—'}</td>
+          <td style="padding:9px 12px;font-size:12px;color:#556;">${fmtRuta(n)}</td>
+          <td style="padding:9px 12px;text-align:right;font-weight:700;color:#15803d;white-space:nowrap;">${fmtCOP(n.valor)}</td>
+        </tr>`;
       let html = '';
-      if (nuevas.length) html += encabezado(`🔔 Nuevas (${nuevas.length})`, '#c2410c') + nuevas.map(tarjeta).join('');
-      if (leidas.length) html += encabezado(`✓ Leídas (${leidas.length})`, '#9aa3b0') + leidas.map(tarjeta).join('');
+      if (nuevas.length) {
+        html += encabezado(`🔔 Nuevas (${nuevas.length})`, '#c2410c');
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:22px;">${nuevas.map(tarjeta).join('')}</div>`;
+      }
+      if (leidas.length) {
+        html += encabezado(`✓ Leídas (${leidas.length})`, '#9aa3b0');
+        html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f7f8fa;color:#8a94a3;text-align:left;">
+            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Fecha</th>
+            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Oferta</th>
+            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Cliente</th>
+            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Ruta</th>
+            <th style="padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;">Valor</th>
+          </tr></thead>
+          <tbody>${leidas.map(fila).join('')}</tbody>
+        </table></div>`;
+      }
       tbody.innerHTML = html;
     }
   }
