@@ -3541,6 +3541,30 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
                 daemon=True
             ).start()
 
+        # ── Cleanup when respuesta stops being ACEPTADA ──────────────────────
+        # Si la oferta deja de estar aceptada, retira su notificación pendiente
+        # y su OSI automática (solo si el líder aún no la ha trabajado).
+        elif prev_respuesta == "ACEPTADA" and nueva_respuesta != "ACEPTADA":
+            try:
+                with get_conn() as conn3:
+                    cur3 = conn3.cursor()
+                    cur3.execute("DELETE FROM notificaciones WHERE oferta_id=%s", (oferta_id,))
+                    n_notif = cur3.rowcount
+                    # Solo borra la OSI si sigue siendo la placeholder automática
+                    # (sin conductor, sin placa, sin fecha de despacho)
+                    cur3.execute("""
+                        DELETE FROM osi
+                        WHERE oferta_id=%s
+                          AND COALESCE(conductor,'')=''
+                          AND COALESCE(placa,'')=''
+                          AND fecha_despacho IS NULL
+                    """, (oferta_id,))
+                    n_osi = cur3.rowcount
+                    print(f"[OSI] Limpieza por des-aceptar oferta {oferta_id}: "
+                          f"{n_notif} notif, {n_osi} OSI borradas")
+            except Exception as clean_exc:
+                print(f"[OSI] Error limpiando notificación/OSI: {clean_exc}")
+
         return row
     except HTTPException:
         raise
