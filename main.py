@@ -1902,6 +1902,14 @@ def _ensure_db():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_oferta_versiones_of ON oferta_versiones(oferta_id)")
+        # Metadatos de la app (clave/valor). Se usa para guardar el "sello de versión"
+        # desplegada y así forzar re-login cuando se sube una versión nueva.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS app_meta (
+                clave text primary key,
+                valor text
+            )
+        """)
         conn.close()
         print("[DB] Tablas 'areas', 'area_permisos', 'notificaciones', 'osi', 'oferta_historial', 'oferta_versiones' y 'sessions' listas.")
     except Exception as e:
@@ -2009,6 +2017,40 @@ def _session_get(token: str) -> dict | None:
         print(f"[AUTH] Error consultando sesión en DB: {e}")
     return None
 
+# ── Cierre de sesiones al desplegar una versión nueva ─────────────────────────
+# Cada deploy en Railway trae un identificador distinto (commit o deployment id).
+# Si cambia respecto al último guardado, se borran TODAS las sesiones activas para
+# que todos los usuarios vuelvan a ingresar con usuario y contraseña.
+APP_BUILD = (
+    os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+    or os.environ.get("RAILWAY_DEPLOYMENT_ID")
+    or "dev"
+)
+
+def _enforce_build_logout():
+    if APP_BUILD == "dev":
+        return  # entorno local: no cerramos sesiones
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT valor FROM app_meta WHERE clave = 'build'")
+            row = fetchone(cur)
+            stored = row["valor"] if row else None
+            if stored != APP_BUILD:
+                cur.execute("DELETE FROM sessions")
+                cur.execute(
+                    "INSERT INTO app_meta (clave, valor) VALUES ('build', %s) "
+                    "ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor",
+                    (APP_BUILD,)
+                )
+                _sessions.clear()
+                _session_activity.clear()
+                print(f"[AUTH] Nueva versión desplegada ({APP_BUILD[:12]}). "
+                      f"Sesiones cerradas: todos deben volver a ingresar.")
+    except Exception as e:
+        print(f"[AUTH] No se pudo aplicar el cierre por nueva versión: {e}")
+
+_enforce_build_logout()
 _session_load_from_db()
 
 
