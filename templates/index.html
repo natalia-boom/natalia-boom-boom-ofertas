@@ -5302,6 +5302,7 @@ let iaFotos     = [];      // fotos de referencia [{dataUrl, name}]
 let iaHtml      = '';      // último HTML generado
 let iaMeta      = null;    // última meta {cliente, valor, moneda, mes, tipo, descripcion, realizada}
 let iaVersionHtml = '';    // HTML de la oferta cargada por "Versionar": se inyecta en el 1er ajuste
+let iaImgMap = {};         // Versionar: mapa token→imagen base64 para NO enviar imágenes pesadas al modelo
 let iaRefAssigned = false; // ¿ya se pidió consecutivo?
 let iaEditingId = null;    // id de oferta que se versiona (o null)
 let iaDropBound = false;
@@ -5538,16 +5539,27 @@ async function iaSendMessage() {
 
   // Construir el contenido para la API (texto + imágenes/PDF/archivos que Claude pueda leer)
   let apiContent;
+  iaImgMap = {};
   if (fotosNow.length || iaVersionHtml) {
     apiContent = [];
     // Al versionar: adjuntamos el HTML original como verdad absoluta para que
     // el asistente CONSERVE la estructura exacta y solo aplique lo que se pide.
     if (iaVersionHtml) {
+      // Las imágenes en base64 (logo, sello, fotos) pesan ~160 mil caracteres y hacían
+      // que el HTML se cortara antes de llegar a la estructura real. Las reemplazamos por
+      // tokens livianos ([[IMG_n]]) y las restauramos intactas cuando el modelo responde.
+      let _n = 0;
+      const compactHtml = iaVersionHtml.replace(
+        /data:image\/[^;"')]+;base64,[A-Za-z0-9+/=\s]+/g,
+        (m) => { _n++; const tok = '[[IMG_' + _n + ']]'; iaImgMap[tok] = m.replace(/\s+/g, ''); return tok; }
+      );
       apiContent.push({ type: 'text', text:
         'OFERTA ACTUAL EN HTML (versión vigente de esta misma oferta). Debes CONSERVAR ' +
-        'EXACTAMENTE esta estructura, diseño, secciones, orden, textos y estilo. Aplica ' +
-        'ÚNICAMENTE el cambio que te indique abajo y devuelve el HTML COMPLETO con solo ese ' +
-        'cambio, sin alterar ni reorganizar nada más:\n```html\n' + iaVersionHtml + '\n```' });
+        'EXACTAMENTE esta estructura, diseño, secciones, orden, textos y estilo. Los tokens ' +
+        '[[IMG_1]], [[IMG_2]]… son imágenes: consérvalos TAL CUAL en el mismo lugar, no los ' +
+        'cambies ni los borres. Aplica ÚNICAMENTE el cambio que te indique abajo y devuelve el ' +
+        'HTML COMPLETO con solo ese cambio, sin alterar ni reorganizar nada más:\n```html\n' +
+        compactHtml + '\n```' });
       iaVersionHtml = '';
     }
     fotosNow.forEach(f => {
@@ -5604,7 +5616,11 @@ async function iaSendMessage() {
     iaHistory.push({ role: 'assistant', content: data.reply || '' });
 
     if (data.html) {
-      iaHtml = data.html;
+      // Restaura las imágenes (logo/sello/fotos) que habíamos reemplazado por tokens al versionar.
+      let _restored = data.html;
+      for (const _tok in iaImgMap) { _restored = _restored.split(_tok).join(iaImgMap[_tok]); }
+      iaImgMap = {};
+      iaHtml = _restored;
       iaMeta = data.meta || null;
       // Si la IA reportó una forma de pago (ej. anticipo distinto escrito en el chat),
       // actualiza el selector para que se GUARDE y salga en el PDF/correo esa, no la de 50%.
