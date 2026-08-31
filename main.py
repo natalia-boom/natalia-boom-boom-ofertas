@@ -4170,13 +4170,18 @@ def guardar_version(body: OfertaVersionBody, request: Request):
             vnum = int(fetchone(cur)["n"])
 
             resumen = (body.resumen or "").strip()
+            cambio_valor = (valor_ant is not None and nuevo_valor != valor_ant)
+            valor_txt = ("Valor %s → %s." % (_fmt_cop_py(valor_ant), _fmt_cop_py(nuevo_valor))) if cambio_valor else ""
             if not resumen:
                 if vnum == 1:
                     resumen = "Versión inicial." + (" PDF original adjunto." if body.pdf_original else "")
-                elif valor_ant is not None and nuevo_valor != valor_ant:
-                    resumen = "Valor %s → %s." % (_fmt_cop_py(valor_ant), _fmt_cop_py(nuevo_valor))
+                elif cambio_valor:
+                    resumen = valor_txt
                 else:
                     resumen = "Ajuste de la cotización."
+            elif cambio_valor and _fmt_cop_py(nuevo_valor) not in resumen:
+                # Garantiza la trazabilidad del cambio de valor aunque haya nota manual.
+                resumen = resumen + " — " + valor_txt
 
             cur.execute("UPDATE oferta_versiones SET vigente = false WHERE oferta_id = %s", (oferta_id,))
             cur.execute(

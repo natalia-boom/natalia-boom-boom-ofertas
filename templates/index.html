@@ -2269,6 +2269,13 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </div>
         </div>
 
+        <!-- ===== Trazabilidad de la versión: ¿Qué cambió? (auditoría interna) ===== -->
+        <div id="iaQueCambioWrap" style="display:none;margin-top:12px;border:1.5px solid #b58a00;border-radius:8px;padding:12px 14px;background:#fffdf3;">
+          <label style="display:block;font-size:12px;font-weight:700;color:#7a5c00;margin-bottom:4px;">📝 ¿Qué cambió en esta versión? <span style="font-weight:400;">(queda en el historial de la oferta)</span></label>
+          <textarea id="iaQueCambio" rows="2" style="width:100%;border:1.5px solid #e2c766;border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;background:#fff;" placeholder="Ej: Ajuste de valor solicitado por el cliente / corrección de tiempos de entrega"></textarea>
+          <div id="iaCambiosAuto" style="display:none;margin-top:8px;font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;"></div>
+        </div>
+
         <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="iaBtnPDF" onclick="iaDescargarPDF()" disabled style="padding:10px 20px;">📄 Descargar PDF</button>
           <button class="btn btn-secondary" id="iaBtnHTML" onclick="iaDescargarHTML()" disabled style="padding:10px 20px;">📧 Descargar HTML (correo)</button>
@@ -5326,6 +5333,7 @@ let iaHtml      = '';      // último HTML generado
 let iaMeta      = null;    // última meta {cliente, valor, moneda, mes, tipo, descripcion, realizada}
 let iaVersionHtml = '';    // HTML de la oferta cargada por "Versionar": se inyecta en el 1er ajuste
 let iaImgMap = {};         // Versionar: mapa token→imagen base64 para NO enviar imágenes pesadas al modelo
+let iaCambiosDirectos = []; // Trazabilidad: lista de cambios directos aplicados a esta versión
 let iaRefAssigned = false; // ¿ya se pidió consecutivo?
 let iaEditingId = null;    // id de oferta que se versiona (o null)
 let iaDropBound = false;
@@ -5781,9 +5789,21 @@ function iaSetButtons(on) {
   // El panel de cambio directo solo aparece cuando ya hay una oferta en pantalla.
   const cp = document.getElementById('iaCambioPanel');
   if (cp) cp.style.display = on ? 'block' : 'none';
+  const qc = document.getElementById('iaQueCambioWrap');
+  if (qc) qc.style.display = on ? 'block' : 'none';
   if (!on) {
     ['iaBuscar', 'iaReemplazar', 'iaCambioMsg'].forEach(id => { const el = document.getElementById(id); if (el) { if (el.tagName === 'INPUT') el.value = ''; else el.textContent = ''; } });
   }
+}
+
+// Muestra la lista de cambios directos que quedarán registrados en el historial.
+function iaRenderCambiosAuto() {
+  const box = document.getElementById('iaCambiosAuto');
+  if (!box) return;
+  if (!iaCambiosDirectos.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  box.innerHTML = '🔎 <b>Se registrará automáticamente:</b><br>• ' +
+    iaCambiosDirectos.map(c => c.replace(/</g, '&lt;')).join('<br>• ');
 }
 
 // Cambio directo (buscar y reemplazar) SOBRE la misma oferta, sin pasar por la IA.
@@ -5809,10 +5829,17 @@ function iaCambioDirecto() {
   // Si el cambio es de valores en pesos (solo números, puntos y $), actualizamos también
   // el VALOR de la oferta que se guarda en el Control, para que el tablero cuadre.
   const _esMonto = s => /^\s*\$?\s*[\d][\d.\s]*\d\s*$/.test(s || '');
-  if (iaMeta && _esMonto(buscar) && _esMonto(reemplazar)) {
+  const _dosMontos = _esMonto(buscar) && _esMonto(reemplazar);
+  if (iaMeta && _dosMontos) {
     const num = parseInt(String(reemplazar).replace(/[^\d]/g, ''), 10);
     if (!isNaN(num) && num > 0) iaMeta.valor = num;
   }
+
+  // Trazabilidad: guardamos el cambio exacto para el historial de la versión.
+  iaCambiosDirectos.push(_dosMontos
+    ? ('Valor $' + buscar.replace(/[^\d.]/g, '') + ' → $' + reemplazar.replace(/[^\d.]/g, ''))
+    : ('«' + buscar.trim() + '» → «' + reemplazar.trim() + '»'));
+  iaRenderCambiosAuto();
 
   iaRenderPreview();
   document.getElementById('iaBuscar').value = '';
@@ -5890,6 +5917,15 @@ function iaLimpiarHtml(html) {
   return html;
 }
 
+// Arma el "qué cambió" de la versión: la nota escrita + los cambios directos detectados.
+function _iaComponerResumen() {
+  const nota = (document.getElementById('iaQueCambio') && document.getElementById('iaQueCambio').value || '').trim();
+  const partes = [];
+  if (nota) partes.push(nota);
+  if (iaCambiosDirectos.length) partes.push(iaCambiosDirectos.join('; '));
+  return partes.join(' — ') || null;
+}
+
 async function iaGenerarOferta() {
   if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
   // 🛡️ Malla de seguridad: no dejar guardar ofertas incompletas (ensucian el Control)
@@ -5944,7 +5980,8 @@ async function iaGenerarOferta() {
     fecha:      now.toISOString().slice(0, 10),
     realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
     html:       iaHtml || null,
-    pdf_original: pdfOriginal
+    pdf_original: pdfOriginal,
+    resumen:    _iaComponerResumen()
   };
   try {
     const res = await fetch('/api/ofertas/guardar-version', {
@@ -5969,6 +6006,9 @@ async function iaGenerarOferta() {
 function iaResetChat(silent) {
   if (!silent && iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
   iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
+  iaCambiosDirectos = [];
+  { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }
+  iaRenderCambiosAuto();
   document.getElementById('iaChatHistoria').innerHTML =
     '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">Listo para una nueva oferta 👋 Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
   document.getElementById('iaChatInput').value = '';
