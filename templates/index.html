@@ -5618,8 +5618,10 @@ async function iaSendMessage() {
   }
 
   // Construir el contenido para la API (texto + imágenes/PDF/archivos que Claude pueda leer)
+  // NOTA: iaImgMap NO se reinicia aquí. Debe PERSISTIR durante toda la conversación de la
+  // oferta, porque el modelo puede repetir los tokens [[IMG_n]] en un ajuste posterior aunque
+  // ya no volvamos a tokenizar. Solo se limpia al cargar/empezar una oferta nueva.
   let apiContent;
-  iaImgMap = {};
   if (fotosNow.length || iaVersionHtml) {
     apiContent = [];
     // Al versionar: adjuntamos el HTML original como verdad absoluta para que
@@ -5697,9 +5699,15 @@ async function iaSendMessage() {
 
     if (data.html) {
       // Restaura las imágenes (logo/sello/fotos) que habíamos reemplazado por tokens al versionar.
+      // El mapa PERSISTE toda la conversación, así que aunque el modelo repita los tokens en un
+      // ajuste posterior, se restauran igual y NUNCA queda un [[IMG_n]] visible en la oferta.
       let _restored = data.html;
       for (const _tok in iaImgMap) { _restored = _restored.split(_tok).join(iaImgMap[_tok]); }
-      iaImgMap = {};
+      // Barrido tolerante: por si el modelo alteró el token (espacios, mayúsculas, guion).
+      // Si aún así no lo conocemos, lo quitamos para no dejar basura visible en la oferta.
+      _restored = _restored.replace(/\[\[\s*IMG[\s_]*([0-9]+)\s*\]\]/gi, function (m, n) {
+        return iaImgMap['[[IMG_' + n + ']]'] || '';
+      });
       iaHtml = _restored;
       iaMeta = data.meta || null;
       // Si la IA reportó una forma de pago (ej. anticipo distinto escrito en el chat),
@@ -6055,6 +6063,7 @@ async function iaGenerarOferta() {
 function iaResetChat(silent) {
   if (!silent && iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
   iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
+  iaImgMap = {};
   iaCambiosDirectos = [];
   { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }
   iaRenderCambiosAuto();
@@ -6105,6 +6114,7 @@ function iaCargarOferta() {
   // Si la oferta tenía HTML de IA guardado, mostrarlo en la vista previa
   const stored = o.pdf_data;
   iaVersionHtml = '';
+  iaImgMap = {};
   if (stored && stored.ia_html) {
     iaHtml = iaLimpiarHtml(stored.ia_html);
     iaMeta = { cliente: o.cliente, valor: o.valor, moneda: stored.moneda || 'COP', mes: o.mes, descripcion: o.general, realizada: o.realizada };
