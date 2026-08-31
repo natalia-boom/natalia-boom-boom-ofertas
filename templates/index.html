@@ -2173,6 +2173,29 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <iframe id="iaPreviewFrame" style="display:none;width:100%;height:640px;border:none;background:#fff;"></iframe>
         </div>
 
+        <!-- ===== Cambio directo: valor / palabras SIN IA (no desajusta) ===== -->
+        <div id="iaCambioPanel" style="display:none;margin-top:12px;border:1.5px solid #b58a00;border-radius:8px;padding:12px 14px;background:#fffdf3;">
+          <div style="font-size:12px;font-weight:700;color:#7a5c00;margin-bottom:4px;">✏️ CAMBIO DIRECTO (sin IA — no desajusta la oferta)</div>
+          <div style="font-size:11px;color:#8a6d00;margin-bottom:8px;line-height:1.5;">
+            Para cambiar <b>un valor</b> o <b>unas palabras</b> sin que se reorganice nada. Escribe el texto tal como aparece hoy en la oferta y por qué reemplazarlo.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;">
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:11px;">Texto/valor actual (buscar)</label>
+              <input id="iaBuscar" type="text" placeholder="Ej: 6.800.000  ·  o unas palabras">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:11px;">Cambiar por</label>
+              <input id="iaReemplazar" type="text" placeholder="Ej: 7.200.000  ·  o el texto nuevo"
+                     onkeydown="if(event.key==='Enter') iaCambioDirecto()">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+            <button class="btn btn-primary btn-sm" onclick="iaCambioDirecto()">Aplicar cambio</button>
+            <span id="iaCambioMsg" style="font-size:11px;color:#7a5c00;"></span>
+          </div>
+        </div>
+
         <!-- ===== Clasificación para el Control (dashboard) ===== -->
         <div style="margin-top:14px;border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;background:#fafbfc;">
           <div style="font-size:12px;font-weight:700;color:var(--petrol);margin-bottom:8px;">🗂️ REGISTRO PARA EL CONTROL</div>
@@ -5755,6 +5778,47 @@ function iaSetButtons(on) {
   ['iaBtnPDF', 'iaBtnHTML', 'iaBtnGuardar'].forEach(id => {
     document.getElementById(id).disabled = !on;
   });
+  // El panel de cambio directo solo aparece cuando ya hay una oferta en pantalla.
+  const cp = document.getElementById('iaCambioPanel');
+  if (cp) cp.style.display = on ? 'block' : 'none';
+  if (!on) {
+    ['iaBuscar', 'iaReemplazar', 'iaCambioMsg'].forEach(id => { const el = document.getElementById(id); if (el) { if (el.tagName === 'INPUT') el.value = ''; else el.textContent = ''; } });
+  }
+}
+
+// Cambio directo (buscar y reemplazar) SOBRE la misma oferta, sin pasar por la IA.
+// Garantiza que solo cambie lo indicado y que la estructura/diseño quede idéntica.
+function iaCambioDirecto() {
+  const msg = document.getElementById('iaCambioMsg');
+  const setMsg = (t, ok) => { if (msg) { msg.textContent = t; msg.style.color = ok ? '#15803d' : '#b91c1c'; } };
+  if (!iaHtml) { setMsg('Primero carga o genera una oferta.', false); return; }
+  const buscar = document.getElementById('iaBuscar').value;
+  const reemplazar = document.getElementById('iaReemplazar').value;
+  if (!buscar || !buscar.trim()) { setMsg('Escribe el texto/valor actual que quieres cambiar.', false); return; }
+
+  // ¿Cuántas veces aparece? (búsqueda literal, respeta mayúsculas/acentos)
+  let n = 0, i = 0;
+  while ((i = iaHtml.indexOf(buscar, i)) !== -1) { n++; i += buscar.length; }
+  if (n === 0) {
+    setMsg('No encontré «' + buscar + '» en la oferta. Escríbelo tal cual aparece (revisa puntos y espacios).', false);
+    return;
+  }
+
+  iaHtml = iaHtml.split(buscar).join(reemplazar);
+
+  // Si el cambio es de valores en pesos (solo números, puntos y $), actualizamos también
+  // el VALOR de la oferta que se guarda en el Control, para que el tablero cuadre.
+  const _esMonto = s => /^\s*\$?\s*[\d][\d.\s]*\d\s*$/.test(s || '');
+  if (iaMeta && _esMonto(buscar) && _esMonto(reemplazar)) {
+    const num = parseInt(String(reemplazar).replace(/[^\d]/g, ''), 10);
+    if (!isNaN(num) && num > 0) iaMeta.valor = num;
+  }
+
+  iaRenderPreview();
+  document.getElementById('iaBuscar').value = '';
+  document.getElementById('iaReemplazar').value = '';
+  setMsg('✅ Cambio aplicado (' + n + (n === 1 ? ' vez' : ' veces') + '). Revisa la vista previa y Guarda la versión.', true);
+  showToast('Cambio directo aplicado — la estructura quedó igual', 'success');
 }
 
 function iaFilename(ext) {
