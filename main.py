@@ -1859,6 +1859,23 @@ def _ensure_db():
                 created_at  timestamptz default now()
             )
         """)
+        # Ampliación flota propia (Fase 1 módulo Operaciones): datos de ficha del equipo.
+        for _col, _ddl in [
+            ("codigo",      "text"),           # código interno (EXV241, MOD01, GN01…)
+            ("categoria",   "text"),           # CABEZOTE / CAMA_ALTA / CAMA_BAJA / SEMI / MODULAR / ACCESORIO
+            ("marca",       "text"),           # KENWORTH, SCANIA, GOLDHOFER…
+            ("clase",       "text"),           # Extensible, Tecnipesado, Challenger, MODULAR…
+            ("config",      "text"),           # CA2, CA3, CB3, CB4, SM5, M6…
+            ("ejes",        "text"),           # nº de ejes / líneas
+            ("ancho",       "text"),           # dimensiones (texto: admite rangos "14,73 - 23,15")
+            ("largo",       "text"),
+            ("alto",        "text"),
+            ("capacidad",   "text"),
+            ("peso",        "text"),
+            ("descripcion", "text"),
+            ("activo",      "boolean default true"),
+        ]:
+            cur.execute("ALTER TABLE equipos ADD COLUMN IF NOT EXISTS %s %s" % (_col, _ddl))
 
         # Feature 4: Historial de cambios
         cur.execute("""
@@ -4719,6 +4736,34 @@ class EquipoBody(BaseModel):
     conductor: str = ""
     celular: str = ""
     estado: str = "DISPONIBLE"
+    # Ficha de flota propia (Fase 1)
+    codigo: str = ""
+    categoria: str = ""
+    marca: str = ""
+    clase: str = ""
+    config: str = ""
+    ejes: str = ""
+    ancho: str = ""
+    largo: str = ""
+    alto: str = ""
+    capacidad: str = ""
+    peso: str = ""
+    descripcion: str = ""
+    activo: bool = True
+
+
+_EQUIPO_COLS = ("placa, tipo, propiedad, tenedor, conductor, celular, estado, "
+                "codigo, categoria, marca, clase, config, ejes, ancho, largo, alto, "
+                "capacidad, peso, descripcion, activo")
+
+
+def _equipo_values(body: "EquipoBody"):
+    return (body.placa.strip().upper(), body.tipo.strip(), body.propiedad.strip(),
+            body.tenedor.strip(), body.conductor.strip(), body.celular.strip(),
+            body.estado.strip(), body.codigo.strip().upper(), body.categoria.strip().upper(),
+            body.marca.strip().upper(), body.clase.strip(), body.config.strip().upper(),
+            body.ejes.strip(), body.ancho.strip(), body.largo.strip(), body.alto.strip(),
+            body.capacidad.strip(), body.peso.strip(), body.descripcion.strip(), bool(body.activo))
 
 
 @app.get("/api/equipos")
@@ -4727,9 +4772,9 @@ def listar_equipos(request: Request):
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                SELECT id, placa, tipo, propiedad, tenedor, conductor, celular, estado
-                FROM equipos ORDER BY placa
-            """)
+                SELECT id, %s
+                FROM equipos ORDER BY categoria, codigo, placa
+            """ % _EQUIPO_COLS)
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in cur.fetchall()]
     except Exception as e:
@@ -4741,12 +4786,9 @@ def crear_equipo(body: EquipoBody, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO equipos (placa, tipo, propiedad, tenedor, conductor, celular, estado)
-                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
-            """, (body.placa.strip().upper(), body.tipo.strip(), body.propiedad.strip(),
-                  body.tenedor.strip(), body.conductor.strip(), body.celular.strip(),
-                  body.estado.strip()))
+            ph = ",".join(["%s"] * 20)
+            cur.execute("INSERT INTO equipos (%s) VALUES (%s) RETURNING id" % (_EQUIPO_COLS, ph),
+                        _equipo_values(body))
             new_id = fetchone(cur)["id"]
         return {"ok": True, "id": new_id}
     except Exception as e:
@@ -4758,12 +4800,8 @@ def actualizar_equipo(eid: int, body: EquipoBody, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("""
-                UPDATE equipos SET placa=%s, tipo=%s, propiedad=%s, tenedor=%s,
-                       conductor=%s, celular=%s, estado=%s WHERE id=%s
-            """, (body.placa.strip().upper(), body.tipo.strip(), body.propiedad.strip(),
-                  body.tenedor.strip(), body.conductor.strip(), body.celular.strip(),
-                  body.estado.strip(), eid))
+            sets = ",".join("%s=%%s" % c.strip() for c in _EQUIPO_COLS.split(","))
+            cur.execute("UPDATE equipos SET %s WHERE id=%%s" % sets, _equipo_values(body) + (eid,))
         return {"ok": True}
     except Exception as e:
         raise HTTPException(500, str(e))
