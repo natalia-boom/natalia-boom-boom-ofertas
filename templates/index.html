@@ -2832,6 +2832,27 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </div>
           <button type="button" onclick="cosiAgregarEquipo()" style="background:#c2410c;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">➕ Agregar</button>
         </div>
+        <div style="margin-top:8px;">
+          <button type="button" onclick="cosiToggleSub()" style="background:none;border:none;color:#7c3aed;font-size:12px;font-weight:700;cursor:pointer;padding:0;">🔗 ¿Equipo subcontratado? Agrégalo a mano</button>
+        </div>
+        <div id="cosiSubWrap" style="display:none;margin-top:8px;background:#faf5ff;border:1px dashed #d8b4fe;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;">🔗 Equipo subcontratado (manual)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+            <div>
+              <label style="font-size:11px;font-weight:700;color:#64748b;">TRACTOCAMIÓN (placa)</label>
+              <input id="cosiSubTracto" placeholder="Ej: ABC123" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:700;color:#64748b;">REMOLQUE (placa)</label>
+              <input id="cosiSubTrailer" placeholder="Ej: R12345" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:700;color:#64748b;">EMPRESA</label>
+              <input id="cosiSubEmpresa" placeholder="Nombre del subcontratado" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            </div>
+            <button type="button" onclick="cosiAgregarSub()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">➕ Agregar</button>
+          </div>
+        </div>
         <div id="cosiEquiposLista" style="margin-top:10px;"></div>
         <div id="cosiChoqueAviso" style="display:none;margin-top:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;color:#92400e;line-height:1.5;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
@@ -7485,9 +7506,11 @@ async function abrirCrearOSI(n) {
    'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga','cosiTipoCargaOtro',
    'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
    'cosiDimAncho','cosiDimAlto','cosiDimLargo','cosiDimVoladizo','cosiDimPeso','cosiVia',
+   'cosiSubTracto','cosiSubTrailer','cosiSubEmpresa',
    'cosiPackingNota','cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
   if (g('cosiViaObstr')) g('cosiViaObstr').checked = false;
   if (g('cosiPackingWrap')) g('cosiPackingWrap').style.display = 'none';
+  if (g('cosiSubWrap')) g('cosiSubWrap').style.display = 'none';
   _cosiEscoltaAuto = '';
   cosiTipoCargaCambio();  // oculta "¿cuál?" y el bloque de dimensiones al abrir
   // Reinicia casillas y operadores
@@ -7575,6 +7598,33 @@ function cosiAgregarEquipo() {
 
 function cosiQuitarEquipo(i) { _cosiEquipos.splice(i, 1); cosiRenderEquipos(); cosiChequeoChoque(); cosiValidarExtra(); }
 
+// Muestra/oculta el formulario manual de equipo subcontratado.
+function cosiToggleSub() {
+  const w = document.getElementById('cosiSubWrap');
+  if (!w) return;
+  const abrir = w.style.display === 'none' || !w.style.display;
+  w.style.display = abrir ? 'block' : 'none';
+  if (abrir) { const t = document.getElementById('cosiSubTracto'); if (t) t.focus(); }
+}
+
+// Agrega un equipo subcontratado escrito a mano (sin catálogo).
+function cosiAgregarSub() {
+  const g = id => document.getElementById(id);
+  const trP = (g('cosiSubTracto').value || '').trim().toUpperCase();
+  const tlP = (g('cosiSubTrailer').value || '').trim().toUpperCase();
+  const emp = (g('cosiSubEmpresa').value || '').trim();
+  if (!trP && !tlP) { showToast('Escribe al menos una placa (tractocamión o remolque)', 'error'); return; }
+  _cosiEquipos.push({
+    tracto_id: '', tracto_placa: trP,
+    trailer_id: '', trailer_placa: tlP,
+    otras: '', subcontratado: true, empresa: emp
+  });
+  g('cosiSubTracto').value = ''; g('cosiSubTrailer').value = ''; g('cosiSubEmpresa').value = '';
+  cosiRenderEquipos();
+  cosiChequeoChoque();
+  cosiValidarExtra();
+}
+
 function cosiRenderEquipos() {
   const cont = document.getElementById('cosiEquiposLista');
   if (!cont) return;
@@ -7587,8 +7637,12 @@ function cosiRenderEquipos() {
     if (x.tracto_placa)  p.push('🚚 ' + x.tracto_placa);
     if (x.trailer_placa) p.push('🛻 ' + x.trailer_placa);
     if (x.otras)         p.push('⚙️ ' + x.otras);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #ffedd5;border-radius:6px;padding:6px 10px;margin-bottom:5px;font-size:12px;">
-      <span>${p.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}</span>
+    const sub = x.subcontratado
+      ? `<span style="background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-left:6px;">🔗 Subcont.${x.empresa ? ' · ' + x.empresa : ''}</span>`
+      : '';
+    const borde = x.subcontratado ? '#d8b4fe' : '#ffedd5';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid ${borde};border-radius:6px;padding:6px 10px;margin-bottom:5px;font-size:12px;">
+      <span>${p.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}${sub}</span>
       <button type="button" onclick="cosiQuitarEquipo(${i})" title="Quitar" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px;line-height:1;">✕</button>
     </div>`;
   }).join('');
@@ -7622,6 +7676,7 @@ function cosiEquipoResumen() {
     if (x.tracto_placa)  p.push(x.tracto_placa);
     if (x.trailer_placa) p.push('+ ' + x.trailer_placa);
     if (x.otras)         p.push('(' + x.otras + ')');
+    if (x.subcontratado) p.push('[SUBCONTRATADO' + (x.empresa ? ': ' + x.empresa : '') + ']');
     return p.join(' ');
   }).join('  |  ');
 }
