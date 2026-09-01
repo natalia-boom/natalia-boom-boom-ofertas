@@ -2846,16 +2846,13 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </div>
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">AUXILIARES</label><input id="cosiAuxiliares" placeholder="Nombres de auxiliares" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
-          <div>
-            <label style="font-size:11px;font-weight:700;color:#64748b;">REQUERIMIENTOS ESPECIALES</label>
-            <div style="display:flex;gap:16px;align-items:center;margin-top:5px;flex-wrap:wrap;">
-              <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqSup"> Sup. de operación</label>
-              <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqHSE"> HSE</label>
-              <input id="cosiReqOtro" placeholder="Otro…" style="flex:1;min-width:90px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
-            </div>
+        <div style="margin-top:10px;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;">REQUERIMIENTOS ESPECIALES</label>
+          <div style="display:flex;gap:16px;align-items:center;margin-top:5px;flex-wrap:wrap;">
+            <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqSup"> Sup. de operación</label>
+            <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqHSE"> HSE</label>
+            <input id="cosiReqOtro" placeholder="Otro…" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
           </div>
-          <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESCOLTAS</label><input id="cosiEscoltas" placeholder="(mañana: automático por resolución)" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         </div>
       </div>
 
@@ -2883,7 +2880,12 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </div>
           <label style="font-size:12px;font-weight:500;color:#334155;display:flex;align-items:center;gap:6px;cursor:pointer;padding-bottom:8px;white-space:nowrap;"><input type="checkbox" id="cosiViaObstr" onchange="cosiValidarExtra()"> Obstrucción / PMT dinámico</label>
         </div>
+        <div id="cosiEscoltaCount" style="display:none;margin-top:10px;background:#1e3a8a;color:#fff;border-radius:8px;padding:10px 14px;text-align:center;"></div>
         <div id="cosiEscoltaSug" style="display:none;margin-top:8px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.6;"></div>
+        <div style="margin-top:10px;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;">ESCOLTAS <span style="font-weight:600;color:#94a3b8;">(se llena solo — editable)</span></label>
+          <input id="cosiEscoltas" placeholder="Elige el tipo de vía para sugerir escoltas" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+        </div>
       </div>
 
       <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#64748b;">OBSERVACIONES</label><textarea id="cosiObs" rows="2" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;resize:vertical;"></textarea></div>
@@ -7748,25 +7750,36 @@ function cosiValidarExtra() {
   //    Si es extradimensionada, YA lleva escoltas: la vía solo define cuántas.
   const via = g('cosiVia') ? g('cosiVia').value : '';
   const sug = g('cosiEscoltaSug');
+  const cnt = g('cosiEscoltaCount');
   if (sug) {
     if (via) {
+      const nVeh = (via === 'URB_UNICO') ? 1 : 2;
+      const conPolicia = !!(g('cosiViaObstr') && g('cosiViaObstr').checked);
       const acomp = {
         'RURAL':     '2 vehículos acompañantes (1 adelante 30-50 m + 1 atrás 20-30 m)',
         'URB_DOBLE': '2 vehículos acompañantes (1 adelante + 1 atrás, 10-15 m)',
         'URB_UNICO': '1 vehículo acompañante (atrás)',
       };
       const partes = [acomp[via], 'Grupo técnico acompañante: mín. 2 señaleros con curso de tránsito'];
-      if (g('cosiViaObstr') && g('cosiViaObstr').checked) partes.push('Policía de Tránsito y Transporte (obstrucción / PMT dinámico)');
+      if (conPolicia) partes.push('Policía de Tránsito y Transporte (obstrucción / PMT dinámico)');
+      // Contador grande
+      if (cnt) {
+        cnt.style.display = 'block';
+        cnt.innerHTML =
+          '<div style="font-size:11px;letter-spacing:.5px;opacity:.8;">ESCOLTAS REQUERIDAS</div>' +
+          '<div style="font-size:26px;font-weight:800;line-height:1.2;">🚓 ' + nVeh + ' vehículo' + (nVeh > 1 ? 's' : '') + '</div>' +
+          '<div style="font-size:12px;opacity:.9;">+ grupo técnico (mín. 2 señaleros)' + (conPolicia ? ' + Policía de Tránsito' : '') + '</div>';
+      }
       sug.style.display = 'block';
       sug.style.background = '#eef2ff'; sug.style.border = '1px solid #c7d2fe'; sug.style.color = '#3730a3';
-      sug.innerHTML = '🚓 <b>Escoltas sugeridas (permiso 4162):</b><br>• ' + partes.join('<br>• ') +
-        '<br><span style="font-weight:400;color:#4f46e5;">Puedes ajustarlo en el campo ESCOLTAS de arriba.</span>';
+      sug.innerHTML = '🚓 <b>Detalle (permiso 4162):</b><br>• ' + partes.join('<br>• ');
       // Autollena el campo ESCOLTAS, salvo que el líder ya lo haya editado a mano.
       const ce = g('cosiEscoltas');
       const texto = partes.join(' · ');
       if (ce && (!ce.value.trim() || ce.value === _cosiEscoltaAuto)) { ce.value = texto; _cosiEscoltaAuto = texto; }
     } else {
       sug.style.display = 'none';
+      if (cnt) cnt.style.display = 'none';
     }
   }
 }
