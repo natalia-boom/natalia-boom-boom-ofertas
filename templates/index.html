@@ -2600,11 +2600,10 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               <th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Dimensiones (A×L×A)</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Propiedad</th>
               <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Estado</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Acción</th>
             </tr>
           </thead>
           <tbody id="equiposBody">
-            <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando equipos...</td></tr>
+            <tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-muted);">Cargando equipos...</td></tr>
           </tbody>
         </table>
       </div>
@@ -7990,7 +7989,7 @@ function renderEquipos() {
     (`${e.codigo||''} ${e.placa||''} ${e.marca||''} ${e.clase||''} ${e.config||''} ${e.categoria||''} ${e.tenedor||''} ${e.conductor||''} ${e.tipo||''} ${e.descripcion||''}`).toLowerCase().includes(buscar));
 
   if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:#9aa3b0;">
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:#9aa3b0;">
       <div style="font-size:34px;margin-bottom:8px;">🚛</div>
       ${total ? 'Ningún equipo coincide con el filtro.' : 'Aún no hay equipos cargados.<br>Usa <b>＋ Agregar equipo</b>.'}
     </td></tr>`;
@@ -8017,16 +8016,12 @@ function renderEquipos() {
       <td style="padding:9px 12px;font-size:12px;color:#64748b;">${dims||'—'}</td>
       <td style="padding:9px 12px;text-align:center;">${propBadge}</td>
       <td style="padding:9px 12px;text-align:center;"><span style="background:${est.bg};color:${est.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${e.estado||'—'}</span></td>
-      <td style="padding:9px 12px;text-align:center;white-space:nowrap;">
-        <button onclick='abrirModalEquipo(${JSON.stringify(e).replace(/'/g,"&#39;")})' style="background:none;border:none;cursor:pointer;font-size:15px;" title="Editar">✏️</button>
-        <button onclick="eliminarEquipo(${e.id})" style="background:none;border:none;cursor:pointer;font-size:15px;" title="Eliminar">🗑️</button>
-      </td>
     </tr>`;
   };
   const grupo = (catKey, items) => {
     const meta = EQ_CAT[catKey] || { label: catKey || 'Otros', icon:'📦', color:'#64748b' };
     const dispG = items.filter(e => (e.estado||'').toUpperCase()==='DISPONIBLE').length;
-    return `<tr style="background:${meta.color};"><td colspan="7" style="padding:7px 12px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;">
+    return `<tr style="background:${meta.color};"><td colspan="6" style="padding:7px 12px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;">
         ${meta.icon} ${meta.label.toUpperCase()} · ${items.length} equipo(s) · ${dispG} disponible(s)</td></tr>`
       + items.map(fila).join('');
   };
