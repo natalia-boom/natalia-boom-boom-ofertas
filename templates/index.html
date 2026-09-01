@@ -2871,6 +2871,19 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         </div>
         <div id="cosiDimAviso" style="display:none;margin-top:10px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.5;"></div>
         <div id="cosiPlacaAviso" style="display:none;margin-top:8px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.5;"></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin-top:12px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE VÍA <span style="font-weight:600;color:#94a3b8;">(sugiere escoltas)</span></label>
+            <select id="cosiVia" onchange="cosiValidarExtra()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <option value="">— Selecciona —</option>
+              <option value="RURAL">Rural / carretera</option>
+              <option value="URB_DOBLE">Urbana doble sentido</option>
+              <option value="URB_UNICO">Urbana un solo sentido</option>
+            </select>
+          </div>
+          <label style="font-size:12px;font-weight:500;color:#334155;display:flex;align-items:center;gap:6px;cursor:pointer;padding-bottom:8px;white-space:nowrap;"><input type="checkbox" id="cosiViaObstr" onchange="cosiValidarExtra()"> Obstrucción / PMT dinámico</label>
+        </div>
+        <div id="cosiEscoltaSug" style="display:none;margin-top:8px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.6;"></div>
       </div>
 
       <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#64748b;">OBSERVACIONES</label><textarea id="cosiObs" rows="2" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;resize:vertical;"></textarea></div>
@@ -7462,8 +7475,10 @@ async function abrirCrearOSI(n) {
    'cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
    'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga','cosiTipoCargaOtro',
    'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
-   'cosiDimAncho','cosiDimAlto','cosiDimLargo','cosiDimVoladizo','cosiDimPeso',
+   'cosiDimAncho','cosiDimAlto','cosiDimLargo','cosiDimVoladizo','cosiDimPeso','cosiVia',
    'cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+  if (g('cosiViaObstr')) g('cosiViaObstr').checked = false;
+  _cosiEscoltaAuto = '';
   cosiTipoCargaCambio();  // oculta "¿cuál?" y el bloque de dimensiones al abrir
   // Reinicia casillas y operadores
   if (g('cosiReqSup')) g('cosiReqSup').checked = false;
@@ -7728,7 +7743,34 @@ function cosiValidarExtra() {
       placaAviso.style.display = 'none';
     }
   }
+
+  // 3) Escoltas sugeridas según el tipo de vía (Art. 4 Par. 3 de la 4162).
+  //    Si es extradimensionada, YA lleva escoltas: la vía solo define cuántas.
+  const via = g('cosiVia') ? g('cosiVia').value : '';
+  const sug = g('cosiEscoltaSug');
+  if (sug) {
+    if (via) {
+      const acomp = {
+        'RURAL':     '2 vehículos acompañantes (1 adelante 30-50 m + 1 atrás 20-30 m)',
+        'URB_DOBLE': '2 vehículos acompañantes (1 adelante + 1 atrás, 10-15 m)',
+        'URB_UNICO': '1 vehículo acompañante (atrás)',
+      };
+      const partes = [acomp[via], 'Grupo técnico acompañante: mín. 2 señaleros con curso de tránsito'];
+      if (g('cosiViaObstr') && g('cosiViaObstr').checked) partes.push('Policía de Tránsito y Transporte (obstrucción / PMT dinámico)');
+      sug.style.display = 'block';
+      sug.style.background = '#eef2ff'; sug.style.border = '1px solid #c7d2fe'; sug.style.color = '#3730a3';
+      sug.innerHTML = '🚓 <b>Escoltas sugeridas (permiso 4162):</b><br>• ' + partes.join('<br>• ') +
+        '<br><span style="font-weight:400;color:#4f46e5;">Puedes ajustarlo en el campo ESCOLTAS de arriba.</span>';
+      // Autollena el campo ESCOLTAS, salvo que el líder ya lo haya editado a mano.
+      const ce = g('cosiEscoltas');
+      const texto = partes.join(' · ');
+      if (ce && (!ce.value.trim() || ce.value === _cosiEscoltaAuto)) { ce.value = texto; _cosiEscoltaAuto = texto; }
+    } else {
+      sug.style.display = 'none';
+    }
+  }
 }
+let _cosiEscoltaAuto = '';  // última sugerencia auto-escrita en ESCOLTAS (para no pisar ediciones manuales)
 
 function cerrarCrearOSI() {
   document.getElementById('modalCrearOSI').style.display = 'none';
@@ -7774,6 +7816,8 @@ async function guardarCrearOSI() {
     dim_largo: v('cosiDimLargo'),
     dim_voladizo: v('cosiDimVoladizo'),
     dim_peso: v('cosiDimPeso'),
+    via_tipo: v('cosiVia'),
+    via_obstruccion: chk('cosiViaObstr'),
     valor: parseInt(v('cosiValor')) || 0,
     observaciones: v('cosiObs')
   };

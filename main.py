@@ -4878,6 +4878,8 @@ class CrearOSIBody(BaseModel):
     dim_largo: str = ""
     dim_voladizo: str = ""
     dim_peso: str = ""
+    via_tipo: str = ""
+    via_obstruccion: bool = False
     valor: int = 0
     observaciones: str = ""
 
@@ -4957,6 +4959,8 @@ def crear_osi(body: CrearOSIBody, request: Request):
                           "largo": body.dim_largo, "voladizo": body.dim_voladizo,
                           "peso": body.dim_peso,
                       },
+                      "via_tipo": body.via_tipo,
+                      "via_obstruccion": body.via_obstruccion,
                       "observaciones": body.observaciones,
                   }, ensure_ascii=False)))
             new_id = fetchone(cur)["id"]
