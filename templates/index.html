@@ -2858,7 +2858,15 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
       <!-- Bloque: carga extradimensionada — control de topes del permiso INVIAS 4162 (sin IA) -->
       <div id="cosiExtraWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
-        <div style="font-size:11px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">📐 Dimensiones de la carga <span style="font-weight:600;text-transform:none;color:#0284c7;">— topes permiso 4162</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.4px;">📐 Dimensiones de la carga <span style="font-weight:600;text-transform:none;color:#0284c7;">— topes permiso 4162</span></span>
+          <button type="button" onclick="cosiTogglePacking()" style="background:#fff;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">📎 Packing list</button>
+        </div>
+        <div id="cosiPackingWrap" style="display:none;margin-bottom:10px;background:#fff;border:1px dashed #93c5fd;border-radius:8px;padding:10px 12px;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;">PACKING LIST <span style="font-weight:600;color:#94a3b8;">(pega el contenido o su referencia)</span></label>
+          <textarea id="cosiPackingNota" rows="3" placeholder="Ej: 2 bultos — 4.20 × 3.10 × 12.5 m — 28 t · Ref. adjunto correo del cliente…" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;resize:vertical;margin-top:4px;"></textarea>
+          <div style="font-size:11px;color:#64748b;margin-top:5px;">💡 Lectura automática con IA (extraer medidas solo): <b>próximamente</b>.</div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;">
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">ANCHO (m)</label><input id="cosiDimAncho" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 4.80" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">ALTO (m)</label><input id="cosiDimAlto" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 4.80" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
@@ -7478,8 +7486,9 @@ async function abrirCrearOSI(n) {
    'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga','cosiTipoCargaOtro',
    'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
    'cosiDimAncho','cosiDimAlto','cosiDimLargo','cosiDimVoladizo','cosiDimPeso','cosiVia',
-   'cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+   'cosiPackingNota','cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
   if (g('cosiViaObstr')) g('cosiViaObstr').checked = false;
+  if (g('cosiPackingWrap')) g('cosiPackingWrap').style.display = 'none';
   _cosiEscoltaAuto = '';
   cosiTipoCargaCambio();  // oculta "¿cuál?" y el bloque de dimensiones al abrir
   // Reinicia casillas y operadores
@@ -7701,6 +7710,15 @@ const OSI_PLACAS_4162 = new Set([
 ]);
 const _osiNorm = s => String(s || '').toUpperCase().replace(/[\s-]/g, '').trim();
 
+// Muestra/oculta el espacio para pegar el packing list (sin IA).
+function cosiTogglePacking() {
+  const w = document.getElementById('cosiPackingWrap');
+  if (!w) return;
+  const abrir = w.style.display === 'none' || !w.style.display;
+  w.style.display = abrir ? 'block' : 'none';
+  if (abrir) { const t = document.getElementById('cosiPackingNota'); if (t) t.focus(); }
+}
+
 function cosiValidarExtra() {
   const g = id => document.getElementById(id);
   if (!g('cosiTipoCarga') || g('cosiTipoCarga').value !== 'CARGA_EXTRADIMENSIONADA') return;
@@ -7831,6 +7849,7 @@ async function guardarCrearOSI() {
     dim_peso: v('cosiDimPeso'),
     via_tipo: v('cosiVia'),
     via_obstruccion: chk('cosiViaObstr'),
+    packing_list: v('cosiPackingNota'),
     valor: parseInt(v('cosiValor')) || 0,
     observaciones: v('cosiObs')
   };
