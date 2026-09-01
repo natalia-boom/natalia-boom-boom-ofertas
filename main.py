@@ -4678,16 +4678,15 @@ def get_notificaciones(request: Request):
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                SELECT n.*, o.pdf_data AS _pdf, o.descripcion AS _desc
+                SELECT n.*, o.pdf_data AS _pdf
                 FROM notificaciones n
                 LEFT JOIN ofertas o ON o.id = n.oferta_id
                 ORDER BY n.created_at DESC LIMIT 100
             """)
             rows = fetchall(cur)
-        # La ruta (origen → destino) vive en el pdf_data de la oferta IA.
+        # La ruta (origen → destino) y la descripción viven en el pdf_data de la oferta IA.
         for r in rows:
             pdf = r.pop("_pdf", None)
-            desc = r.pop("_desc", None)
             if isinstance(pdf, str):
                 try: pdf = json.loads(pdf)
                 except Exception: pdf = {}
@@ -4696,7 +4695,7 @@ def get_notificaciones(request: Request):
                 r["origen"] = (pdf.get("origen") or "").strip()
             if not r.get("destino"):
                 r["destino"] = (pdf.get("destino") or "").strip()
-            r["descripcion"] = (pdf.get("descripcion") or desc or "").strip()
+            r["descripcion"] = (pdf.get("descripcion") or "").strip()
         return rows
     except Exception as e:
         raise HTTPException(500, str(e))
