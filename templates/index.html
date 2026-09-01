@@ -2859,6 +2859,20 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         </div>
       </div>
 
+      <!-- Bloque: carga extradimensionada — control de topes del permiso INVIAS 4162 (sin IA) -->
+      <div id="cosiExtraWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">📐 Dimensiones de la carga <span style="font-weight:600;text-transform:none;color:#0284c7;">— topes permiso 4162</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;">
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">ANCHO (m)</label><input id="cosiDimAncho" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 4.80" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">ALTO (m)</label><input id="cosiDimAlto" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 4.80" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">LARGO (m)</label><input id="cosiDimLargo" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 38.00" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">VOLADIZO (m)</label><input id="cosiDimVoladizo" type="number" step="0.01" min="0" oninput="cosiValidarExtra()" placeholder="máx 3.00" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">PESO (t)</label><input id="cosiDimPeso" type="number" step="0.1" min="0" oninput="cosiValidarExtra()" placeholder="según config." style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        </div>
+        <div id="cosiDimAviso" style="display:none;margin-top:10px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.5;"></div>
+        <div id="cosiPlacaAviso" style="display:none;margin-top:8px;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;line-height:1.5;"></div>
+      </div>
+
       <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:700;color:#64748b;">OBSERVACIONES</label><textarea id="cosiObs" rows="2" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;resize:vertical;"></textarea></div>
 
       <div style="display:flex;justify-content:flex-end;gap:10px;">
@@ -7448,8 +7462,9 @@ async function abrirCrearOSI(n) {
    'cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
    'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga','cosiTipoCargaOtro',
    'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
+   'cosiDimAncho','cosiDimAlto','cosiDimLargo','cosiDimVoladizo','cosiDimPeso',
    'cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
-  cosiTipoCargaCambio();  // oculta el campo "¿cuál?" al abrir
+  cosiTipoCargaCambio();  // oculta "¿cuál?" y el bloque de dimensiones al abrir
   // Reinicia casillas y operadores
   if (g('cosiReqSup')) g('cosiReqSup').checked = false;
   if (g('cosiReqHSE')) g('cosiReqHSE').checked = false;
@@ -7530,9 +7545,10 @@ function cosiAgregarEquipo() {
   g('cosiTracto').value = ''; g('cosiTrailer').value = ''; g('cosiOtrasConfig').value = '';
   cosiRenderEquipos();
   cosiChequeoChoque();
+  cosiValidarExtra();
 }
 
-function cosiQuitarEquipo(i) { _cosiEquipos.splice(i, 1); cosiRenderEquipos(); cosiChequeoChoque(); }
+function cosiQuitarEquipo(i) { _cosiEquipos.splice(i, 1); cosiRenderEquipos(); cosiChequeoChoque(); cosiValidarExtra(); }
 
 function cosiRenderEquipos() {
   const cont = document.getElementById('cosiEquiposLista');
@@ -7642,12 +7658,76 @@ function cosiChequeoChoque() {
   aviso.innerHTML = '⚠️ ' + msgs.join('<br>⚠️ ');
 }
 
-// Muestra el campo "¿cuál?" solo cuando el tipo de carga es "Otros"
+// Muestra el campo "¿cuál?" solo cuando el tipo de carga es "Otros",
+// y el bloque de dimensiones solo cuando es "Carga extradimensionada".
 function cosiTipoCargaCambio() {
   const g = id => document.getElementById(id);
-  const es = g('cosiTipoCarga') && g('cosiTipoCarga').value === 'OTROS';
-  if (g('cosiTipoCargaOtroWrap')) g('cosiTipoCargaOtroWrap').style.display = es ? '' : 'none';
-  if (!es && g('cosiTipoCargaOtro')) g('cosiTipoCargaOtro').value = '';
+  const val = g('cosiTipoCarga') ? g('cosiTipoCarga').value : '';
+  const esOtro = val === 'OTROS';
+  if (g('cosiTipoCargaOtroWrap')) g('cosiTipoCargaOtroWrap').style.display = esOtro ? '' : 'none';
+  if (!esOtro && g('cosiTipoCargaOtro')) g('cosiTipoCargaOtro').value = '';
+  const esExtra = val === 'CARGA_EXTRADIMENSIONADA';
+  if (g('cosiExtraWrap')) g('cosiExtraWrap').style.display = esExtra ? '' : 'none';
+  if (esExtra) cosiValidarExtra();
+}
+
+// ── Carga extradimensionada: valida topes del permiso 4162 y placas autorizadas (SIN IA) ──
+// Topes Art. 3 Par. 1 de la Res. INVIAS 4162/2025.
+const OSI_TOPES_4162 = { ancho: 4.80, alto: 4.80, largo: 38.00, voladizo: 3.00 };
+// Placas autorizadas en el permiso (Art. 3). Ojo: cambian con cada resolución anual.
+const OSI_PLACAS_4162 = new Set([
+  'EXV241','EXV242','EXV244','KUM425','KUM426','LGL726','LGL727','SSA096','SSA097','SZA432',
+  'SZK178','SZK179','SZK180','TLU853','TLV285','TVA233','UYU921','LJO331','LJO332',
+  'R63499','R63501','R52084','R33151','R63096','R47562','R80344','R80460','R62743','R69106',
+  'R69107','R68632','S59563','S59592','R63101','R80471','R79235','R82774','R82773','S79151',
+  'S79172','S79170','S79171','S79184','S81840','S79185','S81838','S81839','T3948','T3949','S72911'
+]);
+const _osiNorm = s => String(s || '').toUpperCase().replace(/[\s-]/g, '').trim();
+
+function cosiValidarExtra() {
+  const g = id => document.getElementById(id);
+  if (!g('cosiTipoCarga') || g('cosiTipoCarga').value !== 'CARGA_EXTRADIMENSIONADA') return;
+
+  // 1) Topes de dimensiones
+  const num = id => { const x = parseFloat((g(id) && g(id).value) || ''); return isNaN(x) ? null : x; };
+  const chequeos = [
+    ['Ancho', num('cosiDimAncho'), OSI_TOPES_4162.ancho],
+    ['Alto', num('cosiDimAlto'), OSI_TOPES_4162.alto],
+    ['Largo', num('cosiDimLargo'), OSI_TOPES_4162.largo],
+    ['Voladizo trasero', num('cosiDimVoladizo'), OSI_TOPES_4162.voladizo],
+  ];
+  const excede = chequeos.filter(c => c[1] !== null && c[1] > c[2])
+    .map(c => `${c[0]} ${c[1]} m supera el tope de ${c[2].toFixed(2)} m`);
+  const dimAviso = g('cosiDimAviso');
+  if (dimAviso) {
+    if (excede.length) {
+      dimAviso.style.display = 'block';
+      dimAviso.style.background = '#fef2f2'; dimAviso.style.border = '1px solid #fecaca'; dimAviso.style.color = '#b91c1c';
+      dimAviso.innerHTML = '🚫 <b>Supera el permiso 4162 (requiere permiso especial):</b><br>' + excede.join('<br>');
+    } else if (chequeos.some(c => c[1] !== null)) {
+      dimAviso.style.display = 'block';
+      dimAviso.style.background = '#f0fdf4'; dimAviso.style.border = '1px solid #bbf7d0'; dimAviso.style.color = '#15803d';
+      dimAviso.innerHTML = '✅ Dentro de los topes del permiso 4162.';
+    } else {
+      dimAviso.style.display = 'none';
+    }
+  }
+
+  // 2) Placas asignadas fuera del permiso (útil para subcontratados)
+  const placas = [];
+  _cosiEquipos.forEach(x => { if (x.tracto_placa) placas.push(x.tracto_placa); if (x.trailer_placa) placas.push(x.trailer_placa); });
+  const fuera = [...new Set(placas.map(_osiNorm))].filter(p => p && !OSI_PLACAS_4162.has(p));
+  const placaAviso = g('cosiPlacaAviso');
+  if (placaAviso) {
+    if (fuera.length) {
+      placaAviso.style.display = 'block';
+      placaAviso.style.background = '#fffbeb'; placaAviso.style.border = '1px solid #fde68a'; placaAviso.style.color = '#92400e';
+      placaAviso.innerHTML = '⚠️ <b>Placa(s) NO listada(s) en el permiso 4162:</b> ' + fuera.join(', ') +
+        '.<br>Si es subcontratado, debe ir con manifiesto de carga a nombre de BOOM.';
+    } else {
+      placaAviso.style.display = 'none';
+    }
+  }
 }
 
 function cerrarCrearOSI() {
@@ -7689,6 +7769,11 @@ async function guardarCrearOSI() {
     req_hse: chk('cosiReqHSE'),
     req_otro: v('cosiReqOtro'),
     escoltas: v('cosiEscoltas'),
+    dim_ancho: v('cosiDimAncho'),
+    dim_alto: v('cosiDimAlto'),
+    dim_largo: v('cosiDimLargo'),
+    dim_voladizo: v('cosiDimVoladizo'),
+    dim_peso: v('cosiDimPeso'),
     valor: parseInt(v('cosiValor')) || 0,
     observaciones: v('cosiObs')
   };
