@@ -4141,7 +4141,11 @@ function filterControl() {
   const comercial = document.getElementById('fComercial').value;
 
   controlFiltered = allOfertas.filter(o => {
-    if (buscar && !`${o.num} ${o.cliente} ${o.general}`.toLowerCase().includes(buscar)) return false;
+    if (buscar) {
+      const _h = `${o.num} ${o.cliente} ${o.general}`.toLowerCase();
+      // Tolerante a guiones/espacios: "26-1014" también encuentra "261014".
+      if (!_h.includes(buscar) && !_h.replace(/[-\s]/g,'').includes(buscar.replace(/[-\s]/g,''))) return false;
+    }
     if (mes && o.mes !== mes) return false;
     if (unidad && (o.unidad||'') !== unidad) return false;
     if (respuesta && (o.respuesta||'') !== respuesta) return false;
@@ -4424,7 +4428,10 @@ function filterAprobadas() {
   const aprobadas = allOfertas.filter(o => {
     if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return false;
     if (esCancelado(o.seguimiento) && !esCancelado(seguimiento)) return false;
-    if (buscar && !`${o.num} ${o.cliente}`.toLowerCase().includes(buscar)) return false;
+    if (buscar) {
+      const _h = `${o.num} ${o.cliente}`.toLowerCase();
+      if (!_h.includes(buscar) && !_h.replace(/[-\s]/g,'').includes(buscar.replace(/[-\s]/g,''))) return false;
+    }
     if (mes && o.mes !== mes) return false;
     if (seguimiento && (o.seguimiento||'') !== seguimiento) return false;
     if (facturacion === 'facturada'   && !o.no_factura) return false;
@@ -7435,10 +7442,12 @@ function renderAceptadas() {
   const countEl = document.getElementById('aceptadasCount');
   if (!tbody) return;
   const q = (document.getElementById('aceptadasBuscar')?.value || '').trim().toLowerCase();
+  const qn = q.replace(/[-\s]/g,'');
   const lista = q
-    ? aceptadasOps.filter(o =>
-        (o.cliente || '').toLowerCase().includes(q) ||
-        (o.num || '').toLowerCase().includes(q))
+    ? aceptadasOps.filter(o => {
+        const _h = `${o.num || ''} ${o.cliente || ''}`.toLowerCase();
+        return _h.includes(q) || _h.replace(/[-\s]/g,'').includes(qn);
+      })
     : aceptadasOps;
   if (countEl) countEl.textContent = `${lista.length} ofertas`;
   if (!lista.length) {
