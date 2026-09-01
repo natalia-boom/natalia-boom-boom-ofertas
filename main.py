@@ -4101,6 +4101,8 @@ class OfertaVersionBody(BaseModel):
     valor: Optional[int] = 0
     moneda: Optional[str] = "COP"
     descripcion: Optional[str] = None
+    origen: Optional[str] = None           # ruta para pre-llenar la OSI
+    destino: Optional[str] = None
     forma_pago: Optional[str] = None
     tipo: Optional[str] = None
     sector: Optional[str] = None
@@ -4138,6 +4140,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
             "ref": num, "cliente": cliente, "descripcion": body.descripcion,
             "moneda": body.moneda or "COP", "modo": "ia",
             "forma_pago": body.forma_pago, "ia_html": body.html or "",
+            "origen": (body.origen or "").strip(), "destino": (body.destino or "").strip(),
         }
         nuevo_valor = int(body.valor or 0)
         with get_conn() as conn:
@@ -4674,8 +4677,27 @@ def get_notificaciones(request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM notificaciones ORDER BY created_at DESC LIMIT 100")
-            return fetchall(cur)
+            cur.execute("""
+                SELECT n.*, o.pdf_data AS _pdf, o.descripcion AS _desc
+                FROM notificaciones n
+                LEFT JOIN ofertas o ON o.id = n.oferta_id
+                ORDER BY n.created_at DESC LIMIT 100
+            """)
+            rows = fetchall(cur)
+        # La ruta (origen → destino) vive en el pdf_data de la oferta IA.
+        for r in rows:
+            pdf = r.pop("_pdf", None)
+            desc = r.pop("_desc", None)
+            if isinstance(pdf, str):
+                try: pdf = json.loads(pdf)
+                except Exception: pdf = {}
+            pdf = pdf or {}
+            if not r.get("origen"):
+                r["origen"] = (pdf.get("origen") or "").strip()
+            if not r.get("destino"):
+                r["destino"] = (pdf.get("destino") or "").strip()
+            r["descripcion"] = (pdf.get("descripcion") or desc or "").strip()
+        return rows
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -4833,6 +4855,7 @@ class CrearOSIBody(BaseModel):
     lider: str = ""
     tipo_operacion: str = ""
     tipo_carga: str = ""
+    tipo_carga_otro: str = ""
     especificacion: str = ""
     origen: str = ""
     destino: str = ""
@@ -4912,6 +4935,7 @@ def crear_osi(body: CrearOSIBody, request: Request):
                       "contacto_descargue": body.contacto_descargue_det,
                       "tipo_operacion": body.tipo_operacion,
                       "tipo_carga": body.tipo_carga,
+                      "tipo_carga_otro": body.tipo_carga_otro,
                       "equipos_asignados": body.equipos_asignados,
                       "operadores": body.operadores,
                       "auxiliares": body.auxiliares,
@@ -4946,7 +4970,7 @@ def osi_prefill(oferta_id: int, request: Request):
             cur.execute("SELECT realizada, tipo, pdf_data FROM ofertas WHERE id=%s", (oferta_id,))
             row = fetchone(cur)
         if not row:
-            return {"solicitante": "", "tipo": "", "equipo": ""}
+            return {"solicitante": "", "tipo": "", "equipo": "", "origen": "", "destino": "", "descripcion": ""}
         pdf = row.get("pdf_data")
         if isinstance(pdf, str):
             try: pdf = json.loads(pdf)
@@ -4957,6 +4981,9 @@ def osi_prefill(oferta_id: int, request: Request):
             "solicitante": row.get("realizada") or "",
             "tipo": row.get("tipo") or "",
             "equipo": equipo,
+            "origen": (pdf.get("origen") or "").strip(),
+            "destino": (pdf.get("destino") or "").strip(),
+            "descripcion": (pdf.get("descripcion") or "").strip(),
         }
     except Exception as e:
         raise HTTPException(500, str(e))

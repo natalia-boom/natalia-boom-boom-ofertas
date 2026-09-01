@@ -2263,6 +2263,16 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               </select>
             </div>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+            <div class="form-group">
+              <label>Origen <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
+              <input id="iaOrigen" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de cargue">
+            </div>
+            <div class="form-group">
+              <label>Destino <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
+              <input id="iaDestino" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de descargue">
+            </div>
+          </div>
           <div class="form-group" style="margin-top:10px;">
             <label>Seguimiento</label>
             <textarea id="iaSeguimiento" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Notas de seguimiento"></textarea>
@@ -2744,6 +2754,9 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">ORIGEN</label><input id="cosiOrigen" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
           <div><label style="font-size:11px;font-weight:700;color:#64748b;">DESTINO</label><input id="cosiDestino" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         </div>
+        <div id="cosiRefDescWrap" style="display:none;margin-top:10px;font-size:12px;color:#15803d;background:#fff;border:1px dashed #86efac;border-radius:6px;padding:8px 10px;line-height:1.5;">
+          <b>📄 Descripción de la oferta (referencia):</b> <span id="cosiRefDesc"></span>
+        </div>
       </div>
 
       <!-- Bloque: lo llena el líder -->
@@ -2783,12 +2796,17 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESPECIFICACIÓN DE LA CARGA</label><input id="cosiEspecificacion" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div>
           <label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE CARGA</label>
-          <select id="cosiTipoCarga" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+          <select id="cosiTipoCarga" onchange="cosiTipoCargaCambio()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
             <option value="">— Selecciona —</option>
             <option value="CARGA_GENERAL">Carga general</option>
             <option value="CONTENEDOR">Contenedor</option>
             <option value="CARGA_EXTRADIMENSIONADA">Carga extradimensionada</option>
+            <option value="OTROS">Otros</option>
           </select>
+        </div>
+        <div id="cosiTipoCargaOtroWrap" style="display:none;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;">¿CUÁL?</label>
+          <input id="cosiTipoCargaOtro" placeholder="Especifica el tipo de carga" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
         </div>
       </div>
 
@@ -6091,6 +6109,8 @@ async function iaGenerarOferta() {
     valor:      parseInt(iaMeta.valor) || 0,
     moneda:     iaMeta.moneda || 'COP',
     descripcion: iaMeta.descripcion || null,
+    origen:     (document.getElementById('iaOrigen')?.value || '').trim() || null,
+    destino:    (document.getElementById('iaDestino')?.value || '').trim() || null,
     forma_pago: document.getElementById('iaFormaPago').value || null,
     tipo:       document.getElementById('iaTipo').value || iaMeta.tipo || null,
     sector:     document.getElementById('iaSector').value || null,
@@ -7211,7 +7231,13 @@ async function cargarNotificaciones() {
       const nuevas = rN.filter(n=>!n.leida).sort(porFecha);
       const fmtFecha = (n) => n.created_at ? new Date(n.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'}) : '—';
       const fmtNum = (n) => (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
-      const fmtRuta = (n) => n.origen && n.destino ? `${n.origen} → ${n.destino}` : (n.origen || n.destino || 'Ruta por definir');
+      const fmtRuta = (n) => {
+        if (n.origen && n.destino) return `${n.origen} → ${n.destino}`;
+        if (n.origen || n.destino) return (n.origen || n.destino);
+        const d = (n.descripcion || '').trim();
+        if (d) return d.length > 90 ? d.slice(0, 90) + '…' : d;
+        return 'Ruta por definir';
+      };
       const tarjeta = (n) => `<div class="notif-card nueva">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <span class="notif-chip nueva"><span class="notif-dot"></span> NUEVA</span>
@@ -7420,12 +7446,16 @@ async function abrirCrearOSI(n) {
    'cosiCargueNombre','cosiCargueCorreo','cosiCargueCel',
    'cosiDescargueNombre','cosiDescargueCorreo','cosiDescargueCel',
    'cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
-   'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga',
+   'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga','cosiTipoCargaOtro',
    'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
    'cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+  cosiTipoCargaCambio();  // oculta el campo "¿cuál?" al abrir
   // Reinicia casillas y operadores
   if (g('cosiReqSup')) g('cosiReqSup').checked = false;
   if (g('cosiReqHSE')) g('cosiReqHSE').checked = false;
+  // Referencia de descripción de la oferta (se llena desde el prefill)
+  if (g('cosiRefDescWrap')) g('cosiRefDescWrap').style.display = 'none';
+  if (g('cosiRefDesc')) g('cosiRefDesc').textContent = '';
   _cosiOperadores = [];
   cosiRenderOperadores();
 
@@ -7448,6 +7478,14 @@ async function abrirCrearOSI(n) {
           if (t.indexOf('MIXT') >= 0) g('cosiTipoOp').value = 'MIXTO';
           else if (t.indexOf('SERV') >= 0) g('cosiTipoOp').value = 'SERVICIO';
           else if (t.indexOf('TRANS') >= 0) g('cosiTipoOp').value = 'TRANSPORTE';
+        }
+        // 1B: origen/destino guardados en la oferta IA (si existen)
+        if (p.origen && !g('cosiOrigen').value)  g('cosiOrigen').value  = p.origen;
+        if (p.destino && !g('cosiDestino').value) g('cosiDestino').value = p.destino;
+        // 1A: descripción de la oferta como referencia (la ruta suele ir ahí)
+        if (p.descripcion) {
+          if (g('cosiRefDesc')) g('cosiRefDesc').textContent = p.descripcion;
+          if (g('cosiRefDescWrap')) g('cosiRefDescWrap').style.display = 'block';
         }
         prefillEquipo = p.equipo || '';
       }
@@ -7604,6 +7642,14 @@ function cosiChequeoChoque() {
   aviso.innerHTML = '⚠️ ' + msgs.join('<br>⚠️ ');
 }
 
+// Muestra el campo "¿cuál?" solo cuando el tipo de carga es "Otros"
+function cosiTipoCargaCambio() {
+  const g = id => document.getElementById(id);
+  const es = g('cosiTipoCarga') && g('cosiTipoCarga').value === 'OTROS';
+  if (g('cosiTipoCargaOtroWrap')) g('cosiTipoCargaOtroWrap').style.display = es ? '' : 'none';
+  if (!es && g('cosiTipoCargaOtro')) g('cosiTipoCargaOtro').value = '';
+}
+
 function cerrarCrearOSI() {
   document.getElementById('modalCrearOSI').style.display = 'none';
 }
@@ -7624,6 +7670,7 @@ async function guardarCrearOSI() {
     lider: v('cosiLider'),
     tipo_operacion: v('cosiTipoOp'),
     tipo_carga: v('cosiTipoCarga'),
+    tipo_carga_otro: v('cosiTipoCargaOtro'),
     especificacion: v('cosiEspecificacion'),
     origen: v('cosiOrigen'),
     destino: v('cosiDestino'),
