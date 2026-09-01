@@ -2259,6 +2259,11 @@ app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
 _AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+# Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
+# 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
+# OSI, agregar equipos, atender alertas); en todo lo demás (ofertas, etc.) sigue
+# siendo de solo lectura.
+_OPERACIONES_WRITE_PREFIXES = ("/api/osi", "/api/equipos", "/api/notificaciones")
 
 
 @app.middleware("http")
@@ -2282,7 +2287,14 @@ async def auth_middleware(request: Request, call_next):
     request.state.user = user
 
     if user["rol"] == "viewer" and request.method in _WRITE_METHODS:
-        return JSONResponse({"detail": "Acceso de solo lectura"}, status_code=403)
+        # Excepción: un viewer con el módulo 'operaciones' puede editar SÓLO en
+        # las rutas de Operaciones. Fuera de ahí sigue siendo de solo lectura.
+        puede_operaciones = (
+            "operaciones" in (user.get("modulos") or [])
+            and path.startswith(_OPERACIONES_WRITE_PREFIXES)
+        )
+        if not puede_operaciones:
+            return JSONResponse({"detail": "Acceso de solo lectura"}, status_code=403)
 
     if path.startswith("/api/usuarios") and request.method in _WRITE_METHODS and user["rol"] != "admin":
         return JSONResponse({"detail": "Solo administradores pueden gestionar usuarios"}, status_code=403)
