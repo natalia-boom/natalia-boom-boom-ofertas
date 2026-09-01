@@ -2734,7 +2734,9 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             <select id="cosiTipoOp" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
               <option value="">— Selecciona —</option>
               <option value="TRANSPORTE">Transporte</option>
+              <option value="IZAJE">Izaje</option>
               <option value="SERVICIO">Servicio</option>
+              <option value="ALQUILER">Alquiler</option>
               <option value="MIXTO">Mixto</option>
             </select>
           </div>
@@ -2748,31 +2750,94 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <div style="font-size:11px;font-weight:800;color:var(--petrol);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✍️ Información del líder / operación</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">LÍDER DE PROYECTO</label><input id="cosiLider" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO PARA REPORTE</label><input id="cosiContactoReporte" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE CARGUE</label><input id="cosiContactoCargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONTACTO DE DESCARGUE</label><input id="cosiContactoDescargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div></div>
+        <div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef1f4;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px;">CONTACTO PARA REPORTE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <input id="cosiReporteNombre" placeholder="Nombre" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiReporteCorreo" placeholder="Correo" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiReporteCel" placeholder="Celular" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+          </div>
+        </div>
+        <div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef1f4;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px;">CONTACTO DE CARGUE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <input id="cosiCargueNombre" placeholder="Nombre" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiCargueCorreo" placeholder="Correo" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiCargueCel" placeholder="Celular" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+          </div>
+        </div>
+        <div style="grid-column:1/-1;background:#f8fafc;border:1px solid #eef1f4;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px;">CONTACTO DE DESCARGUE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <input id="cosiDescargueNombre" placeholder="Nombre" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiDescargueCorreo" placeholder="Correo" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <input id="cosiDescargueCel" placeholder="Celular" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+          </div>
+        </div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">LUGAR DE CARGUE</label><input id="cosiLugarCargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">LUGAR DE DESCARGUE</label><input id="cosiLugarDescargue" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA INICIO</label><input id="cosiFechaInicio" type="date" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA INICIO</label><input id="cosiFechaInicio" type="date" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">HORA SERVICIO</label><input id="cosiHora" type="time" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA FINAL ESTIMADA</label><input id="cosiFechaFinal" type="date" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA FINAL ESTIMADA</label><input id="cosiFechaFinal" type="date" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESPECIFICACIÓN DE LA CARGA</label><input id="cosiEspecificacion" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE CARGA</label>
+          <select id="cosiTipoCarga" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            <option value="">— Selecciona —</option>
+            <option value="CARGA_GENERAL">Carga general</option>
+            <option value="CONTENEDOR">Contenedor</option>
+            <option value="CARGA_EXTRADIMENSIONADA">Carga extradimensionada</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Bloque: asignación de equipo (jala del catálogo Equipos) -->
+      <!-- Bloque: asignación de equipo (jala del catálogo Equipos) — permite varios equipos por OSI -->
       <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
-        <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">🚛 Asignación de equipo</div>
+        <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">🚛 Asignación de equipo <span style="font-weight:600;text-transform:none;color:#9a3412;">(puedes agregar varios)</span></div>
         <div id="cosiEquipoInfo" style="font-size:11.5px;color:#9a3412;margin-bottom:10px;font-style:italic;"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
           <div>
-            <label style="font-size:11px;font-weight:700;color:#64748b;">EQUIPO (del catálogo)</label>
-            <select id="cosiEquipoSel" onchange="cosiEquipoElegido()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
-              <option value="">— Selecciona un equipo —</option>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">TRACTOCAMIÓN (placa)</label>
+            <select id="cosiTracto" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <option value="">— Selecciona —</option>
             </select>
           </div>
-          <div><label style="font-size:11px;font-weight:700;color:#64748b;">PLACA</label><input id="cosiPlaca" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;text-transform:uppercase;"></div>
-          <div><label style="font-size:11px;font-weight:700;color:#64748b;">CONDUCTOR</label><input id="cosiConductor" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
-          <div><label style="font-size:11px;font-weight:700;color:#64748b;">REQUERIMIENTOS ESPECIALES / ESCOLTAS</label><input id="cosiRequerimientos" placeholder="(mañana: automático por resolución)" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">TRAILER (placa)</label>
+            <select id="cosiTrailer" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <option value="">— Selecciona —</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">OTRAS CONFIGURACIONES</label>
+            <input id="cosiOtrasConfig" placeholder="Ej: modular 6 líneas, dolly, torre…" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+          </div>
+          <button type="button" onclick="cosiAgregarEquipo()" style="background:#c2410c;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">➕ Agregar</button>
+        </div>
+        <div id="cosiEquiposLista" style="margin-top:10px;"></div>
+        <div id="cosiChoqueAviso" style="display:none;margin-top:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;color:#92400e;line-height:1.5;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">OPERADORES <span style="font-weight:600;color:#94a3b8;">(puedes agregar varios)</span></label>
+            <div style="display:flex;gap:8px;">
+              <input id="cosiOperadorInput" placeholder="Nombre del operador" onkeydown="if(event.key==='Enter'){event.preventDefault();cosiAgregarOperador();}" style="flex:1;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+              <button type="button" onclick="cosiAgregarOperador()" style="background:#64748b;color:#fff;border:none;border-radius:6px;padding:0 14px;font-size:14px;font-weight:700;cursor:pointer;">➕</button>
+            </div>
+            <div id="cosiOperadoresLista" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;"></div>
+          </div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">AUXILIARES</label><input id="cosiAuxiliares" placeholder="Nombres de auxiliares" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;">REQUERIMIENTOS ESPECIALES</label>
+            <div style="display:flex;gap:16px;align-items:center;margin-top:5px;flex-wrap:wrap;">
+              <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqSup"> Sup. de operación</label>
+              <label style="font-size:13px;font-weight:500;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="cosiReqHSE"> HSE</label>
+              <input id="cosiReqOtro" placeholder="Otro…" style="flex:1;min-width:90px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
+            </div>
+          </div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESCOLTAS</label><input id="cosiEscoltas" placeholder="(mañana: automático por resolución)" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         </div>
       </div>
 
@@ -7247,6 +7312,7 @@ function renderProgresoLideres(rO) {
 }
 
 function renderOSI(rO) {
+  _osiTodas = Array.isArray(rO) ? rO : [];   // se guarda para el chequeo de choques de fechas
   const osiTbody = document.getElementById('osiBody');
   if (!osiTbody) return;
   rO = Array.isArray(rO) ? rO : [];
@@ -7350,10 +7416,18 @@ async function abrirCrearOSI(n) {
   const numFmt = (n.oferta_num && String(n.oferta_num).length===6) ? '26-'+String(n.oferta_num).slice(2) : (n.oferta_num||'—');
   g('osiOfertaPrev').textContent = numFmt;
   // Limpia campos del líder
-  ['cosiLider','cosiContactoReporte','cosiContactoCargue',
-   'cosiContactoDescargue','cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
-   'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiPlaca','cosiConductor',
-   'cosiRequerimientos','cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+  ['cosiLider','cosiReporteNombre','cosiReporteCorreo','cosiReporteCel',
+   'cosiCargueNombre','cosiCargueCorreo','cosiCargueCel',
+   'cosiDescargueNombre','cosiDescargueCorreo','cosiDescargueCel',
+   'cosiLugarCargue','cosiLugarDescargue','cosiFechaInicio',
+   'cosiHora','cosiFechaFinal','cosiEspecificacion','cosiTipoCarga',
+   'cosiOtrasConfig','cosiOperadorInput','cosiAuxiliares','cosiReqOtro','cosiEscoltas',
+   'cosiObs'].forEach(id => { if (g(id)) g(id).value=''; });
+  // Reinicia casillas y operadores
+  if (g('cosiReqSup')) g('cosiReqSup').checked = false;
+  if (g('cosiReqHSE')) g('cosiReqHSE').checked = false;
+  _cosiOperadores = [];
+  cosiRenderOperadores();
 
   // Carga el próximo número O26XXX
   try {
@@ -7380,25 +7454,154 @@ async function abrirCrearOSI(n) {
     } catch(e){}
   }
 
-  // Llena el desplegable de equipos desde el catálogo
+  // Llena los desplegables de tractocamión y trailer desde el catálogo Equipos
   if (!_equipos.length) { try { const re=await fetch('/api/equipos'); _equipos = re.ok?await re.json():[]; } catch(e){ _equipos=[]; } }
-  const sel = g('cosiEquipoSel');
-  const _eqIdent = e => [e.codigo, e.placa].filter(Boolean).join(' / ') || '(sin id)';
-  const _eqDesc  = e => [e.clase, e.config].filter(Boolean).join(' ') || e.tipo || '';
-  sel.innerHTML = '<option value="">— Selecciona un equipo —</option>' +
-    _equipos.map(e => `<option value="${e.id}">${_eqIdent(e)} · ${_eqDesc(e)} ${(e.propiedad||'')==='subcontrato'?'(Subc.)':''}</option>`).join('');
+  const _cat = e => String(e.categoria||'').toUpperCase();
+  const cabezotes = _equipos.filter(e => _cat(e) === 'CABEZOTE');
+  const trailers  = _equipos.filter(e => ['CAMA_ALTA','CAMA_BAJA','SEMI','MODULAR'].indexOf(_cat(e)) >= 0);
+  const _opt = (e, extra) => `<option value="${e.id}">${_cosiPlaca(e)}${extra?' · '+extra:''}${(e.propiedad||'')==='subcontrato'?' (Subc.)':''}</option>`;
+  g('cosiTracto').innerHTML  = '<option value="">— Selecciona —</option>' +
+    cabezotes.map(e => _opt(e, [e.marca, e.clase].filter(Boolean).join(' '))).join('');
+  g('cosiTrailer').innerHTML = '<option value="">— Selecciona —</option>' +
+    trailers.map(e => _opt(e, [e.clase, e.config].filter(Boolean).join(' '))).join('');
+  _cosiEquipos = [];
+  cosiRenderEquipos();
+  cosiChequeoChoque();   // limpia cualquier aviso de choque previo
   if (prefillEquipo) g('cosiEquipoInfo') && (g('cosiEquipoInfo').textContent = '📦 Equipo ofertado: ' + prefillEquipo);
 
   g('modalCrearOSI').style.display = 'flex';
 }
 
-function cosiEquipoElegido() {
-  const id = document.getElementById('cosiEquipoSel').value;
-  const eq = _equipos.find(e => String(e.id) === String(id));
-  if (eq) {
-    document.getElementById('cosiPlaca').value = eq.placa || '';
-    document.getElementById('cosiConductor').value = eq.conductor || '';
+// Placa "real" del equipo: cabezotes la traen en 'codigo'; trailers en 'placa'.
+function _cosiPlaca(e) { return e ? ((e.placa || e.codigo || '').trim() || '(sin placa)') : ''; }
+
+function cosiAgregarEquipo() {
+  const g = id => document.getElementById(id);
+  const trId = g('cosiTracto').value, tlId = g('cosiTrailer').value;
+  const otras = (g('cosiOtrasConfig').value || '').trim();
+  if (!trId && !tlId && !otras) { showToast('Elige tractocamión, trailer u otra configuración', 'error'); return; }
+  const tr = _equipos.find(e => String(e.id) === String(trId));
+  const tl = _equipos.find(e => String(e.id) === String(tlId));
+  _cosiEquipos.push({
+    tracto_id: trId || '', tracto_placa: tr ? _cosiPlaca(tr) : '',
+    trailer_id: tlId || '', trailer_placa: tl ? _cosiPlaca(tl) : '',
+    otras: otras
+  });
+  // Si el tracto trae conductor y no está en la lista, lo sugiere como operador
+  if (tr && tr.conductor && _cosiOperadores.indexOf(tr.conductor) < 0) { _cosiOperadores.push(tr.conductor); cosiRenderOperadores(); }
+  g('cosiTracto').value = ''; g('cosiTrailer').value = ''; g('cosiOtrasConfig').value = '';
+  cosiRenderEquipos();
+  cosiChequeoChoque();
+}
+
+function cosiQuitarEquipo(i) { _cosiEquipos.splice(i, 1); cosiRenderEquipos(); cosiChequeoChoque(); }
+
+function cosiRenderEquipos() {
+  const cont = document.getElementById('cosiEquiposLista');
+  if (!cont) return;
+  if (!_cosiEquipos.length) {
+    cont.innerHTML = '<div style="font-size:11.5px;color:#94a3b8;font-style:italic;">Sin equipos agregados aún.</div>';
+    return;
   }
+  cont.innerHTML = _cosiEquipos.map((x, i) => {
+    const p = [];
+    if (x.tracto_placa)  p.push('🚚 ' + x.tracto_placa);
+    if (x.trailer_placa) p.push('🛻 ' + x.trailer_placa);
+    if (x.otras)         p.push('⚙️ ' + x.otras);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #ffedd5;border-radius:6px;padding:6px 10px;margin-bottom:5px;font-size:12px;">
+      <span>${p.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}</span>
+      <button type="button" onclick="cosiQuitarEquipo(${i})" title="Quitar" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px;line-height:1;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ── Operadores: varios por OSI (chips) ──
+function cosiAgregarOperador() {
+  const inp = document.getElementById('cosiOperadorInput');
+  const nom = (inp.value || '').trim();
+  if (!nom) return;
+  if (_cosiOperadores.indexOf(nom) < 0) _cosiOperadores.push(nom);
+  inp.value = '';
+  inp.focus();
+  cosiRenderOperadores();
+}
+function cosiQuitarOperador(i) { _cosiOperadores.splice(i, 1); cosiRenderOperadores(); }
+function cosiRenderOperadores() {
+  const cont = document.getElementById('cosiOperadoresLista');
+  if (!cont) return;
+  cont.innerHTML = _cosiOperadores.map((nom, i) =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;background:#eef2f7;border:1px solid #dde3ea;border-radius:14px;padding:3px 10px;font-size:12px;color:#334155;">
+       ${nom}
+       <button type="button" onclick="cosiQuitarOperador(${i})" title="Quitar" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;line-height:1;padding:0;">✕</button>
+     </span>`).join('');
+}
+
+// Resumen de texto de los equipos asignados (para columna 'equipo' de la tabla OSI)
+function cosiEquipoResumen() {
+  return _cosiEquipos.map(x => {
+    const p = [];
+    if (x.tracto_placa)  p.push(x.tracto_placa);
+    if (x.trailer_placa) p.push('+ ' + x.trailer_placa);
+    if (x.otras)         p.push('(' + x.otras + ')');
+    return p.join(' ');
+  }).join('  |  ');
+}
+
+// ── Choque de fechas: avisa si una placa ya está en otra OSI activa con fechas que se cruzan ──
+// ¿se cruzan [aIni,aFin] y [bIni,bFin]? Fechas 'YYYY-MM-DD'; fin vacío = mismo día del inicio.
+function _cosiCruza(aIni, aFin, bIni, bFin) {
+  if (!aIni || !bIni) return false;
+  const aF = aFin || aIni, bF = bFin || bIni;
+  return aIni <= bF && bIni <= aF;
+}
+function _cosiPlacasDeOSI(o) {
+  const out = [];
+  (o.equipos_asignados || []).forEach(x => {
+    if (x.tracto_placa)  out.push(String(x.tracto_placa).toUpperCase());
+    if (x.trailer_placa) out.push(String(x.trailer_placa).toUpperCase());
+  });
+  // Compatibilidad con OSIs viejas que solo traen texto en 'placa'
+  if (o.placa) String(o.placa).split(/[,/]/).forEach(p => { p = p.trim().toUpperCase(); if (p) out.push(p); });
+  return out;
+}
+function _cosiChoquesDePlaca(placa, ini, fin) {
+  placa = String(placa || '').toUpperCase().trim();
+  if (!placa || !ini) return [];
+  return (_osiTodas || []).filter(o => {
+    const est = String(o.estado || '').toUpperCase();
+    if (est === 'COMPLETADO' || est === 'CANCELADO') return false;
+    if (_cosiPlacasDeOSI(o).indexOf(placa) < 0) return false;
+    const oIni = String(o.fecha_despacho || o.fecha || '').slice(0, 10);
+    const oFin = String(o.fecha_final || '').slice(0, 10);
+    return _cosiCruza(ini, fin, oIni, oFin);
+  });
+}
+function cosiChequeoChoque() {
+  const g = id => document.getElementById(id);
+  const aviso = g('cosiChoqueAviso');
+  if (!aviso) return;
+  const ini = (g('cosiFechaInicio').value || '').trim();
+  const fin = (g('cosiFechaFinal').value || '').trim();
+  // Placas candidatas: las de los dos selectores + las ya agregadas a la lista
+  const cand = [];
+  const tr = _equipos.find(e => String(e.id) === String(g('cosiTracto').value));
+  const tl = _equipos.find(e => String(e.id) === String(g('cosiTrailer').value));
+  if (tr) cand.push(_cosiPlaca(tr));
+  if (tl) cand.push(_cosiPlaca(tl));
+  _cosiEquipos.forEach(x => { if (x.tracto_placa) cand.push(x.tracto_placa); if (x.trailer_placa) cand.push(x.trailer_placa); });
+  const vistos = {}, msgs = [];
+  cand.forEach(p => {
+    const pu = String(p || '').toUpperCase().trim();
+    if (!pu || vistos[pu]) return;
+    vistos[pu] = 1;
+    _cosiChoquesDePlaca(pu, ini, fin).forEach(o => {
+      const rango = [String(o.fecha_despacho || o.fecha || '').slice(0, 10), String(o.fecha_final || '').slice(0, 10)].filter(Boolean).join(' a ');
+      msgs.push(pu + ' ya está en la OSI ' + o.numero_osi + (rango ? ' (' + rango + ')' : ''));
+    });
+  });
+  if (!ini || !msgs.length) { aviso.style.display = 'none'; aviso.innerHTML = ''; return; }
+  aviso.style.display = 'block';
+  aviso.innerHTML = '⚠️ ' + msgs.join('<br>⚠️ ');
 }
 
 function cerrarCrearOSI() {
@@ -7407,16 +7610,20 @@ function cerrarCrearOSI() {
 
 async function guardarCrearOSI() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const chk = (id) => !!document.getElementById(id)?.checked;
+  const contacto = (pre) => ({ nombre: v(pre+'Nombre'), correo: v(pre+'Correo'), cel: v(pre+'Cel') });
   const body = {
     oferta_id: parseInt(v('cosiOfertaId')) || 0,
     oferta_num: v('cosiOfertaNum'),
     cliente: v('cosiCliente'),
     nit: '',
     solicitante: v('cosiSolicitante'),
-    contacto_cargue: v('cosiContactoCargue'),
-    contacto_descargue: v('cosiContactoDescargue'),
+    contacto_reporte_det: contacto('cosiReporte'),
+    contacto_cargue_det: contacto('cosiCargue'),
+    contacto_descargue_det: contacto('cosiDescargue'),
     lider: v('cosiLider'),
     tipo_operacion: v('cosiTipoOp'),
+    tipo_carga: v('cosiTipoCarga'),
     especificacion: v('cosiEspecificacion'),
     origen: v('cosiOrigen'),
     destino: v('cosiDestino'),
@@ -7425,11 +7632,16 @@ async function guardarCrearOSI() {
     fecha_inicio: v('cosiFechaInicio'),
     hora_servicio: v('cosiHora'),
     fecha_final: v('cosiFechaFinal'),
-    equipo: v('cosiEquipoSel') ? (document.querySelector('#cosiEquipoSel option:checked')?.textContent||'').trim() : '',
-    conductor: v('cosiConductor'),
-    placa: v('cosiPlaca'),
-    requerimientos: v('cosiRequerimientos'),
-    contacto_reporte: v('cosiContactoReporte'),
+    equipo: cosiEquipoResumen(),
+    equipos_asignados: _cosiEquipos,
+    operadores: _cosiOperadores,
+    conductor: _cosiOperadores.join(', '),
+    auxiliares: v('cosiAuxiliares'),
+    placa: _cosiEquipos.map(x => [x.tracto_placa, x.trailer_placa].filter(Boolean).join('/')).filter(Boolean).join(', '),
+    req_sup: chk('cosiReqSup'),
+    req_hse: chk('cosiReqHSE'),
+    req_otro: v('cosiReqOtro'),
+    escoltas: v('cosiEscoltas'),
     valor: parseInt(v('cosiValor')) || 0,
     observaciones: v('cosiObs')
   };
@@ -7451,6 +7663,9 @@ async function guardarCrearOSI() {
 // 🚛 EQUIPOS — catálogo dentro del módulo de Operaciones
 // ══════════════════════════════════════════════════════════════════════════
 let _equipos = [];
+let _osiTodas = [];      // últimas OSIs cargadas (para avisar de choques de fechas)
+let _cosiEquipos = [];   // equipos asignados a la OSI que se está creando (varios)
+let _cosiOperadores = []; // operadores asignados a la OSI que se está creando (varios)
 let _eqFiltro = 'todos';
 let _eqCat = 'todas';
 

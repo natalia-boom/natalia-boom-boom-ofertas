@@ -4827,10 +4827,12 @@ class CrearOSIBody(BaseModel):
     cliente: str = ""
     nit: str = ""
     solicitante: str = ""
-    contacto_cargue: str = ""
-    contacto_descargue: str = ""
+    contacto_reporte_det: dict = {}
+    contacto_cargue_det: dict = {}
+    contacto_descargue_det: dict = {}
     lider: str = ""
     tipo_operacion: str = ""
+    tipo_carga: str = ""
     especificacion: str = ""
     origen: str = ""
     destino: str = ""
@@ -4840,10 +4842,15 @@ class CrearOSIBody(BaseModel):
     hora_servicio: str = ""
     fecha_final: str = ""
     equipo: str = ""
+    equipos_asignados: list = []
+    operadores: list = []
     conductor: str = ""
+    auxiliares: str = ""
     placa: str = ""
-    requerimientos: str = ""
-    contacto_reporte: str = ""
+    req_sup: bool = False
+    req_hse: bool = False
+    req_otro: str = ""
+    escoltas: str = ""
     valor: int = 0
     observaciones: str = ""
 
@@ -4900,16 +4907,23 @@ def crear_osi(body: CrearOSIBody, request: Request):
                   # detallan columnas propias si hace falta).
                   json.dumps({
                       "nit": body.nit, "solicitante": body.solicitante,
-                      "contacto_cargue": body.contacto_cargue,
-                      "contacto_descargue": body.contacto_descargue,
+                      "contacto_reporte": body.contacto_reporte_det,
+                      "contacto_cargue": body.contacto_cargue_det,
+                      "contacto_descargue": body.contacto_descargue_det,
                       "tipo_operacion": body.tipo_operacion,
+                      "tipo_carga": body.tipo_carga,
+                      "equipos_asignados": body.equipos_asignados,
+                      "operadores": body.operadores,
+                      "auxiliares": body.auxiliares,
                       "especificacion": body.especificacion,
                       "lugar_cargue": body.lugar_cargue,
                       "lugar_descargue": body.lugar_descargue,
                       "hora_servicio": body.hora_servicio,
                       "fecha_final": body.fecha_final,
-                      "requerimientos": body.requerimientos,
-                      "contacto_reporte": body.contacto_reporte,
+                      "req_sup": body.req_sup,
+                      "req_hse": body.req_hse,
+                      "req_otro": body.req_otro,
+                      "escoltas": body.escoltas,
                       "observaciones": body.observaciones,
                   }, ensure_ascii=False)))
             new_id = fetchone(cur)["id"]
@@ -5029,6 +5043,18 @@ def get_osi(request: Request):
                 except Exception: det = {}
             det = det or {}
             r["tipo_operacion"] = det.get("tipo_operacion") or ""
+            r["tipo_carga"] = det.get("tipo_carga") or ""
+            r["equipos_asignados"] = det.get("equipos_asignados") or []
+            r["operadores"] = det.get("operadores") or []
+            r["auxiliares"] = det.get("auxiliares") or ""
+            r["escoltas"] = det.get("escoltas") or ""
+            r["req_sup"] = bool(det.get("req_sup"))
+            r["req_hse"] = bool(det.get("req_hse"))
+            r["req_otro"] = det.get("req_otro") or ""
+            r["contacto_reporte"] = det.get("contacto_reporte") or {}
+            r["contacto_cargue"] = det.get("contacto_cargue") or {}
+            r["contacto_descargue"] = det.get("contacto_descargue") or {}
+            r["fecha_final"] = det.get("fecha_final") or ""
             r["especificacion"] = det.get("especificacion") or ""
             r["solicitante"] = det.get("solicitante") or ""
         return rows
