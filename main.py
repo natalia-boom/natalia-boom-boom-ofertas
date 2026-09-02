@@ -5337,14 +5337,19 @@ def _vulcano_aplicar_a_ofertas(cur):
     """)
     por_of = {}   # num26 -> {"suma": int, "facturas": set, "fecha": date|None}
     for oref, factura, subtotal, fecha in cur.fetchall():
-        for m in re.findall(r"26-?(\d{3,4})", str(oref)):
-            num = "26" + m.zfill(4)
-            d = por_of.setdefault(num, {"suma": 0, "facturas": set(), "fecha": None})
-            d["suma"] += int(subtotal or 0)
-            if factura:
-                d["facturas"].add(str(factura).strip())
-            if fecha and (d["fecha"] is None or fecha > d["fecha"]):
-                d["fecha"] = fecha
+        nums = set("26" + m.zfill(4) for m in re.findall(r"26-?(\d{3,4})", str(oref)))
+        # Solo auto-atribuir facturas de UNA sola oferta. Las multi-oferta (una factura
+        # que cubre varias ofertas) NO se reparten aquí para no inflar el facturado:
+        # esas van por el detalle de la hoja "Ofertas Aprobadas" (que ya trae el split).
+        if len(nums) != 1:
+            continue
+        num = next(iter(nums))
+        d = por_of.setdefault(num, {"suma": 0, "facturas": set(), "fecha": None})
+        d["suma"] += int(subtotal or 0)
+        if factura:
+            d["facturas"].add(str(factura).strip())
+        if fecha and (d["fecha"] is None or fecha > d["fecha"]):
+            d["fecha"] = fecha
 
     n_fact = n_cierre = 0
     for num, d in por_of.items():
