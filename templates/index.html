@@ -4900,7 +4900,10 @@ async function importarVulcano() {
       return;
     }
     const data = await res.json();
-    showToast(`✅ Importadas ${data.leidas} facturas (${data.nuevas} nuevas)`, 'success');
+    const af = data.auto_facturado || {};
+    showToast(`✅ ${data.leidas} facturas importadas · ${af.ofertas_cerradas || 0} ofertas cerradas (Facturada), ${af.ofertas_afectadas || 0} con facturado actualizado`, 'success');
+    await loadAll();          // refresca las ofertas (facturado + cierre) en pantalla
+    filterAprobadas();
     await cargarVulcano();
     loadTopClientes();
   } catch(e) {
