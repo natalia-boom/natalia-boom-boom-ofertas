@@ -4979,33 +4979,59 @@ async function saveEdit() {
 }
 
 // ========== EXCEL EXPORT ==========
-function exportExcel(type) {
-  let rows, headers, filename, sheetName;
-  if (type === 'control') {
-    headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta'];
-    rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta]);
-    filename = 'Control_Ofertas_BOOM.xlsx';
-    sheetName = 'Control de Ofertas';
-  } else {
-    const aprobadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL'));
-    headers = ['No. Oferta','Mes','Fecha','Cliente','Comercial','Unidad','Tipo','Valor Esperado','Valor Facturado','Fecha Facturación','No. Factura','Seguimiento'];
-    rows = aprobadas.map(o => [o.num,o.mes,o.fecha,o.cliente,o.realizada,o.unidad,o.tipo,o.valor,o.valor_facturado,o.fecha_facturacion,o.no_factura,o.seguimiento||'']);
-    filename = 'Ofertas_Aprobadas_BOOM.xlsx';
-    sheetName = 'Aprobadas';
-  }
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Ancho de columnas
-  ws['!cols'] = headers.map((h, i) => {
-    const maxLen = Math.max(h.length, ...rows.map(r => String(r[i]||'').length));
-    return { wch: Math.min(maxLen + 2, 40) };
-  });
-
+// Escribe un .xlsx con una o varias hojas. Cada hoja: {name, headers, rows}.
+function _writeXlsxSheets(filename, sheets) {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  sheets.forEach(s => {
+    const ws = XLSX.utils.aoa_to_sheet([s.headers, ...s.rows]);
+    ws['!cols'] = s.headers.map((h, i) => {
+      const maxLen = Math.max(String(h).length, ...s.rows.map(r => String(r[i] != null ? r[i] : '').length), 0);
+      return { wch: Math.min(maxLen + 2, 42) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 31)); // Excel limita el nombre de hoja a 31 chars
+  });
   XLSX.writeFile(wb, filename);
   showToast('Excel exportado: ' + filename, 'success');
+}
+
+async function exportExcel(type) {
+  if (type === 'control') {
+    const headers = ['#','Mes','Fecha','N° Oferta','Realizada por','Cliente','Tipo Negocio','Valor COP','Estado','Respuesta'];
+    const rows = controlFiltered.map((o,i) => [i+1,o.mes,o.fecha,o.num,o.realizada,o.cliente,o.tipo,o.valor,o.estado,o.respuesta]);
+    _writeXlsxSheets('Control_Ofertas_BOOM.xlsx', [{name:'Control de Ofertas', headers, rows}]);
+    return;
+  }
+
+  // ── APROBADAS: exporta TODO lo que factura la empresa en hojas separadas ──
+  // Hoja 1: Ofertas aceptadas (2026, con número de oferta)
+  const aprobadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL'));
+  const hOf = ['No. Oferta','Mes','Fecha','Cliente','Comercial','Unidad','Tipo','Valor Esperado','Valor Facturado','Fecha Facturación','No. Factura','Seguimiento'];
+  const rOf = aprobadas.map(o => [o.num,o.mes,o.fecha,o.cliente,o.realizada,o.unidad,o.tipo,o.valor||0,o.valor_facturado||0,o.fecha_facturacion,o.no_factura,o.seguimiento||'']);
+  const totEsp  = rOf.reduce((s,r)=>s+(r[7]||0),0);
+  const totFact = rOf.reduce((s,r)=>s+(r[8]||0),0);
+  rOf.push(['TOTAL','','','','','','', totEsp, totFact,'','','']);
+  const sheets = [{name:'Ofertas Aprobadas', headers:hOf, rows:rOf}];
+
+  // Hojas 2 y 3: Contratos (Cerrejón, GM&M, SACYR…) y Otros (postes, adicionales…)
+  try {
+    const [contratos, otros] = await Promise.all([
+      fetch('/api/contratos').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/facturacion_cat?categoria=OTROS').then(r=>r.json()).catch(()=>[])
+    ]);
+    const hCli = ['Cliente / Contrato','Valor Facturado','N° Facturas','No. Factura','Fecha Facturación'];
+    if (Array.isArray(contratos) && contratos.length) {
+      const rC = contratos.map(c => [c.cliente, c.valor_facturado||0, c.n_facturas, c.no_factura, c.fecha_facturacion]);
+      rC.push(['TOTAL', rC.reduce((s,r)=>s+(r[1]||0),0), '', '', '']);
+      sheets.push({name:'Contratos', headers:hCli, rows:rC});
+    }
+    if (Array.isArray(otros) && otros.length) {
+      const rO = otros.map(c => [c.cliente, c.valor_facturado||0, c.n_facturas, c.no_factura, c.fecha_facturacion]);
+      rO.push(['TOTAL', rO.reduce((s,r)=>s+(r[1]||0),0), '', '', '']);
+      sheets.push({name:'Otros', headers:hCli, rows:rO});
+    }
+  } catch(e) { /* si falla la red, al menos se exportan las ofertas */ }
+
+  _writeXlsxSheets('Ofertas_Aprobadas_BOOM.xlsx', sheets);
 }
 
 // ========== DELETE OFERTA ==========
