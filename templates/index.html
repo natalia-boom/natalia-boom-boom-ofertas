@@ -157,6 +157,11 @@ h1,h2,h3,h4 { font-family: 'Barlow Condensed', sans-serif; }
 
 /* TABLE */
 .table-wrap { overflow-x: auto; border-radius: 10px; }
+/* Columnas ajustables: agarrador en el borde derecho de cada encabezado */
+table.resizable th { position: relative; }
+.col-resizer { position:absolute; top:0; right:0; width:8px; height:100%; cursor:col-resize; user-select:none; z-index:5; }
+.col-resizer:hover { background: linear-gradient(90deg, transparent, rgba(232,96,28,.45)); }
+table.resizable td { overflow:hidden; text-overflow:ellipsis; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
   background: linear-gradient(135deg, #10192e, #1B2A4A); color: #fff;
@@ -1066,7 +1071,7 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;" id="controlCount"></div>
     <div class="table-wrap">
-      <table>
+      <table class="resizable">
         <thead>
           <tr>
             <th style="width:32px">#</th>
@@ -1177,7 +1182,7 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
     </div>
     <div class="table-wrap">
-      <table>
+      <table class="resizable">
         <thead>
           <tr>
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
@@ -3668,6 +3673,41 @@ function switchTab(name) {
   if (name === 'tablero')    loadTablero();
   if (name === 'rentabilidad') initRentabilidad();
   if (name === 'proyeccion') renderProyeccion();
+  // Activa columnas ajustables cuando la tabla ya está visible (con datos).
+  setTimeout(enableColResize, 60);
+}
+
+// Columnas ajustables: arrastra el borde derecho de cada encabezado para ensanchar
+// o angostar. Se aplica una sola vez por tabla (los anchos se conservan al filtrar,
+// porque solo se re-dibuja el cuerpo, no el encabezado).
+function enableColResize() {
+  document.querySelectorAll('table.resizable').forEach(tbl => {
+    if (tbl.dataset.resizable) return;
+    const ths = tbl.querySelectorAll('thead th');
+    if (!ths.length || !tbl.offsetWidth) return;   // aún no visible: se reintenta al abrir la pestaña
+    ths.forEach(th => { th.style.width = th.offsetWidth + 'px'; });
+    tbl.style.tableLayout = 'fixed';
+    tbl.style.width = tbl.offsetWidth + 'px';
+    ths.forEach(th => {
+      const grip = document.createElement('div');
+      grip.className = 'col-resizer';
+      th.appendChild(grip);
+      grip.addEventListener('mousedown', e => {
+        e.preventDefault(); e.stopPropagation();
+        const startX = e.pageX, startW = th.offsetWidth;
+        const onMove = ev => { th.style.width = Math.max(45, startW + ev.pageX - startX) + 'px'; };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.body.style.userSelect = '';
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.body.style.userSelect = 'none';
+      });
+    });
+    tbl.dataset.resizable = '1';
+  });
 }
 
 // ========== PROYECCIÓN DE FACTURACIÓN (replica la tabla dinámica) ==========
@@ -4522,8 +4562,8 @@ function filterAprobadas() {
       <td>${o.cliente||''}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#556;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||'—'}</td>
       <td style="white-space:nowrap;font-size:11.5px;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
-      <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
-      <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor ? formatCOP(o.valor) : '—'}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
       <td style="text-align:center;white-space:nowrap;"><span title="${sem.label}" style="color:${sem.color};font-weight:600;font-size:11px;">${sem.emoji} ${sem.label}</span></td>
       <td>${o.fecha_facturacion||''}</td>
       <td>${o.no_factura||''}${badgeFact}</td>
