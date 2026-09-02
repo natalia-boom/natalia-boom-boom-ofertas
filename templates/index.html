@@ -3692,6 +3692,11 @@ function enableColResize() {
     if (tbl.dataset.resizable) return;
     const ths = tbl.querySelectorAll('thead th');
     if (!ths.length || !tbl.offsetWidth) return;   // aún no visible: se reintenta al abrir la pestaña
+    // No capturar hasta que la tabla tenga DATOS reales: si se captura con la tabla
+    // vacía, las columnas quedan del ancho del encabezado y se cortan los botones
+    // de la columna Acciones (p.ej. la descarga de PDF). Se reintenta al haber filas.
+    const primeraFila = tbl.querySelector('tbody tr');
+    if (!primeraFila || primeraFila.querySelector('.empty-state')) return;
     ths.forEach(th => { th.style.width = th.offsetWidth + 'px'; });
     tbl.style.tableLayout = 'fixed';
     tbl.style.width = tbl.offsetWidth + 'px';
