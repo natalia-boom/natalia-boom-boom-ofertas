@@ -1606,6 +1606,9 @@ def _ensure_db():
         # Fecha en que la oferta se marcó ACEPTADA. Sirve para que el módulo de
         # Aprobadas ordene lo último aceptado ARRIBA (sin cambiar el número).
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS aceptada_fecha timestamptz")
+        # Aprobacion PARCIAL: el cliente autoriza solo una parte de la oferta al notificar.
+        # valor = total cotizado ; valor_aprobado = lo realmente autorizado (<= valor).
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS valor_aprobado bigint DEFAULT NULL")
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -2323,6 +2326,7 @@ class OfertaCreate(BaseModel):
     fecha_facturacion: Optional[str] = None
     valor_facturado: Optional[int] = None
     no_factura: Optional[str] = None
+    valor_aprobado: Optional[int] = None
     pdf_data: Optional[dict] = None
 
 
@@ -2345,6 +2349,7 @@ class OfertaUpdate(BaseModel):
     fecha_facturacion: Optional[str] = None
     valor_facturado: Optional[int] = None
     no_factura: Optional[str] = None
+    valor_aprobado: Optional[int] = None
     pdf_data: Optional[dict] = None
     costo_proyecto: Optional[int] = None
 
@@ -3519,8 +3524,8 @@ def create_oferta(oferta: OfertaCreate):
                     """INSERT INTO ofertas
                        (num,mes,fecha,cliente,realizada,formalizada,unidad,tipo,sector,
                         valor,estado,respuesta,facturacion,general,seguimiento,mes_aceptado,
-                        fecha_facturacion,valor_facturado,no_factura,pdf_data)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        fecha_facturacion,valor_facturado,no_factura,valor_aprobado,pdf_data)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                        RETURNING *""",
                     (oferta.num, oferta.mes, oferta.fecha or None, oferta.cliente,
                      oferta.realizada, oferta.formalizada, oferta.unidad, oferta.tipo,
@@ -3529,6 +3534,7 @@ def create_oferta(oferta: OfertaCreate):
                      oferta.facturacion,
                      oferta.general, oferta.seguimiento, oferta.mes_aceptado,
                      oferta.fecha_facturacion or None, oferta.valor_facturado, oferta.no_factura,
+                     oferta.valor_aprobado,
                      pdf_json),
                 )
                 nueva = fetchone(cur)
@@ -3574,13 +3580,13 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
 
         # Fields tracked for history
         TRACKED = {"respuesta", "estado", "valor", "facturacion", "mes_aceptado",
-                   "seguimiento", "no_factura", "valor_facturado"}
+                   "seguimiento", "no_factura", "valor_facturado", "valor_aprobado"}
 
         with get_conn() as conn:
             cur = conn.cursor()
             # Fetch current state before update — all tracked fields
             cur.execute("SELECT estado, respuesta, valor, facturacion, mes_aceptado, "
-                        "seguimiento, no_factura, valor_facturado, num FROM ofertas WHERE id = %s",
+                        "seguimiento, no_factura, valor_facturado, valor_aprobado, num FROM ofertas WHERE id = %s",
                         (oferta_id,))
             prev = fetchone(cur)
             if prev is None:

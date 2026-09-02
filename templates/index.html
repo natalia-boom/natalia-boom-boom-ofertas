@@ -3095,8 +3095,15 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
-          <label>Valor de la Oferta (COP)</label>
-          <input type="number" id="editValor" placeholder="0" min="0">
+          <label>Valor total de la Oferta (COP)</label>
+          <input type="number" id="editValor" placeholder="0" min="0" oninput="actualizarAprobHint()">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>Valor aprobado / autorizado (COP)
+            <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— si el cliente solo autorizó una parte. Déjalo vacío si aprobó todo.</span>
+          </label>
+          <input type="number" id="editValorAprobado" placeholder="(vacío = aprobado completo)" min="0" oninput="actualizarAprobHint()">
+          <div id="editAprobHint" style="font-size:11px;color:#6d28d9;margin-top:4px;"></div>
         </div>
       </div>
     </div>
@@ -4562,7 +4569,11 @@ function filterAprobadas() {
       <td>${o.cliente||''}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#556;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||'—'}</td>
       <td style="white-space:nowrap;font-size:11.5px;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
-      <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor ? formatCOP(o.valor) : '—'}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap;">${
+        (o.valor_aprobado && o.valor_aprobado < o.valor)
+        ? `<span title="Aprobado ${formatCOP(o.valor_aprobado)} de ${formatCOP(o.valor)} total — el resto está cotizado pero sin autorizar">${formatCOP(o.valor_aprobado)} <span style="display:inline-block;background:#f3e8ff;color:#6d28d9;border:1px solid #d8b4fe;border-radius:9px;padding:0 6px;font-size:8.5px;font-weight:700;vertical-align:middle;">PARCIAL</span><br><span style="font-size:9px;color:#94a3b8;">de ${formatCOP(o.valor)}</span></span>`
+        : (o.valor ? formatCOP(o.valor) : '—')
+      }</td>
       <td>
         <select class="seg-select seg-${slugSeg(o.seguimiento)}" ${(currentUser && currentUser.rol==='viewer') ? 'disabled title="Solo lectura"' : ''} onchange="saveSeguimiento(${o.id}, this.value)">
           <option value="">— Sin estado —</option>
@@ -4938,7 +4949,23 @@ function openEdit(id) {
   document.getElementById('editRespuesta').value = o.respuesta || '';
   document.getElementById('editMesAceptado').value = o.mes_aceptado || '';
   document.getElementById('editValor').value = o.valor || '';
+  document.getElementById('editValorAprobado').value = (o.valor_aprobado != null ? o.valor_aprobado : '');
+  actualizarAprobHint();
   document.getElementById('modalOverlay').classList.add('open');
+}
+
+// Pista en vivo: muestra si la oferta queda "Parcialmente aprobada" mientras editas.
+function actualizarAprobHint() {
+  const hint = document.getElementById('editAprobHint');
+  if (!hint) return;
+  const total = parseInt(document.getElementById('editValor').value) || 0;
+  const aprob = parseInt(document.getElementById('editValorAprobado').value);
+  if (!aprob || isNaN(aprob) || aprob >= total) {
+    hint.textContent = '';
+  } else {
+    const pend = total - aprob;
+    hint.textContent = `🟣 Parcialmente aprobada: autorizado ${formatCOP(aprob)} de ${formatCOP(total)} · pendiente por autorizar ${formatCOP(pend)}`;
+  }
 }
 
 function closeModal() {
@@ -4955,10 +4982,13 @@ async function saveEdit() {
   const r  = document.getElementById('editRespuesta').value;
   const ma = document.getElementById('editMesAceptado').value;
   const v  = document.getElementById('editValor').value;
+  const va = document.getElementById('editValorAprobado').value;
 
   if (r)  payload.respuesta   = r;
   if (ma) payload.mes_aceptado = ma;
   if (v)  payload.valor       = parseInt(v);
+  // Valor aprobado: si lo dejas vacío => 0 (aprobado completo / sin parcial).
+  payload.valor_aprobado = va ? parseInt(va) : 0;
 
   try {
     const res = await fetch('/api/ofertas/' + id, {
@@ -5005,11 +5035,12 @@ async function exportExcel(type) {
   // ── APROBADAS: exporta TODO lo que factura la empresa en hojas separadas ──
   // Hoja 1: Ofertas aceptadas (2026, con número de oferta)
   const aprobadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL'));
-  const hOf = ['No. Oferta','Mes','Fecha','Cliente','Comercial','Unidad','Tipo','Valor Esperado','Valor Facturado','Fecha Facturación','No. Factura','Seguimiento'];
-  const rOf = aprobadas.map(o => [o.num,o.mes,o.fecha,o.cliente,o.realizada,o.unidad,o.tipo,o.valor||0,o.valor_facturado||0,o.fecha_facturacion,o.no_factura,o.seguimiento||'']);
-  const totEsp  = rOf.reduce((s,r)=>s+(r[7]||0),0);
-  const totFact = rOf.reduce((s,r)=>s+(r[8]||0),0);
-  rOf.push(['TOTAL','','','','','','', totEsp, totFact,'','','']);
+  const hOf = ['No. Oferta','Mes','Fecha','Cliente','Comercial','Unidad','Tipo','Valor Esperado','Valor Aprobado','Valor Facturado','Fecha Facturación','No. Factura','Seguimiento'];
+  const rOf = aprobadas.map(o => [o.num,o.mes,o.fecha,o.cliente,o.realizada,o.unidad,o.tipo,o.valor||0,(o.valor_aprobado||''),o.valor_facturado||0,o.fecha_facturacion,o.no_factura,o.seguimiento||'']);
+  const totEsp   = rOf.reduce((s,r)=>s+(r[7]||0),0);
+  const totAprob = rOf.reduce((s,r)=>s+(Number(r[8])||0),0);
+  const totFact  = rOf.reduce((s,r)=>s+(r[9]||0),0);
+  rOf.push(['TOTAL','','','','','','', totEsp, totAprob, totFact,'','','']);
   const sheets = [{name:'Ofertas Aprobadas', headers:hOf, rows:rOf}];
 
   // Hojas 2 y 3: Contratos (Cerrejón, GM&M, SACYR…) y Otros (postes, adicionales…)
