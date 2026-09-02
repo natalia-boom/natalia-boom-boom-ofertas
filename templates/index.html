@@ -1187,10 +1187,10 @@ body.rol-viewer .write-only { display:none !important; }
           <tr>
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
             <th>Descripción</th><th>Origen → Destino</th>
-            <th>Valor Esperado</th><th>Valor Facturado</th>
-            <th>🚦 Estado</th>
-            <th>Fecha Facturación</th><th>No. Factura</th><th>Seguimiento</th>
+            <th>Valor Esperado</th><th>Seguimiento</th><th>Fecha Facturación</th>
+            <th>Valor Facturado</th><th>No. Factura</th>
             <th>Facturación</th>
+            <th>🚦 Estado</th>
           </tr>
         </thead>
         <tbody id="aprobadasBody"></tbody>
@@ -4563,10 +4563,6 @@ function filterAprobadas() {
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#556;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||'—'}</td>
       <td style="white-space:nowrap;font-size:11.5px;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
       <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor ? formatCOP(o.valor) : '—'}</td>
-      <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
-      <td style="text-align:center;white-space:nowrap;"><span title="${sem.label}" style="color:${sem.color};font-weight:600;font-size:11px;">${sem.emoji} ${sem.label}</span></td>
-      <td>${o.fecha_facturacion||''}</td>
-      <td>${o.no_factura||''}${badgeFact}</td>
       <td>
         <select class="seg-select seg-${slugSeg(o.seguimiento)}" ${(currentUser && currentUser.rol==='viewer') ? 'disabled title="Solo lectura"' : ''} onchange="saveSeguimiento(${o.id}, this.value)">
           <option value="">— Sin estado —</option>
@@ -4577,9 +4573,13 @@ function filterAprobadas() {
           <option value="Cancelado" ${o.seguimiento==='Cancelado'?'selected':''}>Cancelado</option>
         </select>
       </td>
+      <td>${o.fecha_facturacion||''}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap;">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
+      <td>${o.no_factura||''}${badgeFact}</td>
       <td style="text-align:center;">
         ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button class="write-only" onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">✏️ Facturación</button>` : ''}
       </td>
+      <td style="text-align:center;white-space:nowrap;"><span title="${sem.label}" style="color:${sem.color};font-weight:600;font-size:11px;">${sem.emoji} ${sem.label}</span></td>
     </tr>
     ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
       <td colspan="13" style="padding:8px 16px;">
