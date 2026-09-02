@@ -1042,13 +1042,6 @@ body.rol-viewer .write-only { display:none !important; }
         </select>
       </div>
       <div class="form-group">
-        <label>Unidad</label>
-        <select id="fUnidad" onchange="filterControl()">
-          <option value="">Todas</option>
-          <option>TRANSPORTE</option><option>IZAJE</option><option>MIXTO</option>
-        </select>
-      </div>
-      <div class="form-group">
         <label>Respuesta</label>
         <select id="fRespuesta" onchange="filterControl()">
           <option value="">Todas</option>
@@ -1079,7 +1072,7 @@ body.rol-viewer .write-only { display:none !important; }
             <th style="width:32px">#</th>
             <th>Mes</th><th>Fecha</th><th>N° Oferta</th>
             <th>Realizada por</th>
-            <th>Cliente</th><th>Tipo Negocio</th><th>Valor COP</th>
+            <th>Cliente</th><th>Valor COP</th>
             <th>Estado</th><th>Respuesta</th><th>Acciones</th>
           </tr>
         </thead>
@@ -4138,7 +4131,6 @@ function populateControlFilters() {
     sel.innerHTML = `<option value="">${textoTodos}</option>` +
       vals.map(v => `<option${v===prev?' selected':''}>${v}</option>`).join('');
   };
-  llenar('fUnidad', 'unidad', 'Todas');
   llenar('fRespuesta', 'respuesta', 'Todas');
   llenar('fComercial', 'realizada', 'Todos');
 }
@@ -4146,7 +4138,6 @@ function populateControlFilters() {
 function filterControl() {
   const buscar = document.getElementById('fBuscar').value.toLowerCase();
   const mes = document.getElementById('fMes').value;
-  const unidad = document.getElementById('fUnidad').value;
   const respuesta = document.getElementById('fRespuesta').value;
   const comercial = document.getElementById('fComercial').value;
 
@@ -4157,7 +4148,6 @@ function filterControl() {
       if (!_h.includes(buscar) && !_h.replace(/[-\s]/g,'').includes(buscar.replace(/[-\s]/g,''))) return false;
     }
     if (mes && o.mes !== mes) return false;
-    if (unidad && (o.unidad||'') !== unidad) return false;
     if (respuesta && (o.respuesta||'') !== respuesta) return false;
     if (comercial && (o.realizada||'') !== comercial) return false;
     return true;
@@ -4175,7 +4165,7 @@ function renderControlTable() {
     `Mostrando ${Math.min(start+1, controlFiltered.length)}–${Math.min(start+PAGE_SIZE, controlFiltered.length)} de ${controlFiltered.length} registros`;
 
   if (!page.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No hay registros que coincidan con los filtros</td></tr>';
   } else {
     tbody.innerHTML = page.map((o, i) => {
       const anulada = o.anulada || (o.estado||'') === 'ANULADA';
@@ -4205,7 +4195,6 @@ function renderControlTable() {
         <td><span class="num-badge" ${anulada ? 'style="text-decoration:line-through;"' : ''}>${o.num||''}</span></td>
         <td style="font-size:12px">${o.realizada||''}</td>
         <td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.cliente||''}">${o.cliente||''}</td>
-        <td style="font-size:11px">${o.tipo||''}</td>
         <td style="text-align:right;font-weight:600;font-size:12px;white-space:nowrap">${o.valor ? formatCOP(o.valor) : '—'}</td>
         <td>${badgeEstado(o.estado)}</td>
         <td>${badgeRespuesta(o.respuesta)}</td>
@@ -4276,7 +4265,6 @@ function goPage(n) {
 function clearFilters() {
   document.getElementById('fBuscar').value = '';
   document.getElementById('fMes').value = '';
-  document.getElementById('fUnidad').value = '';
   document.getElementById('fRespuesta').value = '';
   document.getElementById('fComercial').value = '';
   filterControl();
