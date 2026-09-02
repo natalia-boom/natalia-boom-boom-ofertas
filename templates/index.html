@@ -1189,7 +1189,6 @@ body.rol-viewer .write-only { display:none !important; }
           <tr>
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
             <th>Descripción</th><th>Origen → Destino</th>
-            <th>Unidad</th><th>Tipo</th>
             <th>Valor Esperado</th><th>Valor Facturado</th>
             <th>🚦 Estado</th>
             <th>Fecha Facturación</th><th>No. Factura</th><th>Seguimiento</th>
@@ -4512,7 +4511,7 @@ function filterAprobadas() {
 
   const tbody = document.getElementById('aprobadasBody');
   if (!aprobadas.length) {
-    tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No hay ofertas aprobadas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="empty-state">No hay ofertas aprobadas</td></tr>';
     return;
   }
   tbody.innerHTML = aprobadas.map(o => {
@@ -4535,8 +4534,6 @@ function filterAprobadas() {
       <td>${o.cliente||''}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#556;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||'—'}</td>
       <td style="white-space:nowrap;font-size:11.5px;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
-      <td>${o.unidad||''}</td>
-      <td style="font-size:11px">${o.tipo||''}</td>
       <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
       <td style="text-align:right">${o.valor_facturado ? formatCOP(o.valor_facturado) : '—'}</td>
       <td style="text-align:center;white-space:nowrap;"><span title="${sem.label}" style="color:${sem.color};font-weight:600;font-size:11px;">${sem.emoji} ${sem.label}</span></td>
@@ -4557,7 +4554,7 @@ function filterAprobadas() {
       </td>
     </tr>
     ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
-      <td colspan="15" style="padding:8px 16px;">
+      <td colspan="13" style="padding:8px 16px;">
         <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Facturas de la oferta ${o.num} · ${nFact} línea(s) · Facturado real: ${formatCOP(fg.facturado_real)}${fg.total_lineas!==fg.facturado_real?` · Total con proyección: ${formatCOP(fg.total_lineas)}`:''}</div>
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead><tr style="color:#64748b;text-align:left;">
