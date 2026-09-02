@@ -5299,6 +5299,14 @@ def _vul_str(x):
     return s or None
 
 
+def _vulcano_fix_cliente(cli):
+    """Correcciones fijas de nombre de cliente al importar (typos de la fuente Vulcano).
+    Así, aunque el Excel traiga el nombre mal, en la app entra corregido."""
+    if cli and "ROTRASHEVI" in cli.upper():
+        return "ROTRASVEHI S.A.S."
+    return cli
+
+
 def _app_total_facturado(cur):
     """Total facturado en la app (misma lógica que /api/facturacion/resumen)."""
     cur.execute("SELECT COALESCE(SUM(valor_facturado),0) FROM ofertas "
@@ -5458,7 +5466,7 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
             "anio": _vul_str(ws.cell(r, idx["anio"]).value),
             "estado": _vul_str(ws.cell(r, idx["estado"]).value),
             "nit": _vul_str(ws.cell(r, idx["nit"]).value),
-            "cliente": _vul_str(ws.cell(r, idx["cliente"]).value),
+            "cliente": _vulcano_fix_cliente(_vul_str(ws.cell(r, idx["cliente"]).value)),
             "subtotal": _vul_num(ws.cell(r, idx["subtotal"]).value),
             "total": _vul_num(ws.cell(r, idx["total"]).value),
             "valor_pagado": _vul_num(ws.cell(r, idx["valor_pagado"]).value),
