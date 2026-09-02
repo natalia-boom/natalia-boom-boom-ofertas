@@ -5279,6 +5279,7 @@ _VULCANO_COLS = {
 _VULCANO_EXCLUIDAS_DEFAULT = {
     "BLCE3761", "BLCE3768", "BLCE3773", "BLCE3823", "BLCE3824",
     "BLCE3825", "BLCE3882", "BLCE3883", "BLCE3884",
+    "BLCE3578",  # TRANSELCA (enero) — Natalia pidió excluirla siempre
 }
 
 
@@ -5312,6 +5313,61 @@ def _app_total_facturado(cur):
     ano_pasado = int(cat.get("2025_ANO_PASADO", 0))
     otros = int(cat.get("OTROS", 0))
     return int(fact_2026) + int(f2025_num) + ano_pasado + contratos + otros
+
+
+def _vulcano_aplicar_a_ofertas(cur):
+    """Auto-facturado: cruza vulcano_facturas (NO excluidas) contra las ofertas por su
+    número (columna 'Oferta No.') y llena valor_facturado + no_factura + fecha_facturacion.
+    Si el facturado cubre el valor de la oferta -> la CIERRA (seguimiento='Facturada').
+    Parcial (facturado < valor) -> actualiza el facturado pero NO cierra (queda 🟡 con saldo).
+    Objetivo (pedido de Natalia): al cargar el Excel todo se llena y cierra solo, sin trabajo manual.
+    Usa MAX(actual, suma Vulcano) para no bajar un facturado ya registrado ni romper la conciliación."""
+    cur.execute("""
+        SELECT oferta_ref, factura, subtotal, fecha
+        FROM vulcano_facturas
+        WHERE NOT excluida AND oferta_ref IS NOT NULL AND TRIM(oferta_ref) <> ''
+    """)
+    por_of = {}   # num26 -> {"suma": int, "facturas": set, "fecha": date|None}
+    for oref, factura, subtotal, fecha in cur.fetchall():
+        for m in re.findall(r"26-?(\d{3,4})", str(oref)):
+            num = "26" + m.zfill(4)
+            d = por_of.setdefault(num, {"suma": 0, "facturas": set(), "fecha": None})
+            d["suma"] += int(subtotal or 0)
+            if factura:
+                d["facturas"].add(str(factura).strip())
+            if fecha and (d["fecha"] is None or fecha > d["fecha"]):
+                d["fecha"] = fecha
+
+    n_fact = n_cierre = 0
+    for num, d in por_of.items():
+        cur.execute(
+            "SELECT valor AS valor, COALESCE(valor_facturado,0) AS vf, "
+            "UPPER(COALESCE(seguimiento,'')) AS seg "
+            "FROM ofertas WHERE num=%s AND UPPER(respuesta)='ACEPTADA'", (num,))
+        row = fetchone(cur)
+        if not row:
+            continue
+        valor = int(row["valor"] or 0)
+        vf_prev = int(row["vf"] or 0)
+        seg = row["seg"] or ""
+        facturado = max(vf_prev, int(d["suma"]))
+        nofact = ", ".join(sorted(d["facturas"]))[:250] or None
+        completa = valor > 0 and facturado >= valor - 1000
+        cancelada = "CANCEL" in seg
+        if completa and not cancelada:
+            cur.execute(
+                "UPDATE ofertas SET valor_facturado=%s, no_factura=%s, "
+                "fecha_facturacion=%s, seguimiento='Facturada' WHERE num=%s",
+                (facturado, nofact, d["fecha"], num))
+            n_cierre += 1
+        else:
+            # Parcial (o cancelada): actualiza el facturado, NO toca el seguimiento.
+            cur.execute(
+                "UPDATE ofertas SET valor_facturado=%s, no_factura=%s, "
+                "fecha_facturacion=%s WHERE num=%s",
+                (facturado, nofact, d["fecha"], num))
+        n_fact += 1
+    return {"ofertas_afectadas": n_fact, "ofertas_cerradas": n_cierre}
 
 
 @app.post("/api/vulcano/importar")
@@ -5370,6 +5426,15 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
         "saldo": col("saldo", ["saldo"]),
     }
 
+    # "Oferta No." SOLO por encabezado (los dos formatos de Excel tienen columnas en
+    # posiciones distintas). Si no está el encabezado, no se captura (evita tomar otra
+    # columna por posición). Sirve para el auto-facturado por número de oferta.
+    oferta_col = None
+    for a in ("oferta no.", "oferta no", "oferta_no", "oferta"):
+        if a in hdr:
+            oferta_col = hdr[a]
+            break
+
     filas = []
     for r in range(2, ws.max_row + 1):
         factura = _vul_str(ws.cell(r, idx["factura"]).value)
@@ -5398,6 +5463,7 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
             "total": _vul_num(ws.cell(r, idx["total"]).value),
             "valor_pagado": _vul_num(ws.cell(r, idx["valor_pagado"]).value),
             "saldo": _vul_num(ws.cell(r, idx["saldo"]).value),
+            "oferta_ref": (_vul_str(ws.cell(r, oferta_col).value) if oferta_col else None),
         })
 
     if not filas:
@@ -5418,11 +5484,11 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
                     cur.execute("""
                         INSERT INTO vulcano_facturas
                             (factura, fecha, mes, anio, estado, nit, cliente,
-                             subtotal, total, valor_pagado, saldo, excluida)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
                           f["nit"], f["cliente"], f["subtotal"], f["total"],
-                          f["valor_pagado"], f["saldo"], excluida))
+                          f["valor_pagado"], f["saldo"], excluida, f.get("oferta_ref")))
                     nuevas += 1
                 else:
                     # Existe: actualizar datos, CONSERVAR excluida manual.
@@ -5430,12 +5496,15 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
                         UPDATE vulcano_facturas SET
                             fecha=%s, mes=%s, anio=%s, estado=%s, nit=%s, cliente=%s,
                             subtotal=%s, total=%s, valor_pagado=%s, saldo=%s,
+                            oferta_ref=COALESCE(%s, oferta_ref),
                             importado_at=now()
                         WHERE factura=%s
                     """, (f["fecha"], f["mes"], f["anio"], f["estado"], f["nit"],
                           f["cliente"], f["subtotal"], f["total"], f["valor_pagado"],
-                          f["saldo"], f["factura"]))
+                          f["saldo"], f.get("oferta_ref"), f["factura"]))
                     actualizadas += 1
+            # Auto-facturado: cruza las facturas con sus ofertas y cierra las completas.
+            aplicado = _vulcano_aplicar_a_ofertas(cur)
             resumen = _vulcano_calc_resumen(cur)
     except HTTPException:
         raise
@@ -5444,7 +5513,8 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
         raise HTTPException(500, str(e))
 
     return {"ok": True, "leidas": len(filas), "nuevas": nuevas,
-            "actualizadas": actualizadas, "resumen": resumen}
+            "actualizadas": actualizadas, "resumen": resumen,
+            "auto_facturado": aplicado}
 
 
 def _vulcano_calc_resumen(cur):

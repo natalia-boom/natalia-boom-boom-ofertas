@@ -1188,6 +1188,7 @@ body.rol-viewer .write-only { display:none !important; }
         <thead>
           <tr>
             <th>No. Oferta</th><th>Mes</th><th>Fecha</th><th>Cliente</th>
+            <th>Descripción</th><th>Origen → Destino</th>
             <th>Unidad</th><th>Tipo</th>
             <th>Valor Esperado</th><th>Valor Facturado</th>
             <th>🚦 Estado</th>
@@ -3613,6 +3614,16 @@ async function loadAll() {
     if (res.status === 401) { setSyncState('error'); _sesionCaida(); return; }
     if (!res.ok) throw new Error('Error cargando ofertas');
     allOfertas = await res.json();
+    // Enriquecer cada oferta con origen/destino/descripción SACADOS DE LA OFERTA
+    // (campo estructurado de pdf_data). Se hace una sola vez, al cargar. Las que no
+    // los tengan estructurados quedan vacías (se pueden rellenar por backfill/OSI).
+    allOfertas.forEach(o => {
+      let pdf = o.pdf_data;
+      if (typeof pdf === 'string') { try { pdf = JSON.parse(pdf); } catch (e) { pdf = null; } }
+      o._origen  = ((pdf && pdf.origen)      || '').toString().trim();
+      o._destino = ((pdf && pdf.destino)     || '').toString().trim();
+      o._desc    = ((pdf && pdf.descripcion) || o.general || '').toString().trim();
+    });
     // Facturas por oferta (1 oferta -> N facturas). No bloquea si falla.
     try { facturasPorOferta = await (await fetch('/api/facturas/por_oferta')).json(); }
     catch(e) { facturasPorOferta = {}; }
@@ -4323,6 +4334,8 @@ function esSinFacturar(o) {
   return !o.no_factura;
 }
 function esVencida(o) {
+  // Una oferta CANCELADA no se factura: nunca cuenta como vencida/sin facturar.
+  if ((o.seguimiento||'').toUpperCase().includes('CANCEL')) return false;
   return !o.no_factura && diasDesde(o.fecha) >= 15;
 }
 
@@ -4344,6 +4357,9 @@ function facturadoDe(o) {
 // 🚦 Semáforo de facturación de una oferta ACEPTADA:
 //   📄 Contrato · 🔴 Sin facturar · 🟡 Facturada parcial · 🟢 Facturada total
 function semaforoDe(o) {
+  // Cancelada: no aplica facturar. Se muestra en gris, no como "sin facturar".
+  if ((o.seguimiento||'').toUpperCase().includes('CANCEL'))
+    return {emoji:'⚪', label:'Cancelada', cls:'sem-canc', color:'#64748b'};
   if (esContrato(o))
     return {emoji:'📄', label:'Contrato', cls:'sem-contrato', color:'#475569'};
   const fact  = facturadoDe(o);
@@ -4496,7 +4512,7 @@ function filterAprobadas() {
 
   const tbody = document.getElementById('aprobadasBody');
   if (!aprobadas.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No hay ofertas aprobadas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No hay ofertas aprobadas</td></tr>';
     return;
   }
   tbody.innerHTML = aprobadas.map(o => {
@@ -4517,6 +4533,8 @@ function filterAprobadas() {
       <td>${o.mes||''}</td>
       <td>${o.fecha||''}</td>
       <td>${o.cliente||''}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#556;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||'—'}</td>
+      <td style="white-space:nowrap;font-size:11.5px;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
       <td>${o.unidad||''}</td>
       <td style="font-size:11px">${o.tipo||''}</td>
       <td style="text-align:right">${o.valor ? formatCOP(o.valor) : '—'}</td>
@@ -4539,7 +4557,7 @@ function filterAprobadas() {
       </td>
     </tr>
     ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
-      <td colspan="13" style="padding:8px 16px;">
+      <td colspan="15" style="padding:8px 16px;">
         <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Facturas de la oferta ${o.num} · ${nFact} línea(s) · Facturado real: ${formatCOP(fg.facturado_real)}${fg.total_lineas!==fg.facturado_real?` · Total con proyección: ${formatCOP(fg.total_lineas)}`:''}</div>
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead><tr style="color:#64748b;text-align:left;">
