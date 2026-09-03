@@ -66,11 +66,13 @@ except ImportError:
     REPORTLAB_OK = False
 
 # ── DB config ─────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# .strip() defensivo: si al pegar la clave en el entorno quedó un espacio o
+# salto de línea invisible, la API la rechazaría; lo quitamos por seguridad.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 # Espacio de trabajo (workspace) de Anthropic. Las API keys "vinculadas a un
 # usuario" (identity-linked) EXIGEN enviar este ID en cada solicitud; sin el,
 # la API responde 400 y el chat de IA muestra "Connection error".
-ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID", "wrkspc_01GYH8XvAbtR3Y2CrjtBkchQ")
+ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID", "wrkspc_01GYH8XvAbtR3Y2CrjtBkchQ").strip()
 
 
 def _anthropic_client():
