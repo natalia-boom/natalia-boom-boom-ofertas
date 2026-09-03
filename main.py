@@ -67,6 +67,19 @@ except ImportError:
 
 # ── DB config ─────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# Espacio de trabajo (workspace) de Anthropic. Las API keys "vinculadas a un
+# usuario" (identity-linked) EXIGEN enviar este ID en cada solicitud; sin el,
+# la API responde 400 y el chat de IA muestra "Connection error".
+ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID", "wrkspc_01GYH8XvAbtR3Y2CrjtBkchQ")
+
+
+def _anthropic_client():
+    """Crea el cliente de Anthropic, agregando el header del workspace si está definido."""
+    _kwargs = {"api_key": ANTHROPIC_API_KEY}
+    if ANTHROPIC_WORKSPACE_ID:
+        _kwargs["default_headers"] = {"anthropic-workspace-id": ANTHROPIC_WORKSPACE_ID}
+    return _anthropic.Anthropic(**_kwargs)
+
 
 DB_HOST     = os.environ.get("DB_HOST",     "localhost")
 DB_PORT     = int(os.environ.get("DB_PORT", "5432"))
@@ -2555,7 +2568,7 @@ def _extraer_info_claude(texto: str) -> dict:
     if not ANTHROPIC_API_KEY:
         raise RuntimeError("Configura ANTHROPIC_API_KEY en el archivo .env")
 
-    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _anthropic_client()
 
     user_prompt = f"""Extrae del siguiente texto la información para la oferta BOOM y devuelve SOLO un JSON válido (sin markdown, sin texto extra):
 
@@ -2609,7 +2622,7 @@ def _chat_oferta(messages: list) -> dict:
     if not ANTHROPIC_API_KEY:
         raise RuntimeError("Configura ANTHROPIC_API_KEY en el archivo .env")
 
-    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _anthropic_client()
     api_messages = [{"role": m.role, "content": m.content} for m in messages]
 
     message = client.messages.create(
@@ -2928,7 +2941,7 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
                 + "\" — escríbela TAL CUAL en Condiciones Comerciales, salvo que el usuario indique en el "
                   "chat otra forma de pago (en ese caso manda lo que diga el chat).")
 
-    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _anthropic_client()
     api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
     message = client.messages.create(
         model="claude-sonnet-4-5",
@@ -3875,7 +3888,7 @@ def chat_oferta_stream(body: ChatOfertaBody):
             yield f"data: {json.dumps({'err': 'API no configurada'})}\n\n"
             return
         try:
-            client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            client = _anthropic_client()
             api_messages = _trim_api_messages(
                 [{"role": m.role, "content": m.content} for m in body.messages]
             )
