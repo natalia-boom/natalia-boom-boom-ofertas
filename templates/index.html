@@ -5652,14 +5652,25 @@ async function iaInit() {
 async function iaLoadRef() {
   try {
     const res = await fetch('/api/consecutivo');
+    if (!res.ok) throw new Error('consecutivo http ' + res.status);   // sesión caída / error
     const data = await res.json();
-    const numPad = String(data.consecutivo).padStart(6, '0');
+    const n = parseInt(data && data.consecutivo, 10);
+    // Solo aceptamos un consecutivo válido (nunca 0 / vacío / basura) para no mostrar "00-000".
+    if (!Number.isFinite(n) || n < 260000) throw new Error('consecutivo inválido: ' + (data && data.consecutivo));
+    const numPad = String(n).padStart(6, '0');
     const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
     document.getElementById('iaRefDisplay').textContent = fmt;
-    document.getElementById('iaRefNum').value = data.consecutivo;
-    document.getElementById('iaRefInline').textContent = fmt;
+    document.getElementById('iaRefNum').value = n;
+    const inline = document.getElementById('iaRefInline'); if (inline) inline.textContent = fmt;
     iaRefAssigned = true;
-  } catch (e) { /* silencioso */ }
+    iaLoadRef._retried = false;
+  } catch (e) {
+    // Nunca mostrar un número falso: dejamos "—" y reintentamos una vez por si la sesión tardó.
+    const disp = document.getElementById('iaRefDisplay');
+    if (disp) disp.textContent = '—';
+    const inline = document.getElementById('iaRefInline'); if (inline) inline.textContent = '—';
+    if (!iaLoadRef._retried) { iaLoadRef._retried = true; setTimeout(iaLoadRef, 1500); }
+  }
 }
 
 function iaToggleRefEdit() {
