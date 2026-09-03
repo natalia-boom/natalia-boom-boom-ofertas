@@ -2135,6 +2135,12 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               <div id="rsCliente" style="font-size:17px;font-weight:800;color:var(--petrol);line-height:1.15;">
                 <span style="color:var(--text-muted);font-weight:600;font-size:14px;">Aún sin cliente…</span>
               </div>
+              <!-- Nombre del cliente EDITABLE: es lo que realmente se guarda en el Control.
+                   La IA solo lo sugiere; aquí el comercial lo deja EXACTO. -->
+              <input id="iaClienteEdit" type="text" placeholder="Nombre del cliente (como debe guardarse)"
+                     oninput="iaOnClienteEdit(this.value)" autocomplete="off"
+                     style="width:100%;margin-top:9px;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;color:var(--petrol);box-sizing:border-box;" />
+              <div style="font-size:10px;color:var(--text-muted);margin-top:3px;line-height:1.35;">✏️ Se guarda <b>tal cual</b> lo que escribas aquí. La IA solo lo sugiere.</div>
               <div id="rsChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
               <div id="rsValorBox" style="margin-top:14px;background:var(--orange-light);border:1px dashed #f59e0b;border-radius:10px;padding:9px 14px;text-align:center;display:none;">
                 <div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#b45309;">Valor de la oferta</div>
@@ -2460,7 +2466,10 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);margin-bottom:28px;overflow:hidden;">
       <div style="background:#1B2A4A;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-weight:700;font-size:14px;">🔔 ALERTAS DE PROYECTOS ACEPTADOS</span>
-        <button id="btnMarcarTodas" onclick="marcarTodasLeidas()" style="display:none;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">Marcar todas leídas (admin)</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="btnGenTarjetas" onclick="regenerarTarjetasOSI()" style="display:none;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;" title="Crea la tarjeta a las ofertas notificadas por la plataforma que aún no tienen OSI (no duplica ni borra nada)">🔄 Generar tarjetas faltantes</button>
+          <button id="btnMarcarTodas" onclick="marcarTodasLeidas()" style="display:none;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;">Marcar todas leídas (admin)</button>
+        </div>
       </div>
       <div id="notifBody" style="padding:18px 20px;">
         <div style="padding:24px;text-align:center;color:var(--text-muted);">Cargando alertas...</div>
@@ -4149,7 +4158,8 @@ function computeStats() {
   const total = allOfertas.length;
   const aceptadas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL')).length;
   const seguimiento = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'EN SEGUIMIENTO').length;
-  const valorTotal = allOfertas.reduce((s, o) => s + (o.valor||0), 0);
+  // El total en pesos NO mezcla ofertas en USD (se sumarían como si fueran COP).
+  const valorTotal = allOfertas.reduce((s, o) => s + ((o.moneda||'COP').toUpperCase()==='USD' ? 0 : (o.valor||0)), 0);
   const months = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
   const estesMes = allOfertas.filter(o => o.mes === months[new Date().getMonth()]).length;
   return { total, aceptadas, tasa: total ? (aceptadas*100/total).toFixed(1) : 0, seguimiento, valorTotal, estesMes };
@@ -4248,7 +4258,7 @@ function renderControlTable() {
         <td><span class="num-badge" ${anulada ? 'style="text-decoration:line-through;"' : ''}>${o.num||''}</span></td>
         <td style="font-size:12px">${o.realizada||''}</td>
         <td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.cliente||''}">${o.cliente||''}</td>
-        <td style="text-align:right;font-weight:600;font-size:12px;white-space:nowrap">${o.valor ? formatCOP(o.valor) : '—'}</td>
+        <td style="text-align:right;font-weight:600;font-size:12px;white-space:nowrap">${o.valor ? formatMonto(o.valor, o.moneda) : '—'}</td>
         <td>${badgeEstado(o.estado)}</td>
         <td>${badgeRespuesta(o.respuesta)}</td>
         <td style="white-space:nowrap;">
@@ -5888,29 +5898,32 @@ async function iaSendMessage() {
   // NOTA: iaImgMap NO se reinicia aquí. Debe PERSISTIR durante toda la conversación de la
   // oferta, porque el modelo puede repetir los tokens [[IMG_n]] en un ajuste posterior aunque
   // ya no volvamos a tokenizar. Solo se limpia al cargar/empezar una oferta nueva.
+  // ¿Ya hay una oferta en pantalla? Entonces estamos AJUSTANDO, no creando de cero.
+  const haveOffer = !!(iaHtml && iaHtml.trim());
   let apiContent;
-  if (fotosNow.length || iaVersionHtml) {
+  if (fotosNow.length || haveOffer) {
     apiContent = [];
-    // Al versionar: adjuntamos el HTML original como verdad absoluta para que
-    // el asistente CONSERVE la estructura exacta y solo aplique lo que se pide.
-    if (iaVersionHtml) {
+    // AJUSTE: reinyectamos SIEMPRE el HTML vigente (no solo en el primer cambio) como
+    // verdad absoluta. Así el modelo NUNCA pierde la estructura ni las fotos aunque el
+    // historial se recorte tras varios ajustes (era la causa de que las fotos se borraran).
+    if (haveOffer) {
       // Las imágenes en base64 (logo, sello, fotos) pesan ~160 mil caracteres y hacían
       // que el HTML se cortara antes de llegar a la estructura real. Las reemplazamos por
       // tokens livianos ([[IMG_n]]) y las restauramos intactas cuando el modelo responde.
       let _n = 0;
-      const compactHtml = iaVersionHtml.replace(
+      const compactHtml = iaHtml.replace(
         /data:image\/[^;"')]+;base64,[A-Za-z0-9+/=\s]+/g,
         (m) => { _n++; const tok = '[[IMG_' + _n + ']]'; iaImgMap[tok] = m.replace(/\s+/g, ''); return tok; }
       );
       apiContent.push({ type: 'text', text:
         'OFERTA ACTUAL EN HTML (versión vigente de esta misma oferta). Debes CONSERVAR ' +
         'EXACTAMENTE esta estructura, diseño, secciones, orden, textos y estilo. Los tokens ' +
-        '[[IMG_1]], [[IMG_2]]… son imágenes: consérvalos TAL CUAL en el mismo lugar, no los ' +
-        'cambies ni los borres. Aplica ÚNICAMENTE el cambio que te indique abajo y devuelve el ' +
-        'HTML COMPLETO con solo ese cambio, sin alterar ni reorganizar nada más:\n```html\n' +
-        compactHtml + '\n```' });
-      iaVersionHtml = '';
+        '[[IMG_1]], [[IMG_2]]… son imágenes (fotos de la carga, logo, sello): consérvalos TAL ' +
+        'CUAL en el mismo lugar, NO los cambies ni los borres. Aplica ÚNICAMENTE el cambio que te ' +
+        'indique abajo y devuelve el HTML COMPLETO con solo ese cambio, sin alterar ni ' +
+        'reorganizar nada más:\n```html\n' + compactHtml + '\n```' });
     }
+    iaVersionHtml = '';
     fotosNow.forEach(f => {
       if (f.kind === 'image' || (!f.kind && f.dataUrl)) {
         const parts = f.dataUrl.split(',');
@@ -5976,7 +5989,12 @@ async function iaSendMessage() {
         return iaImgMap['[[IMG_' + n + ']]'] || '';
       });
       iaHtml = _restored;
+      // El nombre del cliente lo manda el HUMANO: si ya había uno escrito en el campo
+      // editable, se conserva y NO se deja que la IA lo "renormalice" o lo cambie en cada
+      // ajuste. Solo se toma el de la IA cuando aún no hay ninguno escrito.
+      const _cliOverride = ((document.getElementById('iaClienteEdit') || {}).value || '').trim();
       iaMeta = data.meta || null;
+      if (_cliOverride) { if (!iaMeta) iaMeta = {}; iaMeta.cliente = _cliOverride; }
       // Si la IA reportó una forma de pago (ej. anticipo distinto escrito en el chat),
       // actualiza el selector para que se GUARDE y salga en el PDF/correo esa, no la de 50%.
       if (iaMeta && iaMeta.forma_pago && String(iaMeta.forma_pago).trim()) {
@@ -5984,6 +6002,13 @@ async function iaSendMessage() {
       }
       iaRenderPreview();
       iaSetButtons(true);
+      // Las fotos ya quedaron EMBEBIDAS en la oferta: se quitan de los adjuntos para no
+      // reenviarlas (ni duplicarlas) en cada ajuste. Los PDF/otros archivos se conservan
+      // (el PDF puede necesitarse al guardar como documento original de la v1).
+      if (iaFotos.some(f => f.kind === 'image' || (!f.kind && f.dataUrl))) {
+        iaFotos = iaFotos.filter(f => !(f.kind === 'image' || (!f.kind && f.dataUrl)));
+        iaRenderFotos();
+      }
     }
     if (data.ref) {
       const numPad = String(data.ref).replace(/\D/g, '').padStart(6, '0');
@@ -6045,6 +6070,24 @@ function iaRenderPreview() {
   iaRenderResumen();
 }
 
+// El comercial editó el nombre del cliente a mano: esa es la VERDAD que se guarda.
+// La IA solo sugiere; aquí queda EXACTO (sin mayúsculas forzadas, sin unificar).
+function iaOnClienteEdit(val) {
+  if (!iaMeta) iaMeta = {};
+  iaMeta.cliente = (val || '').replace(/\s+/g, ' ').trimStart();
+  // Refleja el nombre en la tarjeta y el mini-resumen, sin recolocar el input.
+  const rc = document.getElementById('rsCliente');
+  if (rc) {
+    if (iaMeta.cliente) rc.textContent = iaMeta.cliente;
+    else rc.innerHTML = '<span style="color:var(--text-muted);font-weight:600;font-size:14px;">Aún sin cliente…</span>';
+  }
+  const val$ = (iaMeta.valor ? (iaMeta.moneda === 'USD' ? 'USD ' : '$') +
+      Number(iaMeta.valor).toLocaleString(iaMeta.moneda === 'USD' ? 'en-US' : 'es-CO') : '');
+  const mr = document.getElementById('iaMetaResumen');
+  if (mr) mr.textContent = [iaMeta.cliente, val$, iaMeta.mes].filter(Boolean).join(' · ');
+  iaRenderResumen();
+}
+
 // Panel "Resumen de la operación" (columna izquierda) — se llena en vivo
 function iaRenderResumen() {
   const $ = id => document.getElementById(id);
@@ -6063,6 +6106,12 @@ function iaRenderResumen() {
     $('rsCliente').textContent = iaMeta.cliente;
   } else {
     $('rsCliente').innerHTML = '<span style="color:var(--text-muted);font-weight:600;font-size:14px;">Aún sin cliente…</span>';
+  }
+  // Mantener el input editable de cliente en sincronía con la sugerencia de la IA,
+  // pero SIN pisar lo que el comercial esté escribiendo (si tiene el foco, no lo tocamos).
+  const _cliInp = $('iaClienteEdit');
+  if (_cliInp && document.activeElement !== _cliInp) {
+    _cliInp.value = (iaMeta && iaMeta.cliente) ? iaMeta.cliente : '';
   }
 
   // Chips de clasificación
@@ -7096,6 +7145,15 @@ function formatCOP(val) {
   return '$ ' + Number(val).toLocaleString('es-CO');
 }
 
+// Formatea respetando la moneda de la oferta. USD nunca se muestra como pesos.
+function formatMonto(val, moneda) {
+  if (!val && val !== 0) return '—';
+  if ((moneda || 'COP').toUpperCase() === 'USD') {
+    return 'USD ' + Number(val).toLocaleString('es-CO');
+  }
+  return '$ ' + Number(val).toLocaleString('es-CO');
+}
+
 function badgeEstado(e) {
   if (!e) return '';
   if (e === 'ANULADA') return `<span class="badge badge-rechazada">🚫 ANULADA</span>`;
@@ -7384,6 +7442,8 @@ async function cargarNotificaciones() {
   // descartar alertas sin crear la OSI (así ninguna OSI pendiente se pierde).
   const _btnTodas = document.getElementById('btnMarcarTodas');
   if (_btnTodas) _btnTodas.style.display = (currentUser && currentUser.rol === 'admin') ? '' : 'none';
+  const _btnGen = document.getElementById('btnGenTarjetas');
+  if (_btnGen) _btnGen.style.display = (currentUser && currentUser.rol === 'admin') ? '' : 'none';
 
   // Badge
   const noLeidas = rN.filter(n=>!n.leida).length;
@@ -7609,6 +7669,31 @@ async function marcarTodasLeidas() {
   await fetch('/api/notificaciones/leer-todas', { method:'PATCH' });
   cargarNotificaciones();
   showToast('✅ Todas las alertas marcadas como leídas', 'success');
+}
+
+// Crea la tarjeta de alerta a las ofertas ACEPTADAS/notificadas por la plataforma
+// que aún no tienen OSI y que hoy no tienen tarjeta (idempotente: no duplica ni borra).
+async function regenerarTarjetasOSI() {
+  if (!currentUser || currentUser.rol !== 'admin') {
+    showToast('Solo el administrador puede generar las tarjetas', 'warning');
+    return;
+  }
+  if (!confirm('Se crearán las tarjetas de alerta para las ofertas notificadas que aún no tienen OSI ni tarjeta.\n\nNo borra ni marca nada como leído. ¿Continuar?')) return;
+  const btn = document.getElementById('btnGenTarjetas');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando…'; }
+  try {
+    const res = await fetch('/api/notificaciones/backfill-aceptadas-sin-osi', { method:'POST' });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'Error generando tarjetas'); }
+    const data = await res.json();
+    await cargarNotificaciones();
+    showToast(data.creadas > 0
+      ? `✅ ${data.creadas} tarjeta(s) creada(s)`
+      : '✔️ No había tarjetas faltantes (todo al día)', 'success');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Generar tarjetas faltantes'; }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════

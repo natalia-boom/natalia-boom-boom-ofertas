@@ -1624,6 +1624,9 @@ def _ensure_db():
         # Aprobacion PARCIAL: el cliente autoriza solo una parte de la oferta al notificar.
         # valor = total cotizado ; valor_aprobado = lo realmente autorizado (<= valor).
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS valor_aprobado bigint DEFAULT NULL")
+        # Moneda de la oferta (COP por defecto). Las ofertas en USD ya no se muestran
+        # ni se suman como si fueran pesos en el Control.
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -2694,9 +2697,10 @@ table.cond td:first-child{font-weight:bold;width:40%;background:#f5f5f5;}
 .firma-nombre{font-weight:bold;color:#1B2A4A;font-size:14px;margin:0 0 2px 0;}
 .firma-cargo{color:#E8601C;font-size:13px;margin:2px 0;}
 .pie{color:#aaa;font-size:11px;margin-top:10px;border-top:1px solid #eee;padding-top:8px;text-align:center;}
-.foto-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
-.foto-grid.una{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto;}
-.foto-card img{width:100%;height:280px;object-fit:contain;background:#f7f7f7;display:block;border-radius:5px;border:1px solid #ddd;}
+.foto-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0;}
+.foto-grid.una{grid-template-columns:1fr;max-width:820px;margin-left:auto;margin-right:auto;}
+.foto-card img{width:100%;height:460px;object-fit:contain;background:#f7f7f7;display:block;border-radius:5px;border:1px solid #ddd;}
+.foto-grid.una .foto-card img{height:560px;}
 .foto-cap{font-size:11px;color:#555;text-align:center;margin-top:5px;}
 @media (max-width:600px){.foto-grid{grid-template-columns:1fr;}}"""
 
@@ -2859,7 +2863,11 @@ las <img>); la clase .foto-card ya deja la imagen contenida sin deformarla ni de
 3) Los metadatos entre <<<META>>> y <<<FINMETA>>>: un JSON con
    {"cliente":"","valor":0,"moneda":"COP|USD","mes":"ENE..DIC","tipo":"","descripcion":"","realizada":"Boris Borrego|Natalia Vargas|Willington Ortiz","forma_pago":""}
    donde "valor" es el TOTAL numérico entero sin separadores (ej. 39000) y "mes" el mes de la oferta en
-   mayúsculas de 3 letras. En "forma_pago" pon EXACTAMENTE la forma de pago que quedó escrita en la
+   mayúsculas de 3 letras. "cliente": pon el nombre del cliente EXACTAMENTE como lo escribió el usuario en
+   el chat / correo (mismas mayúsculas y minúsculas, misma marca). PROHIBIDO cambiarlo: no lo pongas en
+   MAYÚSCULAS, no lo traduzcas, no lo abrevies, no lo "unifiques" ni lo fusiones con otro. Debe coincidir
+   letra por letra con el que aparece en la ref-bar del HTML. Si el usuario no dio un nombre claro, deja
+   "cliente" vacío (no inventes uno). En "forma_pago" pon EXACTAMENTE la forma de pago que quedó escrita en la
    oferta: si el usuario indicó en el chat un anticipo distinto (ej. "70% de anticipo", "60% anticipo /
    40% a 30 días"), reporta ESA, no la predeterminada. Si algún dato no aplica, déjalo vacío o en 0."""
 
@@ -4186,14 +4194,14 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                 creada = False
                 cur.execute(
                     """UPDATE ofertas SET
-                         cliente = %s, valor = %s,
+                         cliente = %s, valor = %s, moneda = %s,
                          mes = COALESCE(%s, mes), tipo = COALESCE(%s, tipo),
                          sector = COALESCE(%s, sector), unidad = COALESCE(%s, unidad),
                          estado = COALESCE(%s, estado), respuesta = COALESCE(%s, respuesta),
                          seguimiento = COALESCE(%s, seguimiento), general = COALESCE(%s, general),
                          pdf_data = %s
                        WHERE id = %s""",
-                    (cliente, nuevo_valor, body.mes, body.tipo, body.sector, body.unidad,
+                    (cliente, nuevo_valor, (body.moneda or "COP"), body.mes, body.tipo, body.sector, body.unidad,
                      body.estado, body.respuesta, body.seguimiento, body.descripcion,
                      json.dumps(pdf_data), oferta_id),
                 )
@@ -4203,11 +4211,11 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                 cur.execute(
                     """INSERT INTO ofertas
                          (num, mes, fecha, cliente, realizada, tipo, sector, unidad,
-                          valor, estado, respuesta, seguimiento, general, pdf_data)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          valor, moneda, estado, respuesta, seguimiento, general, pdf_data)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                        RETURNING id""",
                     (num, body.mes, body.fecha or None, cliente, realizada, body.tipo,
-                     body.sector, body.unidad, nuevo_valor, body.estado or "ENVIADO",
+                     body.sector, body.unidad, nuevo_valor, (body.moneda or "COP"), body.estado or "ENVIADO",
                      body.respuesta, body.seguimiento, body.descripcion, json.dumps(pdf_data)),
                 )
                 oferta_id = fetchone(cur)["id"]
@@ -4776,6 +4784,37 @@ def marcar_todas_leidas(request: Request):
             cur.execute("UPDATE notificaciones SET leida = true")
         return {"ok": True}
     except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/notificaciones/backfill-aceptadas-sin-osi")
+def backfill_notificaciones(request: Request):
+    """Crea la TARJETA de alerta (notificación pendiente) para toda oferta que ya
+    está ACEPTADA/notificada por la plataforma y AÚN NO tiene OSI creada, pero que
+    hoy no tiene tarjeta (p. ej. aceptadas por importación masiva, que no pasan por
+    el PATCH que genera la tarjeta). Es IDEMPOTENTE: nunca duplica una tarjeta
+    existente, no marca nada como leído ni borra nada. Solo agrega lo que falta.
+    Origen/destino se leen del pdf_data de la oferta, igual que el trigger de
+    aceptación."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
+                SELECT o.id, o.num, o.cliente,
+                       COALESCE(o.pdf_data->>'origen',''),
+                       COALESCE(o.pdf_data->>'destino',''),
+                       COALESCE(o.valor, 0)
+                FROM ofertas o
+                WHERE UPPER(COALESCE(o.respuesta,'')) = 'ACEPTADA'
+                  AND NOT COALESCE(o.anulada, false)
+                  AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+                  AND NOT EXISTS (SELECT 1 FROM notificaciones n WHERE n.oferta_id = o.id)
+            """)
+            creadas = cur.rowcount or 0
+        return {"ok": True, "creadas": creadas}
+    except Exception as e:
+        traceback.print_exc()
         raise HTTPException(500, str(e))
 
 
