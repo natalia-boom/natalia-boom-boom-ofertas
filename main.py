@@ -1692,6 +1692,48 @@ def _ensure_db():
         except Exception as e:
             print(f"[DB][consecutivo] No se pudo crear el candado: {e}")
 
+        # ── CORRECCIÓN PUNTUAL: el 261161 pertenece a TRANSBORDER ─────────────
+        # El consecutivo 261161 es de TRANSBORDER (COTECMAR Mamonal → Puerto
+        # Cartagena, $13.600.000 COP). Otras ofertas (p. ej. CONTINENTAL GOLD) lo
+        # tomaron por error. Esto garantiza que la ACTIVA sea la de TRANSBORDER y
+        # deja anuladas las demás. Es idempotente y SOLO actúa si existe la fila
+        # de TRANSBORDER (así nunca deja el número sin oferta).
+        try:
+            cur.execute("""
+                SELECT id, COALESCE(cliente,'') AS cliente, COALESCE(anulada,false) AS anulada
+                  FROM ofertas
+                 WHERE num ~ '^[0-9]+$' AND CAST(num AS INTEGER) = 261161
+            """)
+            _r261161 = cur.fetchall() or []
+            _tb = [x for x in _r261161 if str(x[1]).strip().upper().startswith("TRANSBORDER")]
+            _otras = [x for x in _r261161 if not str(x[1]).strip().upper().startswith("TRANSBORDER")]
+            if _tb:
+                # 1) Anular primero las que NO son TRANSBORDER (libera el candado).
+                for _x in _otras:
+                    if not _x[2]:
+                        cur.execute("""
+                            UPDATE ofertas
+                               SET anulada = true, estado = 'ANULADA',
+                                   anulada_motivo = 'Consecutivo duplicado: el 261161 pertenece a TRANSBORDER.',
+                                   anulada_por = 'Sistema', anulada_fecha = now()
+                             WHERE id = %s
+                        """, (_x[0],))
+                        print(f"[DB][261161] Anulada oferta id={_x[0]} cliente='{_x[1]}' (no es TRANSBORDER).")
+                # 2) Reactivar la de TRANSBORDER (por si quedó anulada por error).
+                _tid = _tb[0][0]
+                cur.execute("""
+                    UPDATE ofertas
+                       SET anulada = false,
+                           estado = CASE WHEN estado = 'ANULADA' THEN 'ENVIADO' ELSE estado END,
+                           anulada_motivo = NULL, anulada_por = NULL, anulada_fecha = NULL
+                     WHERE id = %s
+                """, (_tid,))
+                print(f"[DB][261161] OK: activa y correcta la de TRANSBORDER (id={_tid}).")
+            else:
+                print("[DB][261161] AVISO: no hay fila de TRANSBORDER con 261161; no se toca nada.")
+        except Exception as e:
+            print(f"[DB][261161] No se pudo corregir: {e}")
+
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
