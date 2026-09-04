@@ -2724,7 +2724,10 @@ usuario ADJUNTE o PEGUE en el chat SÍ es fuente válida y DEBES reutilizar sus 
 
 IDIOMA: genera la oferta en el idioma del cliente. Si el texto viene en inglés o el cliente lo requiere,
 genera TODA la oferta en inglés con la misma estructura y clases.
-MONEDA: respeta la moneda del negocio (USD si cotiza en dólares; no conviertas a COP salvo que lo pidan).
+MONEDA: por DEFECTO la oferta va SIEMPRE en PESOS COLOMBIANOS (COP). Genera en dólares (USD) ÚNICAMENTE
+cuando el usuario lo pida de forma explícita (ej. "en dólares", "en USD") o cuando los valores que el
+usuario te entrega ya vengan claramente en USD. Ante cualquier duda, usa COP. NUNCA conviertas de una
+moneda a otra ni asumas USD por tu cuenta.
 FORMATO DE CIFRAS: separador de miles con PUNTO estilo Colombia SIEMPRE, incluso en inglés
 (ej. "USD 6.500", "USD 39.000", "$1.800.000"). Nunca uses coma para miles.
 
@@ -2863,7 +2866,8 @@ las <img>); la clase .foto-card ya deja la imagen contenida sin deformarla ni de
 3) Los metadatos entre <<<META>>> y <<<FINMETA>>>: un JSON con
    {"cliente":"","valor":0,"moneda":"COP|USD","mes":"ENE..DIC","tipo":"","descripcion":"","realizada":"Boris Borrego|Natalia Vargas|Willington Ortiz","forma_pago":""}
    donde "valor" es el TOTAL numérico entero sin separadores (ej. 39000) y "mes" el mes de la oferta en
-   mayúsculas de 3 letras. "cliente": pon el nombre del cliente EXACTAMENTE como lo escribió el usuario en
+   mayúsculas de 3 letras. "moneda" debe coincidir con la moneda usada en el HTML: "COP" por DEFECTO;
+   pon "USD" SOLO si la oferta realmente se generó en dólares porque el usuario lo pidió. "cliente": pon el nombre del cliente EXACTAMENTE como lo escribió el usuario en
    el chat / correo (mismas mayúsculas y minúsculas, misma marca). PROHIBIDO cambiarlo: no lo pongas en
    MAYÚSCULAS, no lo traduzcas, no lo abrevies, no lo "unifiques" ni lo fusiones con otro. Debe coincidir
    letra por letra con el que aparece en la ref-bar del HTML. Si el usuario no dio un nombre claro, deja
