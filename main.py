@@ -4742,23 +4742,75 @@ def get_notificaciones(request: Request):
         raise HTTPException(500, str(e))
 
 
-@app.get("/api/notificaciones/count")
-def count_notificaciones(request: Request):
+@app.get("/api/notificaciones/pendientes")
+def notificaciones_pendientes(request: Request):
+    """FUENTE DE VERDAD del panel de alertas: TODA oferta ACEPTADA/notificada por la
+    plataforma que AÚN NO tiene OSI creada. No depende de la tabla notificaciones ni
+    de si una tarjeta fue 'leída' — así NUNCA se pierde una OSI pendiente. La tarjeta
+    desaparece sola cuando se le crea la OSI. Origen/destino salen del pdf_data de la
+    oferta (misma fuente que usaba el trigger de aceptación)."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) AS total FROM notificaciones WHERE leida = false")
+            cur.execute("""
+                SELECT o.id AS oferta_id,
+                       o.num AS oferta_num,
+                       o.cliente,
+                       COALESCE(o.valor, 0) AS valor,
+                       COALESCE(o.pdf_data->>'origen','') AS origen,
+                       COALESCE(o.pdf_data->>'destino','') AS destino,
+                       COALESCE(o.pdf_data->>'descripcion','') AS descripcion,
+                       COALESCE(o.aceptada_fecha, o.created_at) AS created_at
+                FROM ofertas o
+                WHERE UPPER(COALESCE(o.respuesta,'')) = 'ACEPTADA'
+                  AND NOT COALESCE(o.anulada, false)
+                  AND NOT COALESCE(o.es_prueba, false)
+                  AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+                ORDER BY COALESCE(o.aceptada_fecha, o.created_at) DESC NULLS LAST,
+                         CAST(o.num AS INTEGER) DESC
+            """)
+            rows = fetchall(cur)
+        for r in rows:
+            if r.get("created_at"):
+                r["created_at"] = str(r["created_at"])
+        return rows
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/notificaciones/count")
+def count_notificaciones(request: Request):
+    """Cuenta las OSI PENDIENTES (ofertas aceptadas sin OSI) para la campana/badge.
+    Se alinea con el panel de alertas (mismo criterio: aceptada y sin OSI)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COUNT(*) AS total
+                FROM ofertas o
+                WHERE UPPER(COALESCE(o.respuesta,'')) = 'ACEPTADA'
+                  AND NOT COALESCE(o.anulada, false)
+                  AND NOT COALESCE(o.es_prueba, false)
+                  AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+            """)
             row = fetchone(cur)
             count = row["total"] if row else 0
-            # Última notificación (para el sonido/aviso: saber QUÉ llegó)
-            cur.execute(
-                "SELECT id, oferta_num, cliente FROM notificaciones ORDER BY id DESC LIMIT 1"
-            )
+            # La oferta aceptada-sin-OSI más reciente (para el sonido/aviso: saber QUÉ llegó)
+            cur.execute("""
+                SELECT o.id, o.num, o.cliente
+                FROM ofertas o
+                WHERE UPPER(COALESCE(o.respuesta,'')) = 'ACEPTADA'
+                  AND NOT COALESCE(o.anulada, false)
+                  AND NOT COALESCE(o.es_prueba, false)
+                  AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+                ORDER BY o.id DESC LIMIT 1
+            """)
             last = fetchone(cur)
             return {
                 "count": count,
                 "latest_id": last["id"] if last else 0,
-                "latest_num": (last["oferta_num"] if last else "") or "",
+                "latest_num": (last["num"] if last else "") or "",
                 "latest_cliente": (last["cliente"] if last else "") or "",
             }
     except Exception as e:
