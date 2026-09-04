@@ -2395,9 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diag261161", "/api/_fix261161"}
-# Token temporal para el diagnóstico de solo lectura del 261161 (se retira luego).
-_DIAG_TOKEN = "Wj1TBMeC6ZHxB32k3C6Sozir5xm7yeV4"
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -3192,106 +3190,6 @@ def list_ofertas():
             cur = conn.cursor()
             cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-@app.get("/api/_diag261161")
-def _diag261161(t: str = Query("")):
-    """Diagnóstico TEMPORAL de solo lectura (protegido por token). Devuelve las
-    filas con consecutivo 261161 para poder corregir con precisión. Se retira luego."""
-    if t != _DIAG_TOKEN:
-        raise HTTPException(404, "not found")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT id, num, COALESCE(cliente,'') AS cliente,
-                       COALESCE(anulada,false) AS anulada, COALESCE(estado,'') AS estado,
-                       COALESCE(valor,0) AS valor, COALESCE(moneda,'') AS moneda
-                  FROM ofertas
-                 WHERE num ~ '^[0-9]+$' AND CAST(num AS INTEGER) = 261161
-                 ORDER BY id
-            """)
-            filas261161 = fetchall(cur)
-            cur.execute("""
-                SELECT id, num, COALESCE(cliente,'') AS cliente,
-                       COALESCE(anulada,false) AS anulada, COALESCE(estado,'') AS estado
-                  FROM ofertas
-                 WHERE UPPER(COALESCE(cliente,'')) LIKE 'TRANSBORDER%'
-                 ORDER BY CAST(num AS INTEGER) DESC
-            """)
-            transborder = fetchall(cur)
-            return {"filas261161": filas261161, "transborder": transborder}
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-class _Fix261161Body(BaseModel):
-    token: str
-    html: str
-
-
-@app.post("/api/_fix261161")
-def _fix261161(body: _Fix261161Body):
-    """Reparación TEMPORAL y token-protegida del 261161. La oferta de TRANSBORDER
-    (COTECMAR Mamonal → Puerto Cartagena, $13.600.000 COP) fue sobreescrita por una
-    de CONTINENTAL GOLD. Esto: (1) reubica CONTINENTAL GOLD a un consecutivo nuevo y
-    la anula, (2) restaura TRANSBORDER en el 261161 con su documento HTML. Se retira luego."""
-    if body.token != _DIAG_TOKEN:
-        raise HTTPException(404, "not found")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            # ¿Ya está resuelto? (261161 activo y de TRANSBORDER)
-            cur.execute("""SELECT id, COALESCE(cliente,'') AS c FROM ofertas
-                           WHERE num='261161' AND NOT COALESCE(anulada,false)""")
-            _ya = cur.fetchall() or []
-            if any(str(r[1]).strip().upper().startswith("TRANSBORDER") for r in _ya):
-                return {"ok": True, "estado": "ya_ok", "detalle": "El 261161 ya es de TRANSBORDER."}
-
-            # 1) Reubicar + anular la(s) activa(s) que NO son TRANSBORDER (CONTINENTAL GOLD).
-            reubicadas = []
-            for _id, _cli in [(r[0], r[1]) for r in _ya
-                              if not str(r[1]).strip().upper().startswith("TRANSBORDER")]:
-                cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)),260000)+1 AS n "
-                            "FROM ofertas WHERE NOT COALESCE(es_prueba,false)")
-                _nuevo = str(fetchone(cur)["n"])
-                cur.execute("""UPDATE ofertas
-                                 SET num=%s, anulada=true, estado='ANULADA',
-                                     anulada_motivo='Tomó el 261161 por error; ese consecutivo es de TRANSBORDER. Reubicada y anulada.',
-                                     anulada_por='Sistema', anulada_fecha=now()
-                               WHERE id=%s""", (_nuevo, _id))
-                reubicadas.append({"id": _id, "cliente": _cli, "nuevo_num": _nuevo})
-
-            # 2) Restaurar TRANSBORDER en el 261161 con su documento.
-            _desc = "COTECMAR PLANTA MAMONAL - PUERTO CARTAGENA (INCLUYENDO PUERTO BAHÍA)"
-            _pdf = {"ref": "261161", "cliente": "TRANSBORDER", "descripcion": _desc,
-                    "moneda": "COP", "modo": "ia", "forma_pago": None,
-                    "ia_html": body.html or "",
-                    "origen": "COTECMAR PLANTA MAMONAL", "destino": "PUERTO CARTAGENA"}
-            cur.execute(
-                """INSERT INTO ofertas
-                     (num, mes, fecha, cliente, realizada, valor, moneda, estado, pdf_data)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-                ("261161", "SEPTIEMBRE", "2026-09-03", "TRANSBORDER", "NATALIA VARGAS",
-                 13600000, "COP", "ENVIADO", json.dumps(_pdf)))
-            _oid = fetchone(cur)["id"]
-            cur.execute(
-                """INSERT INTO oferta_versiones
-                     (oferta_id, oferta_num, version, valor, moneda, descripcion,
-                      forma_pago, html, pdf_b64, resumen, creado_por, vigente)
-                   VALUES (%s,%s,1,%s,%s,%s,NULL,%s,NULL,%s,%s,true)""",
-                (_oid, "261161", 13600000, "COP", _desc, body.html or "",
-                 "Restauración de la oferta original de TRANSBORDER (261161).", "Sistema"))
-            cur.execute(
-                """INSERT INTO clientes (nombre_corto)
-                   SELECT 'TRANSBORDER' WHERE NOT EXISTS (
-                       SELECT 1 FROM clientes WHERE lower(nombre_corto)=lower('TRANSBORDER'))""")
-            return {"ok": True, "estado": "reparado", "transborder_id": _oid,
-                    "reubicadas": reubicadas}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
