@@ -5651,6 +5651,7 @@ let iaImgMap = {};         // Versionar: mapa token→imagen base64 para NO envi
 let iaCambiosDirectos = []; // Trazabilidad: lista de cambios directos aplicados a esta versión
 let iaRefAssigned = false; // ¿ya se pidió consecutivo?
 let iaEditingId = null;    // id de oferta que se versiona (o null)
+let iaRefManual = false;   // el usuario escribió el N° a mano (para versionar una existente)
 let iaDropBound = false;
 
 async function iaInit() {
@@ -5694,6 +5695,7 @@ function iaToggleRefEdit() {
   document.getElementById('iaRefDisplay').textContent = fmt;
   document.getElementById('iaRefNum').value = clean;
   document.getElementById('iaRefInline').textContent = fmt;
+  iaRefManual = true;   // fijado a mano: respeta este número (versionar una existente)
   showToast('Número ajustado a ' + fmt, 'success');
 }
 
@@ -6356,7 +6358,11 @@ async function iaGenerarOferta() {
     realizada:  iaMeta.realizada || (currentUser && currentUser.nombre) || null,
     html:       iaHtml || null,
     pdf_original: pdfOriginal,
-    resumen:    _iaComponerResumen()
+    resumen:    _iaComponerResumen(),
+    // NUEVA = no se está versionando una oferta existente (ni cargada ni con N° a mano).
+    // Si el consecutivo ya lo tomó otra oferta, el servidor le asigna el siguiente libre
+    // en vez de sobreescribir la de otro.
+    nueva:      (!iaEditingId && !iaRefManual)
   };
   try {
     const res = await fetch('/api/ofertas/guardar-version', {
@@ -6381,6 +6387,7 @@ async function iaGenerarOferta() {
 function iaResetChat(silent) {
   if (!silent && iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
   iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
+  iaRefManual = false;
   iaImgMap = {};
   iaCambiosDirectos = [];
   { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }

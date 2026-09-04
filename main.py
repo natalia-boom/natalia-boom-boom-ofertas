@@ -1627,6 +1627,71 @@ def _ensure_db():
         # Moneda de la oferta (COP por defecto). Las ofertas en USD ya no se muestran
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
+
+        # ── CANDADO DE CONSECUTIVO ────────────────────────────────────────────
+        # Evita que dos ofertas ACTIVAS compartan el mismo número (bug de
+        # consecutivo duplicado). Tiene dos partes idempotentes:
+        #   1) Resolver duplicados que ya existan: entre ofertas activas (no
+        #      prueba, no anulada) con el MISMO número, se conserva la MÁS
+        #      ANTIGUA (menor id) y se ANULAN las más nuevas (que son las que se
+        #      crearon por accidente al chocar el consecutivo). Anular es
+        #      reversible y conserva la trazabilidad (ISO 9001): el número no se
+        #      borra ni se reutiliza.
+        #   2) Crear un índice ÚNICO parcial para que la base RECHACE de raíz un
+        #      segundo registro activo con el mismo número. Las ofertas de prueba
+        #      y las anuladas quedan por fuera del candado (sí pueden repetir).
+        try:
+            cur.execute("""
+                SELECT CAST(num AS INTEGER) AS n, array_agg(id ORDER BY id) AS ids
+                  FROM ofertas
+                 WHERE NOT COALESCE(es_prueba, false)
+                   AND NOT COALESCE(anulada, false)
+                   AND num ~ '^[0-9]+$'
+                 GROUP BY CAST(num AS INTEGER)
+                HAVING COUNT(*) > 1
+            """)
+            _dups = cur.fetchall() or []
+            for _fila in _dups:
+                _n = _fila[0]
+                _ids = list(_fila[1] or [])
+                _conservar = _ids[0]      # la más antigua queda vigente
+                _anular = _ids[1:]        # las más nuevas se anulan
+                for _oid in _anular:
+                    cur.execute("""
+                        UPDATE ofertas
+                           SET anulada = true, estado = 'ANULADA',
+                               anulada_motivo = COALESCE(anulada_motivo,
+                                   'Consecutivo duplicado: el número ya estaba asignado a otra oferta.'),
+                               anulada_por = COALESCE(anulada_por, 'Sistema'),
+                               anulada_fecha = COALESCE(anulada_fecha, now())
+                         WHERE id = %s
+                    """, (_oid,))
+                    try:
+                        cur.execute("""
+                            INSERT INTO oferta_historial
+                                (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario)
+                            VALUES (%s, %s, 'ANULACIÓN', 'VIGENTE',
+                                    'ANULADA — consecutivo duplicado (saneamiento de integridad)', 'Sistema')
+                        """, (_oid, str(_n)))
+                    except Exception:
+                        pass
+                print(f"[DB][consecutivo] Duplicado {_n}: se conserva id={_conservar}, "
+                      f"se anula(n) id={_anular}")
+            if not _dups:
+                print("[DB][consecutivo] Sin duplicados de consecutivo.")
+        except Exception as e:
+            print(f"[DB][consecutivo] No se pudieron resolver duplicados: {e}")
+        try:
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ofertas_num_activo_uidx
+                    ON ofertas (CAST(num AS INTEGER))
+                 WHERE NOT COALESCE(es_prueba, false)
+                   AND NOT COALESCE(anulada, false)
+            """)
+            print("[DB][consecutivo] Candado de consecutivo activo listo.")
+        except Exception as e:
+            print(f"[DB][consecutivo] No se pudo crear el candado: {e}")
+
         print("[DB] Tabla 'ofertas' lista.")
 
         # Tabla SEPARADA para las ofertas 2025 (histórico facturado).
@@ -4161,6 +4226,7 @@ class OfertaVersionBody(BaseModel):
     html: Optional[str] = None            # documento de la oferta (ia_html)
     pdf_original: Optional[str] = None    # base64 del PDF original (para v1 externa)
     resumen: Optional[str] = None         # nota manual opcional de qué cambió
+    nueva: Optional[bool] = False         # True = oferta NUEVA (no se está versionando una existente)
 
 
 @app.post("/api/ofertas/guardar-version")
@@ -4188,89 +4254,123 @@ def guardar_version(body: OfertaVersionBody, request: Request):
             "origen": (body.origen or "").strip(), "destino": (body.destino or "").strip(),
         }
         nuevo_valor = int(body.valor or 0)
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
-            ex = fetchone(cur)
-            if ex:
-                oferta_id = ex["id"]
-                valor_ant = int(ex.get("valor") or 0)
-                creada = False
-                cur.execute(
-                    """UPDATE ofertas SET
-                         cliente = %s, valor = %s, moneda = %s,
-                         mes = COALESCE(%s, mes), tipo = COALESCE(%s, tipo),
-                         sector = COALESCE(%s, sector), unidad = COALESCE(%s, unidad),
-                         estado = COALESCE(%s, estado), respuesta = COALESCE(%s, respuesta),
-                         seguimiento = COALESCE(%s, seguimiento), general = COALESCE(%s, general),
-                         pdf_data = %s
-                       WHERE id = %s""",
-                    (cliente, nuevo_valor, (body.moneda or "COP"), body.mes, body.tipo, body.sector, body.unidad,
-                     body.estado, body.respuesta, body.seguimiento, body.descripcion,
-                     json.dumps(pdf_data), oferta_id),
-                )
-            else:
-                valor_ant = None
-                creada = True
-                cur.execute(
-                    """INSERT INTO ofertas
-                         (num, mes, fecha, cliente, realizada, tipo, sector, unidad,
-                          valor, moneda, estado, respuesta, seguimiento, general, pdf_data)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                       RETURNING id""",
-                    (num, body.mes, body.fecha or None, cliente, realizada, body.tipo,
-                     body.sector, body.unidad, nuevo_valor, (body.moneda or "COP"), body.estado or "ENVIADO",
-                     body.respuesta, body.seguimiento, body.descripcion, json.dumps(pdf_data)),
-                )
-                oferta_id = fetchone(cur)["id"]
-                cur.execute(
-                    """INSERT INTO clientes (nombre_corto)
-                       SELECT %s WHERE NOT EXISTS (
-                           SELECT 1 FROM clientes WHERE lower(nombre_corto) = lower(%s))""",
-                    (cliente, cliente),
-                )
-
-            cur.execute("SELECT COALESCE(MAX(version), 0) + 1 AS n FROM oferta_versiones WHERE oferta_id = %s",
-                        (oferta_id,))
-            vnum = int(fetchone(cur)["n"])
-
-            resumen = (body.resumen or "").strip()
-            cambio_valor = (valor_ant is not None and nuevo_valor != valor_ant)
-            valor_txt = ("Valor %s → %s." % (_fmt_cop_py(valor_ant), _fmt_cop_py(nuevo_valor))) if cambio_valor else ""
-            if not resumen:
-                if vnum == 1:
-                    resumen = "Versión inicial." + (" PDF original adjunto." if body.pdf_original else "")
-                elif cambio_valor:
-                    resumen = valor_txt
+        # Candado de consecutivo: si esta es una oferta NUEVA y el número que se
+        # mostró ya lo tomó otra oferta mientras se redactaba (o choca al insertar),
+        # se reasigna el siguiente número libre y se reintenta. Al VERSIONAR una
+        # oferta existente (body.nueva = False) el número manda y se respeta.
+        MAX_INTENTOS = 8
+        _rechoque = False
+        for _intento in range(MAX_INTENTOS):
+          try:
+            with get_conn() as conn:
+                cur = conn.cursor()
+                if _rechoque:
+                    cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS n FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
+                    num = str(fetchone(cur)["n"])
+                cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
+                ex = fetchone(cur)
+                if ex and body.nueva and not _rechoque:
+                    # El consecutivo mostrado ya pertenece a OTRA oferta: no la
+                    # sobreescribas; toma el siguiente número libre para esta nueva.
+                    cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS n FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
+                    num = str(fetchone(cur)["n"])
+                    cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
+                    ex = fetchone(cur)
+                pdf_data["ref"] = num
+                if ex:
+                    oferta_id = ex["id"]
+                    valor_ant = int(ex.get("valor") or 0)
+                    creada = False
+                    cur.execute(
+                        """UPDATE ofertas SET
+                             cliente = %s, valor = %s, moneda = %s,
+                             mes = COALESCE(%s, mes), tipo = COALESCE(%s, tipo),
+                             sector = COALESCE(%s, sector), unidad = COALESCE(%s, unidad),
+                             estado = COALESCE(%s, estado), respuesta = COALESCE(%s, respuesta),
+                             seguimiento = COALESCE(%s, seguimiento), general = COALESCE(%s, general),
+                             pdf_data = %s
+                           WHERE id = %s""",
+                        (cliente, nuevo_valor, (body.moneda or "COP"), body.mes, body.tipo, body.sector, body.unidad,
+                         body.estado, body.respuesta, body.seguimiento, body.descripcion,
+                         json.dumps(pdf_data), oferta_id),
+                    )
                 else:
-                    resumen = "Ajuste de la cotización."
-            elif cambio_valor and _fmt_cop_py(nuevo_valor) not in resumen:
-                # Garantiza la trazabilidad del cambio de valor aunque haya nota manual.
-                resumen = resumen + " — " + valor_txt
+                    valor_ant = None
+                    creada = True
+                    cur.execute(
+                        """INSERT INTO ofertas
+                             (num, mes, fecha, cliente, realizada, tipo, sector, unidad,
+                              valor, moneda, estado, respuesta, seguimiento, general, pdf_data)
+                           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                           RETURNING id""",
+                        (num, body.mes, body.fecha or None, cliente, realizada, body.tipo,
+                         body.sector, body.unidad, nuevo_valor, (body.moneda or "COP"), body.estado or "ENVIADO",
+                         body.respuesta, body.seguimiento, body.descripcion, json.dumps(pdf_data)),
+                    )
+                    oferta_id = fetchone(cur)["id"]
+                    cur.execute(
+                        """INSERT INTO clientes (nombre_corto)
+                           SELECT %s WHERE NOT EXISTS (
+                               SELECT 1 FROM clientes WHERE lower(nombre_corto) = lower(%s))""",
+                        (cliente, cliente),
+                    )
 
-            cur.execute("UPDATE oferta_versiones SET vigente = false WHERE oferta_id = %s", (oferta_id,))
-            cur.execute(
-                """INSERT INTO oferta_versiones
-                     (oferta_id, oferta_num, version, valor, moneda, descripcion,
-                      forma_pago, html, pdf_b64, resumen, creado_por, vigente)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, true)
-                   RETURNING id, version, created_at""",
-                (oferta_id, num, vnum, nuevo_valor, body.moneda or "COP", body.descripcion,
-                 body.forma_pago, body.html or "", body.pdf_original, resumen, usuario),
-            )
-            vrow = fetchone(cur)
+                cur.execute("SELECT COALESCE(MAX(version), 0) + 1 AS n FROM oferta_versiones WHERE oferta_id = %s",
+                            (oferta_id,))
+                vnum = int(fetchone(cur)["n"])
 
-            if valor_ant is not None and nuevo_valor != valor_ant:
+                resumen = (body.resumen or "").strip()
+                cambio_valor = (valor_ant is not None and nuevo_valor != valor_ant)
+                valor_txt = ("Valor %s → %s." % (_fmt_cop_py(valor_ant), _fmt_cop_py(nuevo_valor))) if cambio_valor else ""
+                if not resumen:
+                    if vnum == 1:
+                        resumen = "Versión inicial." + (" PDF original adjunto." if body.pdf_original else "")
+                    elif cambio_valor:
+                        resumen = valor_txt
+                    else:
+                        resumen = "Ajuste de la cotización."
+                elif cambio_valor and _fmt_cop_py(nuevo_valor) not in resumen:
+                    # Garantiza la trazabilidad del cambio de valor aunque haya nota manual.
+                    resumen = resumen + " — " + valor_txt
+
+                cur.execute("UPDATE oferta_versiones SET vigente = false WHERE oferta_id = %s", (oferta_id,))
                 cur.execute(
-                    """INSERT INTO oferta_historial
-                         (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario)
-                       VALUES (%s,%s,'valor',%s,%s,%s)""",
-                    (oferta_id, num, str(valor_ant), str(nuevo_valor), usuario),
+                    """INSERT INTO oferta_versiones
+                         (oferta_id, oferta_num, version, valor, moneda, descripcion,
+                          forma_pago, html, pdf_b64, resumen, creado_por, vigente)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, true)
+                       RETURNING id, version, created_at""",
+                    (oferta_id, num, vnum, nuevo_valor, body.moneda or "COP", body.descripcion,
+                     body.forma_pago, body.html or "", body.pdf_original, resumen, usuario),
                 )
-        num_fmt = num.zfill(6)
-        num_fmt = num_fmt[:2] + "-" + num_fmt[2:]
-        return {"ok": True, "oferta_id": oferta_id, "num": num, "num_fmt": num_fmt,
-                "version": vrow["version"], "creada": creada, "resumen": resumen}
+                vrow = fetchone(cur)
+
+                if valor_ant is not None and nuevo_valor != valor_ant:
+                    cur.execute(
+                        """INSERT INTO oferta_historial
+                             (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario)
+                           VALUES (%s,%s,'valor',%s,%s,%s)""",
+                        (oferta_id, num, str(valor_ant), str(nuevo_valor), usuario),
+                    )
+            num_fmt = num.zfill(6)
+            num_fmt = num_fmt[:2] + "-" + num_fmt[2:]
+            return {"ok": True, "oferta_id": oferta_id, "num": num, "num_fmt": num_fmt,
+                    "version": vrow["version"], "creada": creada, "resumen": resumen}
+          except pgdb.DatabaseError as e:
+            msg = str(e).lower()
+            if "unique" in msg or "duplicate" in msg:
+                # Choque de consecutivo (otro usuario tomó ese número casi al mismo
+                # tiempo): recalcula el siguiente número libre y reintenta.
+                _rechoque = True
+                continue
+            traceback.print_exc()
+            raise HTTPException(500, str(e))
+          except HTTPException:
+            raise
+          except Exception as e:
+            traceback.print_exc()
+            raise HTTPException(500, str(e))
+        raise HTTPException(409, "No se pudo asignar un consecutivo único; intenta guardar de nuevo")
     except HTTPException:
         raise
     except Exception as e:
