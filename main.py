@@ -1692,45 +1692,55 @@ def _ensure_db():
         except Exception as e:
             print(f"[DB][consecutivo] No se pudo crear el candado: {e}")
 
-        # ── CORRECCIÓN PUNTUAL: el 261161 pertenece a TRANSBORDER ─────────────
+        # ── CORRECCIÓN PUNTUAL Y AUTO-SANADORA: el 261161 pertenece a TRANSBORDER ──
         # El consecutivo 261161 es de TRANSBORDER (COTECMAR Mamonal → Puerto
         # Cartagena, $13.600.000 COP). Otras ofertas (p. ej. CONTINENTAL GOLD) lo
-        # tomaron por error. Esto garantiza que la ACTIVA sea la de TRANSBORDER y
-        # deja anuladas las demás. Es idempotente y SOLO actúa si existe la fila
-        # de TRANSBORDER (así nunca deja el número sin oferta).
+        # tomaron por error. Reglas:
+        #   1) Si existe la fila de TRANSBORDER → esa queda ACTIVA, las demás anuladas.
+        #   2) Si NO existe TRANSBORDER → NUNCA dejar el 261161 sin oferta activa:
+        #      se reactiva una sola fila (para que no "desaparezca" el número).
+        # El índice único parcial exige que quede EXACTAMENTE una activa. Es idempotente.
         try:
             cur.execute("""
                 SELECT id, COALESCE(cliente,'') AS cliente, COALESCE(anulada,false) AS anulada
                   FROM ofertas
                  WHERE num ~ '^[0-9]+$' AND CAST(num AS INTEGER) = 261161
+                 ORDER BY id
             """)
             _r261161 = cur.fetchall() or []
-            _tb = [x for x in _r261161 if str(x[1]).strip().upper().startswith("TRANSBORDER")]
-            _otras = [x for x in _r261161 if not str(x[1]).strip().upper().startswith("TRANSBORDER")]
-            if _tb:
-                # 1) Anular primero las que NO son TRANSBORDER (libera el candado).
-                for _x in _otras:
-                    if not _x[2]:
+            if _r261161:
+                _tb = [x for x in _r261161 if str(x[1]).strip().upper().startswith("TRANSBORDER")]
+                if _tb:
+                    _keep = _tb[0][0]          # preferimos la de TRANSBORDER
+                    _motivo = "Consecutivo duplicado: el 261161 pertenece a TRANSBORDER."
+                else:
+                    # No hay TRANSBORDER: conservamos UNA para no borrar el número.
+                    # Preferimos una ya activa; si todas están anuladas, la más reciente.
+                    _activas = [x for x in _r261161 if not x[2]]
+                    _keep = (_activas[-1][0] if _activas else _r261161[-1][0])
+                    _motivo = "Consecutivo duplicado 261161: se conserva una sola oferta activa."
+                # 1) Anular todas las demás (libera el candado único).
+                for _x in _r261161:
+                    if _x[0] != _keep and not _x[2]:
                         cur.execute("""
                             UPDATE ofertas
                                SET anulada = true, estado = 'ANULADA',
-                                   anulada_motivo = 'Consecutivo duplicado: el 261161 pertenece a TRANSBORDER.',
+                                   anulada_motivo = %s,
                                    anulada_por = 'Sistema', anulada_fecha = now()
                              WHERE id = %s
-                        """, (_x[0],))
-                        print(f"[DB][261161] Anulada oferta id={_x[0]} cliente='{_x[1]}' (no es TRANSBORDER).")
-                # 2) Reactivar la de TRANSBORDER (por si quedó anulada por error).
-                _tid = _tb[0][0]
+                        """, (_motivo, _x[0]))
+                        print(f"[DB][261161] Anulada id={_x[0]} cliente='{_x[1]}'.")
+                # 2) Reactivar SIEMPRE la que conservamos (nunca queda anulada).
                 cur.execute("""
                     UPDATE ofertas
                        SET anulada = false,
                            estado = CASE WHEN estado = 'ANULADA' THEN 'ENVIADO' ELSE estado END,
                            anulada_motivo = NULL, anulada_por = NULL, anulada_fecha = NULL
                      WHERE id = %s
-                """, (_tid,))
-                print(f"[DB][261161] OK: activa y correcta la de TRANSBORDER (id={_tid}).")
+                """, (_keep,))
+                print(f"[DB][261161] OK: activa id={_keep} (TRANSBORDER preferida).")
             else:
-                print("[DB][261161] AVISO: no hay fila de TRANSBORDER con 261161; no se toca nada.")
+                print("[DB][261161] No existe ninguna fila 261161; nada que corregir.")
         except Exception as e:
             print(f"[DB][261161] No se pudo corregir: {e}")
 
@@ -2385,7 +2395,9 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diag261161"}
+# Token temporal para el diagnóstico de solo lectura del 261161 (se retira luego).
+_DIAG_TOKEN = "Wj1TBMeC6ZHxB32k3C6Sozir5xm7yeV4"
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -3180,6 +3192,38 @@ def list_ofertas():
             cur = conn.cursor()
             cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/_diag261161")
+def _diag261161(t: str = Query("")):
+    """Diagnóstico TEMPORAL de solo lectura (protegido por token). Devuelve las
+    filas con consecutivo 261161 para poder corregir con precisión. Se retira luego."""
+    if t != _DIAG_TOKEN:
+        raise HTTPException(404, "not found")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, num, COALESCE(cliente,'') AS cliente,
+                       COALESCE(anulada,false) AS anulada, COALESCE(estado,'') AS estado,
+                       COALESCE(valor,0) AS valor, COALESCE(moneda,'') AS moneda
+                  FROM ofertas
+                 WHERE num ~ '^[0-9]+$' AND CAST(num AS INTEGER) = 261161
+                 ORDER BY id
+            """)
+            filas261161 = fetchall(cur)
+            cur.execute("""
+                SELECT id, num, COALESCE(cliente,'') AS cliente,
+                       COALESCE(anulada,false) AS anulada, COALESCE(estado,'') AS estado
+                  FROM ofertas
+                 WHERE UPPER(COALESCE(cliente,'')) LIKE 'TRANSBORDER%'
+                 ORDER BY CAST(num AS INTEGER) DESC
+            """)
+            transborder = fetchall(cur)
+            return {"filas261161": filas261161, "transborder": transborder}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
