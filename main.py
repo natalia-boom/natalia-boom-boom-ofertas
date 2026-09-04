@@ -2395,10 +2395,8 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_fix1174c"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
-# Token temporal para corregir el cliente del 26-1174 a CRANE (se retira luego).
-_FIX_TOKEN = "ugAUNocVHjqlF_nFAr_hmvWpWw3t53ry"
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
 # OSI, agregar equipos, atender alertas); en todo lo demás (ofertas, etc.) sigue
@@ -3192,51 +3190,6 @@ def list_ofertas():
             cur = conn.cursor()
             cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-class _Fix1174cBody(BaseModel):
-    token: str
-
-
-@app.post("/api/_fix1174c")
-def _fix1174c(body: _Fix1174cBody):
-    """Reparación TEMPORAL token-protegida: corrige el cliente del 26-1174 a
-    CRANE (no era TRANSBORDER). Se retira luego."""
-    if body.token != _FIX_TOKEN:
-        raise HTTPException(404, "not found")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            # Usa el nombre exacto con el que ya aparece CRANE en otras ofertas.
-            cur.execute("""
-                SELECT UPPER(TRIM(cliente)) AS c, COUNT(*) AS n
-                  FROM ofertas
-                 WHERE UPPER(TRIM(COALESCE(cliente,''))) LIKE 'CRANE%'
-                 GROUP BY UPPER(TRIM(cliente))
-                 ORDER BY n DESC
-                 LIMIT 1
-            """)
-            _row = fetchone(cur)
-            nombre = (_row["c"] if _row else None) or "CRANE"
-            cur.execute("SELECT cliente FROM ofertas WHERE num = '261174'")
-            _ant = fetchone(cur)
-            anterior = (_ant["cliente"] if _ant else None)
-            cur.execute("""
-                UPDATE ofertas SET cliente = %s WHERE num = '261174'
-             RETURNING id, num, COALESCE(cliente,'') AS cliente,
-                       COALESCE(realizada,'') AS realizada,
-                       COALESCE(valor,0) AS valor, COALESCE(moneda,'') AS moneda
-            """, (nombre,))
-            filas = fetchall(cur)
-            cur.execute("""
-                INSERT INTO clientes (nombre_corto)
-                SELECT %s WHERE NOT EXISTS (
-                    SELECT 1 FROM clientes WHERE lower(nombre_corto)=lower(%s))
-            """, (nombre, nombre))
-            return {"ok": True, "anterior": anterior, "nombre_usado": nombre, "filas": filas}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
