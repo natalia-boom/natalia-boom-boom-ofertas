@@ -2395,8 +2395,10 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_fix1174"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+# Token temporal para reactivar el 26-1174 como TRANSBORDER (se retira luego).
+_FIX_TOKEN = "aFGy6OS4dDdFLOzUcgYsVb4VkA3uRm2f"
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
 # OSI, agregar equipos, atender alertas); en todo lo demás (ofertas, etc.) sigue
@@ -3190,6 +3192,43 @@ def list_ofertas():
             cur = conn.cursor()
             cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
             return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+class _Fix1174Body(BaseModel):
+    token: str
+
+
+@app.post("/api/_fix1174")
+def _fix1174(body: _Fix1174Body):
+    """Reparación TEMPORAL token-protegida: reactiva el 26-1174 y lo deja como
+    TRANSBORDER (la oferta que se estaba realizando). Se retira luego."""
+    if body.token != _FIX_TOKEN:
+        raise HTTPException(404, "not found")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            # Reactivar y reetiquetar a TRANSBORDER la fila del 261174.
+            cur.execute("""
+                UPDATE ofertas
+                   SET anulada = false,
+                       estado = 'ENVIADO',
+                       cliente = 'TRANSBORDER',
+                       anulada_motivo = NULL, anulada_por = NULL, anulada_fecha = NULL
+                 WHERE num = '261174'
+             RETURNING id, num, COALESCE(cliente,'') AS cliente,
+                       COALESCE(anulada,false) AS anulada, COALESCE(estado,'') AS estado,
+                       COALESCE(valor,0) AS valor, COALESCE(moneda,'') AS moneda
+            """)
+            filas = fetchall(cur)
+            cur.execute("""
+                INSERT INTO clientes (nombre_corto)
+                SELECT 'TRANSBORDER' WHERE NOT EXISTS (
+                    SELECT 1 FROM clientes WHERE lower(nombre_corto)=lower('TRANSBORDER'))
+            """)
+            return {"ok": True, "filas": filas}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
