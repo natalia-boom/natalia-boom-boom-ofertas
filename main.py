@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagfactgrupo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4608,39 +4608,6 @@ def get_stats():
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
                 "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
             }
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-# ── TEMP diag: verifica agrupación de facturación por grupo empresarial ───────
-@app.get("/api/_diagfactgrupo")
-def _diag_fact_grupo(token: str = ""):
-    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
-        raise HTTPException(403, "no")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            # Detalle por razón social (NIT) del grupo COLOMBIAN NATURAL RESOURCES
-            cur.execute("""
-                SELECT nit, cliente, COUNT(*) AS n, COALESCE(SUM(subtotal),0) AS valor
-                FROM vulcano_facturas
-                WHERE excluida = false
-                  AND ( regexp_replace(COALESCE(nit,''),'\\D','','g') IN ('900333493','900268901','900519515')
-                        OR UPPER(cliente) LIKE '%COLOMBIAN NATURAL RESOURCES%'
-                        OR UPPER(cliente) LIKE 'CNR III%'
-                        OR UPPER(cliente) LIKE '%TRANSFERPORT%' )
-                GROUP BY nit, cliente ORDER BY valor DESC
-            """)
-            detalle = fetchall(cur)
-            cur.execute("""
-                SELECT {grp} AS cliente, COUNT(*) AS n, COALESCE(SUM(subtotal),0) AS valor
-                FROM vulcano_facturas
-                WHERE excluida = false AND cliente IS NOT NULL AND cliente <> ''
-                GROUP BY {grp} HAVING {grp} = 'COLOMBIAN NATURAL RESOURCES'
-            """.format(grp=_FACT_CLIENTE_GRUPO_SQL))
-            grupo = fetchall(cur)
-            return {"ok": True, "detalle_por_razon_social": detalle, "grupo_agrupado": grupo}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
