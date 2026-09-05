@@ -1994,8 +1994,9 @@ def _ensure_db():
                 created_at  timestamptz default now()
             )
         """)
-        cur.execute("SELECT COUNT(*) AS n FROM lider_cliente")
-        if (fetchone(cur) or {}).get("n", 0) == 0:
+        cur.execute("SELECT COUNT(*) FROM lider_cliente")
+        _lc_row = cur.fetchone()
+        if (_lc_row[0] if _lc_row else 0) == 0:
             _seed_lc = {
                 "Sergio Pérez":   ["CRANE", "FCL", "CEVA", "SSAB", "REDGAMA", "GAMALOG"],
                 "Yennifer Balza": ["TIBA", "TERNIUM", "SERPOMAR", "TEBSA", "SAVINO DEL BENE",
