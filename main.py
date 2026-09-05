@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagclientes"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4556,6 +4556,47 @@ def get_stats():
                 "por_unidad":    q("SELECT unidad, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND unidad IS NOT NULL AND unidad<>'' GROUP BY unidad ORDER BY cnt DESC"),
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
                 "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
+            }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# ── TEMP diagnóstico solo lectura: variantes de nombre de cliente ─────────────
+@app.get("/api/_diagclientes")
+def _diag_clientes(token: str = ""):
+    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
+        raise HTTPException(403, "no")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                    cliente,
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE UPPER(respuesta)='ACEPTADA') AS aceptadas,
+                    COUNT(*) FILTER (WHERE COALESCE(anulada,false)) AS anuladas,
+                    COUNT(*) FILTER (WHERE COALESCE(es_prueba,false)) AS pruebas,
+                    COUNT(*) FILTER (WHERE UPPER(respuesta)='ACEPTADA'
+                                     AND NOT COALESCE(anulada,false)
+                                     AND NOT COALESCE(es_prueba,false)) AS aceptadas_validas
+                FROM ofertas
+                WHERE cliente IS NOT NULL AND cliente <> ''
+                GROUP BY cliente
+                ORDER BY UPPER(cliente)
+            """)
+            filas = fetchall(cur)
+            # Agrupa por "raíz" (primera palabra en mayúsculas) para detectar variantes
+            grupos = {}
+            for f in filas:
+                raiz = (f["cliente"] or "").strip().upper().split(" ")[0]
+                grupos.setdefault(raiz, []).append(f["cliente"])
+            posibles_variantes = {k: v for k, v in grupos.items() if len(v) > 1}
+            return {
+                "ok": True,
+                "total_clientes_distintos": len(filas),
+                "filas": filas,
+                "posibles_variantes": posibles_variantes,
             }
     except Exception as e:
         traceback.print_exc()
