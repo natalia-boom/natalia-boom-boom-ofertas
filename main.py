@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagclientes"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagclientes", "/api/_unificar"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4613,6 +4613,42 @@ def _diag_clientes(token: str = "", like: str = ""):
                 "posibles_variantes": posibles_variantes,
                 "resp_breakdown": resp_breakdown,
             }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# ── TEMP: unificar variantes de nombre de cliente (concatenar) ────────────────
+@app.post("/api/_unificar")
+def _unificar(token: str = ""):
+    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
+        raise HTTPException(403, "no")
+    MERGES = {
+        "TIBA": ["TIBA GROUP"],
+        "CRANE WORLDWIDE": ["CRANE", "CRANE WORLDWIDE LOGISTICS"],
+        "CEVA": ["CEVA PROJECT LOGISTICS"],
+        "ANDES LOGISTICS": ["ANDES LOGISTIC"],
+        "BERTLING": ["BERTLING LOGISTICS COLOMBIA"],
+        "SION GLOBAL LOGISTICS S.A.S.": ["SION GLOBAL LOGISTICS SAS"],
+        "GAMALOG": ["GAMALOG S.A.S."],
+        "UTC": ["UTC OVERSEAS COLOMBIA S.A.S."],
+    }
+    try:
+        cambios = []
+        with get_conn() as conn:
+            cur = conn.cursor()
+            for canon, variantes in MERGES.items():
+                # Garantiza que el nombre canónico exista en el catálogo.
+                cur.execute(
+                    "INSERT INTO clientes (nombre_corto) VALUES (%s) ON CONFLICT DO NOTHING",
+                    (canon,))
+                for v in variantes:
+                    cur.execute("UPDATE ofertas SET cliente=%s WHERE cliente=%s", (canon, v))
+                    movidas = cur.rowcount
+                    # Quita la variante del catálogo para que no salga repetida.
+                    cur.execute("DELETE FROM clientes WHERE lower(nombre_corto)=lower(%s)", (v,))
+                    cambios.append({"variante": v, "unificado_a": canon, "ofertas_movidas": movidas})
+        return {"ok": True, "cambios": cambios}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
