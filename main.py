@@ -4580,12 +4580,28 @@ def _diag_tiba2(token: str = ""):
             """)
             tiba = fetchall(cur)
             aceptadas = [r for r in tiba if (r.get("respuesta") or "").upper() == "ACEPTADA"]
+            # BÚSQUEDA AMPLIA: ofertas cuyo documento/descripción/seguimiento mencionan
+            # TIBA pero que quedaron con OTRO cliente (posible 10ª mal clasificada).
+            cur.execute("""
+                SELECT num, fecha, cliente, respuesta, estado, valor, realizada,
+                       COALESCE(anulada,false) AS anulada, COALESCE(es_prueba,false) AS es_prueba
+                FROM ofertas
+                WHERE UPPER(cliente) NOT LIKE '%TIBA%'
+                  AND (
+                        UPPER(COALESCE(general,''))     LIKE '%TIBA%'
+                     OR UPPER(COALESCE(seguimiento,'')) LIKE '%TIBA%'
+                     OR UPPER(COALESCE(CAST(pdf_data AS TEXT),'')) LIKE '%TIBA%'
+                  )
+                ORDER BY CAST(num AS INTEGER)
+            """)
+            mencionan_tiba_otro_cliente = fetchall(cur)
             return {
                 "ok": True,
                 "total_tiba": len(tiba),
                 "aceptadas_count": len(aceptadas),
                 "aceptadas": aceptadas,
                 "todas": tiba,
+                "mencionan_tiba_otro_cliente": mencionan_tiba_otro_cliente,
             }
     except Exception as e:
         traceback.print_exc()
