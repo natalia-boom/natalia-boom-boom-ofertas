@@ -4564,7 +4564,7 @@ def get_stats():
 
 # ── TEMP diagnóstico solo lectura: variantes de nombre de cliente ─────────────
 @app.get("/api/_diagclientes")
-def _diag_clientes(token: str = ""):
+def _diag_clientes(token: str = "", like: str = ""):
     if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
         raise HTTPException(403, "no")
     try:
@@ -4592,11 +4592,26 @@ def _diag_clientes(token: str = ""):
                 raiz = (f["cliente"] or "").strip().upper().split(" ")[0]
                 grupos.setdefault(raiz, []).append(f["cliente"])
             posibles_variantes = {k: v for k, v in grupos.items() if len(v) > 1}
+            # Desglose de valores de 'respuesta' para clientes que coincidan con 'like'
+            resp_breakdown = None
+            if like:
+                cur.execute("""
+                    SELECT cliente,
+                           COALESCE(respuesta,'(vacio)') AS respuesta,
+                           estado,
+                           COUNT(*) AS cnt
+                    FROM ofertas
+                    WHERE UPPER(cliente) LIKE %s
+                    GROUP BY cliente, respuesta, estado
+                    ORDER BY cliente, respuesta
+                """, ("%" + like.upper() + "%",))
+                resp_breakdown = fetchall(cur)
             return {
                 "ok": True,
                 "total_clientes_distintos": len(filas),
                 "filas": filas,
                 "posibles_variantes": posibles_variantes,
+                "resp_breakdown": resp_breakdown,
             }
     except Exception as e:
         traceback.print_exc()
