@@ -3651,6 +3651,15 @@ async function loadAll() {
     renderDashboard();
     filterControl();
     filterAprobadas();
+    // Mantiene actualizadas también las pestañas que leen de sus propios endpoints
+    // (Clientes y Proyección) cuando están abiertas, para que TODO cuadre en vivo
+    // dentro del mismo ciclo de 60s que el dashboard.
+    try {
+      const _activo = document.querySelector('.tab-panel.active');
+      const _id = _activo ? _activo.id : '';
+      if (_id === 'tab-clientes'   && typeof cargarClientes  === 'function') cargarClientes();
+      if (_id === 'tab-proyeccion' && typeof renderProyeccion === 'function') renderProyeccion();
+    } catch(e) {}
     setSyncState('ok');
   } catch(e) {
     setSyncState('error');
