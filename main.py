@@ -2395,13 +2395,41 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_canonmigra"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
 # OSI, agregar equipos, atender alertas); en todo lo demás (ofertas, etc.) sigue
 # siendo de solo lectura.
 _OPERACIONES_WRITE_PREFIXES = ("/api/osi", "/api/equipos", "/api/notificaciones")
+
+
+# ── Nombre OFICIAL (largo) de cada cliente ────────────────────────────────────
+# Estándar acordado con Comercial: el cliente siempre se guarda con su nombre
+# COMPLETO (el más largo). Así, si alguien escribe "TIBA" o "CRANE", queda
+# registrado como "TIBA GROUP" / "CRANE WORLDWIDE LOGISTICS" y todas las
+# secciones (dashboard, clientes, tablero, proyección) quedan concatenadas bajo
+# un único nombre. Las claves van en MAYÚSCULA y sin espacios dobles.
+_CLIENTES_CANON = {
+    "TIBA": "TIBA GROUP",
+    "CRANE": "CRANE WORLDWIDE LOGISTICS",
+    "CRANE WORLDWIDE": "CRANE WORLDWIDE LOGISTICS",
+    "CEVA": "CEVA PROJECT LOGISTICS",
+    "ANDES LOGISTIC": "ANDES LOGISTICS",
+    "BERTLING": "BERTLING LOGISTICS COLOMBIA",
+    "SION GLOBAL LOGISTICS SAS": "SION GLOBAL LOGISTICS S.A.S.",
+    "GAMALOG": "GAMALOG S.A.S.",
+    "UTC": "UTC OVERSEAS COLOMBIA S.A.S.",
+}
+
+
+def _canon_cliente(nombre):
+    """Normaliza (MAYÚSCULA, sin espacios dobles) y lleva el cliente a su nombre
+    oficial largo si está en la tabla de equivalencias. Idempotente."""
+    if not nombre:
+        return nombre
+    n = re.sub(r"\s+", " ", str(nombre).strip()).upper()
+    return _CLIENTES_CANON.get(n, n)
 
 
 @app.middleware("http")
@@ -3547,7 +3575,7 @@ def contratos_pendientes_list():
 @app.post("/api/contratos_pendientes")
 def contratos_pendientes_create(body: ContratoPendCreate, request: Request):
     try:
-        cliente = re.sub(r"\s+", " ", (body.cliente or "").strip()).upper()
+        cliente = _canon_cliente(body.cliente)
         if not cliente:
             raise HTTPException(400, "El cliente es obligatorio")
         estado = (body.estado or "CONFIRMADO").strip().upper()
@@ -3575,7 +3603,7 @@ def contratos_pendientes_update(cid: int, body: ContratoPendUpdate, request: Req
     try:
         fields = {}
         if body.cliente is not None:
-            fields["cliente"] = re.sub(r"\s+", " ", body.cliente.strip()).upper()
+            fields["cliente"] = _canon_cliente(body.cliente)
         if body.descripcion is not None:
             fields["descripcion"] = body.descripcion.strip()
         if body.valor is not None:
@@ -3649,7 +3677,7 @@ def create_oferta(oferta: OfertaCreate):
     # MAYÚSCULA) para que coincida con el catálogo oficial y no se creen duplicados
     # por tipeo ni por mayúsculas/minúsculas distintas.
     if oferta.cliente:
-        oferta.cliente = re.sub(r"\s+", " ", oferta.cliente.strip()).upper()
+        oferta.cliente = _canon_cliente(oferta.cliente)
     # El nombre del comercial (quien realiza/formaliza) siempre en MAYÚSCULA.
     if oferta.realizada:
         oferta.realizada = re.sub(r"\s+", " ", oferta.realizada.strip()).upper()
@@ -3723,6 +3751,9 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         for _campo in ("cliente", "realizada", "formalizada"):
             if fields.get(_campo):
                 fields[_campo] = re.sub(r"\s+", " ", str(fields[_campo]).strip()).upper()
+        # El cliente además se lleva a su nombre oficial largo (estándar Comercial).
+        if fields.get("cliente"):
+            fields["cliente"] = _canon_cliente(fields["cliente"])
 
         # Fields tracked for history
         TRACKED = {"respuesta", "estado", "valor", "facturacion", "mes_aceptado",
@@ -4299,7 +4330,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
             usuario = request.state.user.get("nombre", "") if hasattr(request.state, "user") else ""
         except Exception:
             pass
-        cliente = re.sub(r"\s+", " ", (body.cliente or "").strip()).upper() or "SIN CLIENTE"
+        cliente = _canon_cliente(body.cliente) or "SIN CLIENTE"
         realizada = re.sub(r"\s+", " ", (body.realizada or usuario or "").strip()).upper() or None
         pdf_data = {
             "ref": num, "cliente": cliente, "descripcion": body.descripcion,
@@ -4557,6 +4588,39 @@ def get_stats():
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
                 "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
             }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# ── TEMP: migra clientes existentes a su nombre oficial largo ─────────────────
+@app.post("/api/_canonmigra")
+def _canon_migra(token: str = ""):
+    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
+        raise HTTPException(403, "no")
+    try:
+        cambios = []
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT cliente FROM ofertas WHERE cliente IS NOT NULL AND cliente <> ''")
+            actuales = [r["cliente"] for r in fetchall(cur)]
+            for actual in actuales:
+                canon = _canon_cliente(actual)
+                if canon and canon != actual:
+                    cur.execute("INSERT INTO clientes (nombre_corto) VALUES (%s) ON CONFLICT DO NOTHING", (canon,))
+                    cur.execute("UPDATE ofertas SET cliente=%s WHERE cliente=%s", (canon, actual))
+                    movidas = cur.rowcount
+                    cur.execute("DELETE FROM clientes WHERE lower(nombre_corto)=lower(%s)", (actual,))
+                    cambios.append({"de": actual, "a": canon, "ofertas_movidas": movidas})
+            # También los contratos pendientes (tablero/proyección)
+            cont = []
+            cur.execute("SELECT DISTINCT cliente FROM contratos_pendientes WHERE cliente IS NOT NULL AND cliente <> ''")
+            for r in fetchall(cur):
+                actual = r["cliente"]; canon = _canon_cliente(actual)
+                if canon and canon != actual:
+                    cur.execute("UPDATE contratos_pendientes SET cliente=%s WHERE cliente=%s", (canon, actual))
+                    cont.append({"de": actual, "a": canon, "movidos": cur.rowcount})
+        return {"ok": True, "ofertas": cambios, "contratos": cont}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
