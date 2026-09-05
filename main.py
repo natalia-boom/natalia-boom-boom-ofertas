@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagclientes", "/api/_unificar"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4562,98 +4562,6 @@ def get_stats():
         raise HTTPException(500, str(e))
 
 
-# ── TEMP diagnóstico solo lectura: variantes de nombre de cliente ─────────────
-@app.get("/api/_diagclientes")
-def _diag_clientes(token: str = "", like: str = ""):
-    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
-        raise HTTPException(403, "no")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT
-                    cliente,
-                    COUNT(*) AS total,
-                    COUNT(*) FILTER (WHERE UPPER(respuesta)='ACEPTADA') AS aceptadas,
-                    COUNT(*) FILTER (WHERE COALESCE(anulada,false)) AS anuladas,
-                    COUNT(*) FILTER (WHERE COALESCE(es_prueba,false)) AS pruebas,
-                    COUNT(*) FILTER (WHERE UPPER(respuesta)='ACEPTADA'
-                                     AND NOT COALESCE(anulada,false)
-                                     AND NOT COALESCE(es_prueba,false)) AS aceptadas_validas
-                FROM ofertas
-                WHERE cliente IS NOT NULL AND cliente <> ''
-                GROUP BY cliente
-                ORDER BY UPPER(cliente)
-            """)
-            filas = fetchall(cur)
-            # Agrupa por "raíz" (primera palabra en mayúsculas) para detectar variantes
-            grupos = {}
-            for f in filas:
-                raiz = (f["cliente"] or "").strip().upper().split(" ")[0]
-                grupos.setdefault(raiz, []).append(f["cliente"])
-            posibles_variantes = {k: v for k, v in grupos.items() if len(v) > 1}
-            # Desglose de valores de 'respuesta' para clientes que coincidan con 'like'
-            resp_breakdown = None
-            if like:
-                cur.execute("""
-                    SELECT cliente,
-                           COALESCE(respuesta,'(vacio)') AS respuesta,
-                           estado,
-                           COUNT(*) AS cnt
-                    FROM ofertas
-                    WHERE UPPER(cliente) LIKE %s
-                    GROUP BY cliente, respuesta, estado
-                    ORDER BY cliente, respuesta
-                """, ("%" + like.upper() + "%",))
-                resp_breakdown = fetchall(cur)
-            return {
-                "ok": True,
-                "total_clientes_distintos": len(filas),
-                "filas": filas,
-                "posibles_variantes": posibles_variantes,
-                "resp_breakdown": resp_breakdown,
-            }
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-# ── TEMP: unificar variantes de nombre de cliente (concatenar) ────────────────
-@app.post("/api/_unificar")
-def _unificar(token: str = ""):
-    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
-        raise HTTPException(403, "no")
-    MERGES = {
-        "TIBA": ["TIBA GROUP"],
-        "CRANE WORLDWIDE": ["CRANE", "CRANE WORLDWIDE LOGISTICS"],
-        "CEVA": ["CEVA PROJECT LOGISTICS"],
-        "ANDES LOGISTICS": ["ANDES LOGISTIC"],
-        "BERTLING": ["BERTLING LOGISTICS COLOMBIA"],
-        "SION GLOBAL LOGISTICS S.A.S.": ["SION GLOBAL LOGISTICS SAS"],
-        "GAMALOG": ["GAMALOG S.A.S."],
-        "UTC": ["UTC OVERSEAS COLOMBIA S.A.S."],
-    }
-    try:
-        cambios = []
-        with get_conn() as conn:
-            cur = conn.cursor()
-            for canon, variantes in MERGES.items():
-                # Garantiza que el nombre canónico exista en el catálogo.
-                cur.execute(
-                    "INSERT INTO clientes (nombre_corto) VALUES (%s) ON CONFLICT DO NOTHING",
-                    (canon,))
-                for v in variantes:
-                    cur.execute("UPDATE ofertas SET cliente=%s WHERE cliente=%s", (canon, v))
-                    movidas = cur.rowcount
-                    # Quita la variante del catálogo para que no salga repetida.
-                    cur.execute("DELETE FROM clientes WHERE lower(nombre_corto)=lower(%s)", (v,))
-                    cambios.append({"variante": v, "unificado_a": canon, "ofertas_movidas": movidas})
-        return {"ok": True, "cambios": cambios}
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 @app.post("/auth/login")
 def login(body: LoginBody, response: Response):
@@ -6039,6 +5947,8 @@ def get_clientes_stats():
                     MAX(fecha) AS ultima_oferta
                 FROM ofertas
                 WHERE cliente IS NOT NULL AND cliente != ''
+                  AND NOT COALESCE(anulada, false)
+                  AND NOT COALESCE(es_prueba, false)
                 GROUP BY cliente
                 ORDER BY total_ofertas DESC
             """)
