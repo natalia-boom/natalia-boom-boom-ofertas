@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagtiba2"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4556,52 +4556,6 @@ def get_stats():
                 "por_unidad":    q("SELECT unidad, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND unidad IS NOT NULL AND unidad<>'' GROUP BY unidad ORDER BY cnt DESC"),
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
                 "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
-            }
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-# ── TEMP diagnóstico solo lectura: todas las ofertas de TIBA ─────────────────
-@app.get("/api/_diagtiba2")
-def _diag_tiba2(token: str = ""):
-    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
-        raise HTTPException(403, "no")
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            # Todas las ofertas de TIBA (por nombre)
-            cur.execute("""
-                SELECT num, fecha, cliente, respuesta, estado, valor, realizada,
-                       COALESCE(anulada,false) AS anulada, COALESCE(es_prueba,false) AS es_prueba
-                FROM ofertas
-                WHERE UPPER(cliente) LIKE '%TIBA%'
-                ORDER BY UPPER(respuesta), CAST(num AS INTEGER)
-            """)
-            tiba = fetchall(cur)
-            aceptadas = [r for r in tiba if (r.get("respuesta") or "").upper() == "ACEPTADA"]
-            # BÚSQUEDA AMPLIA: ofertas cuyo documento/descripción/seguimiento mencionan
-            # TIBA pero que quedaron con OTRO cliente (posible 10ª mal clasificada).
-            cur.execute("""
-                SELECT num, fecha, cliente, respuesta, estado, valor, realizada,
-                       COALESCE(anulada,false) AS anulada, COALESCE(es_prueba,false) AS es_prueba
-                FROM ofertas
-                WHERE UPPER(cliente) NOT LIKE '%TIBA%'
-                  AND (
-                        UPPER(COALESCE(general,''))     LIKE '%TIBA%'
-                     OR UPPER(COALESCE(seguimiento,'')) LIKE '%TIBA%'
-                     OR UPPER(COALESCE(CAST(pdf_data AS TEXT),'')) LIKE '%TIBA%'
-                  )
-                ORDER BY CAST(num AS INTEGER)
-            """)
-            mencionan_tiba_otro_cliente = fetchall(cur)
-            return {
-                "ok": True,
-                "total_tiba": len(tiba),
-                "aceptadas_count": len(aceptadas),
-                "aceptadas": aceptadas,
-                "todas": tiba,
-                "mencionan_tiba_otro_cliente": mencionan_tiba_otro_cliente,
             }
     except Exception as e:
         traceback.print_exc()

@@ -4215,7 +4215,10 @@ function filterControl() {
 
   controlFiltered = allOfertas.filter(o => {
     if (buscar) {
-      const _h = `${o.num} ${o.cliente} ${o.general}`.toLowerCase();
+      // Busca SOLO por número y cliente (no por el texto interno del documento),
+      // para que al filtrar un cliente no se cuelen ofertas de OTRO cliente que
+      // solo mencionan ese nombre en la descripción. Así el conteo por cliente es exacto.
+      const _h = `${o.num} ${o.cliente}`.toLowerCase();
       // Tolerante a guiones/espacios: "26-1014" también encuentra "261014".
       if (!_h.includes(buscar) && !_h.replace(/[-\s]/g,'').includes(buscar.replace(/[-\s]/g,''))) return false;
     }
