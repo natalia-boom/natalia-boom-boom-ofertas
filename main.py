@@ -1983,6 +1983,35 @@ def _ensure_db():
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS placa text")
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS observaciones text")
 
+        # Catálogo Líder ↔ Cliente (Operaciones): qué líder atiende a qué cliente.
+        # Se usa para autosugerir el líder al crear la OSI. Se siembra una sola vez
+        # (si está vacía) para que las ediciones futuras de Natalia no se pisen.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS lider_cliente (
+                id          bigserial primary key,
+                cliente_key text unique not null,
+                lider       text not null,
+                created_at  timestamptz default now()
+            )
+        """)
+        cur.execute("SELECT COUNT(*) AS n FROM lider_cliente")
+        if (fetchone(cur) or {}).get("n", 0) == 0:
+            _seed_lc = {
+                "Sergio Pérez":   ["CRANE", "FCL", "CEVA", "SSAB", "REDGAMA", "GAMALOG"],
+                "Yennifer Balza": ["TIBA", "TERNIUM", "SERPOMAR", "TEBSA", "SAVINO DEL BENE",
+                                   "SACYR", "ENERGÍA EFICIENTE", "RELIANZ", "AHT"],
+                "Roberto Romero": ["GLOBAL LOGISTICS", "CARBONES DEL CERREJON", "GM&M", "CNR",
+                                   "COLOMBIAN NATURAL RESOURCES", "CENTRA", "ELOGIA",
+                                   "SION GLOBAL", "AUSA"],
+                "Yilliam Ibarra": ["ISA INTERCOLOMBIA", "HARTRODT"],
+                "Carlos Navarro": ["OBEN"],
+            }
+            for _lider, _claves in _seed_lc.items():
+                for _k in _claves:
+                    cur.execute(
+                        "INSERT INTO lider_cliente (cliente_key, lider) VALUES (%s,%s) "
+                        "ON CONFLICT (cliente_key) DO NOTHING", (_k, _lider))
+
         # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
         cur.execute("""
             CREATE TABLE IF NOT EXISTS equipos (
@@ -5315,23 +5344,36 @@ def osi_prefill(oferta_id: int, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT realizada, tipo, pdf_data FROM ofertas WHERE id=%s", (oferta_id,))
+            cur.execute("SELECT realizada, tipo, cliente, pdf_data FROM ofertas WHERE id=%s", (oferta_id,))
             row = fetchone(cur)
-        if not row:
-            return {"solicitante": "", "tipo": "", "equipo": "", "origen": "", "destino": "", "descripcion": ""}
-        pdf = row.get("pdf_data")
-        if isinstance(pdf, str):
-            try: pdf = json.loads(pdf)
-            except Exception: pdf = {}
-        pdf = pdf or {}
-        equipo = "; ".join(e.get("equipo", "") for e in (pdf.get("equipos") or []) if e.get("equipo"))
+            if not row:
+                return {"solicitante": "", "tipo": "", "equipo": "", "equipos": [],
+                        "origen": "", "destino": "", "descripcion": "", "lider": ""}
+            pdf = row.get("pdf_data")
+            if isinstance(pdf, str):
+                try: pdf = json.loads(pdf)
+                except Exception: pdf = {}
+            pdf = pdf or {}
+            # Equipo ofertado: texto resumido + lista estructurada (para sugerir líneas)
+            equipos_det = []
+            for e in (pdf.get("equipos") or []):
+                nombre = (e.get("equipo") or "").strip()
+                if not nombre:
+                    continue
+                cfg = (e.get("config") or "").strip()
+                equipos_det.append({"equipo": nombre, "config": cfg, "cant": e.get("cant") or 1})
+            equipo = "; ".join(e["equipo"] + (" " + e["config"] if e["config"] else "") for e in equipos_det)
+            # Líder sugerido según el cliente (catálogo Líder↔Cliente)
+            lider = _lider_por_cliente(cur, row.get("cliente"))
         return {
             "solicitante": row.get("realizada") or "",
             "tipo": row.get("tipo") or "",
             "equipo": equipo,
+            "equipos": equipos_det,
             "origen": (pdf.get("origen") or "").strip(),
             "destino": (pdf.get("destino") or "").strip(),
             "descripcion": (pdf.get("descripcion") or "").strip(),
+            "lider": lider,
         }
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -5345,6 +5387,70 @@ def osi_proximo_numero(request: Request):
             return {"numero_osi": _proximo_numero_osi(cur)}
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+class LiderClienteBody(BaseModel):
+    cliente_key: str = ""
+    lider: str = ""
+
+
+@app.get("/api/osi/lideres-clientes")
+def lideres_clientes():
+    """Catálogo Líder ↔ Cliente (para gestión/visualización)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT cliente_key, lider FROM lider_cliente ORDER BY lider, cliente_key")
+            return fetchall(cur)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/osi/lideres-clientes")
+def lideres_clientes_upsert(body: LiderClienteBody):
+    """Agrega o reasigna qué líder atiende a un cliente (upsert por cliente_key)."""
+    k = (body.cliente_key or "").strip()
+    lider = (body.lider or "").strip()
+    if not k or not lider:
+        raise HTTPException(400, "Falta cliente o líder")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO lider_cliente (cliente_key, lider) VALUES (%s,%s) "
+                "ON CONFLICT (cliente_key) DO UPDATE SET lider = EXCLUDED.lider",
+                (k, lider))
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── Catálogo Líder ↔ Cliente: autosugerir el líder de la OSI según el cliente ──
+def _norm_key(s):
+    """Normaliza para comparar clientes: sin tildes, espacios colapsados, MAYÚSCULA."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", s).strip().upper()
+
+
+def _lider_por_cliente(cur, cliente):
+    """Devuelve el líder de Operaciones asignado a ese cliente (o '' si no hay).
+    Empareja por token completo (evita falsos positivos de siglas cortas) y, si
+    varias claves calzan, prefiere la más larga (ej. 'SION GLOBAL' > 'GLOBAL')."""
+    c = _norm_key(cliente)
+    if not c:
+        return ""
+    cur.execute("SELECT cliente_key, lider FROM lider_cliente")
+    best, best_len = "", 0
+    for row in cur.fetchall():
+        k = _norm_key(row[0])
+        if not k:
+            continue
+        hit = (c == k or c.startswith(k + " ") or
+               re.search(r"(?<![A-Z0-9])" + re.escape(k) + r"(?![A-Z0-9])", c))
+        if hit and len(k) > best_len:
+            best, best_len = row[1], len(k)
+    return best or ""
 
 
 # ── Copiloto IA de OSI: llega con la OSI casi lista desde la oferta aceptada ───
@@ -5422,6 +5528,8 @@ def osi_copiloto(body: OSICopilotoBody):
                         "descripcion": (pdf.get("descripcion") or "").strip(),
                         "equipo_ofertado": equipos_of,
                     }
+            # Líder asignado a este cliente (catálogo Líder↔Cliente)
+            lider_sug = _lider_por_cliente(cur, (oferta.get("cliente") or (body.actuales or {}).get("cliente")))
             # Flota disponible (placas reales) para sugerir equipo sin inventar
             cur.execute("SELECT categoria, codigo, placa, marca, clase FROM equipos "
                         "WHERE activo IS NOT FALSE ORDER BY categoria, codigo")
@@ -5438,6 +5546,8 @@ def osi_copiloto(body: OSICopilotoBody):
             ("; ".join(flota[:120]) or "(sin flota cargada)") +
             "\n\nEQUIPO DE OPERACIONES (el LÍDER debe ser uno de estos, NUNCA el comercial):\n" +
             "; ".join(_OPS_LIDERES) +
+            ("\n\nLÍDER ASIGNADO A ESTE CLIENTE (úsalo salvo que Natalia indique otro): " + lider_sug
+             if lider_sug else "") +
             "\n\nMENSAJE DE NATALIA:\n" +
             (body.mensaje or "(sin mensaje — solo pre-llena lo que puedas de la oferta)")
         )
@@ -5464,7 +5574,7 @@ def osi_copiloto(body: OSICopilotoBody):
                 fields = json.loads(raw[s + len("<<<DATOS>>>"):e2].strip())
             except Exception:
                 fields = None
-        return {"reply": reply, "fields": fields, "oferta": oferta}
+        return {"reply": reply, "fields": fields, "oferta": oferta, "lider_sugerido": lider_sug}
     except HTTPException:
         raise
     except Exception as e:

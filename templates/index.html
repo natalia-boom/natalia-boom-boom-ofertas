@@ -7778,6 +7778,7 @@ async function abrirCrearOSI(n) {
 
   // Pre-llena solicitante (comercial), tipo de operación y equipo desde la oferta
   let prefillEquipo = '';
+  let prefillEquiposDet = [];   // equipo ofertado (estructurado) para auto-sugerir líneas
   if (n.oferta_id) {
     try {
       const rp = await fetch('/api/ofertas/' + n.oferta_id + '/osi-prefill');
@@ -7790,15 +7791,18 @@ async function abrirCrearOSI(n) {
           else if (t.indexOf('SERV') >= 0) g('cosiTipoOp').value = 'SERVICIO';
           else if (t.indexOf('TRANS') >= 0) g('cosiTipoOp').value = 'TRANSPORTE';
         }
-        // 1B: origen/destino guardados en la oferta IA (si existen)
+        // Origen/destino DIRECTO de la oferta (determinístico, no depende de la IA)
         if (p.origen && !g('cosiOrigen').value)  g('cosiOrigen').value  = p.origen;
         if (p.destino && !g('cosiDestino').value) g('cosiDestino').value = p.destino;
-        // 1A: descripción de la oferta como referencia (la ruta suele ir ahí)
+        // Descripción de la oferta como referencia (la ruta suele ir ahí)
         if (p.descripcion) {
           if (g('cosiRefDesc')) g('cosiRefDesc').textContent = p.descripcion;
           if (g('cosiRefDescWrap')) g('cosiRefDescWrap').style.display = 'block';
         }
+        // Líder sugerido según el cliente (catálogo Líder↔Cliente)
+        if (p.lider && !g('cosiLider').value) g('cosiLider').value = p.lider;
         prefillEquipo = p.equipo || '';
+        prefillEquiposDet = Array.isArray(p.equipos) ? p.equipos : [];
       }
     } catch(e){}
   }
@@ -7814,6 +7818,11 @@ async function abrirCrearOSI(n) {
   g('cosiTrailer').innerHTML = '<option value="">— Selecciona —</option>' +
     trailers.map(e => _opt(e, [e.clase, e.config].filter(Boolean).join(' '))).join('');
   _cosiEquipos = [];
+  // Sugiere el equipo de la MISMA oferta como líneas (el líder asigna la placa real luego)
+  prefillEquiposDet.forEach(e => {
+    const desc = [e.equipo, e.config].filter(Boolean).join(' ') + ((e.cant && e.cant > 1) ? ` (x${e.cant})` : '');
+    if (desc.trim()) _cosiEquipos.push({ tracto_id:'', tracto_placa:'', trailer_id:'', trailer_placa:'', otras: desc.trim(), sugerido:true });
+  });
   cosiRenderEquipos();
   cosiChequeoChoque();   // limpia cualquier aviso de choque previo
   if (prefillEquipo) g('cosiEquipoInfo') && (g('cosiEquipoInfo').textContent = '📦 Equipo ofertado: ' + prefillEquipo);
@@ -8232,6 +8241,8 @@ async function cosiCopiloto() {
     if (!res.ok) throw new Error('IA no disponible');
     const d = await res.json();
     _cosiAplicarFields(d.fields);
+    // Fallback: si quedó sin líder pero el catálogo lo asigna, lo pone.
+    if (d.lider_sugerido) _cosiSetIfEmpty('cosiLider', d.lider_sugerido);
     if (mensaje) _cosiIAHist.push({ role: 'user', content: mensaje });
     if (d.reply) { _cosiIAHist.push({ role: 'assistant', content: d.reply }); if (banner) banner.innerHTML = d.reply.replace(/\n/g, '<br>'); }
   } catch (e) {
