@@ -2965,10 +2965,10 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div>
           <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">ESTADO</label>
           <select id="osiEditEstado" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
-            <option>PROGRAMADO</option>
-            <option>EN EJECUCIÓN</option>
-            <option>COMPLETADO</option>
-            <option>CANCELADO</option>
+            <option>Por ejecutar</option>
+            <option>En ejecución</option>
+            <option>Ejecutado</option>
+            <option>Cancelado</option>
           </select>
         </div>
       </div>
@@ -7448,12 +7448,17 @@ async function saveFacturacion() {
 }
 
 // ── Módulo Operaciones ────────────────────────────────────────────────────────
+// Mismo idioma y colores que el "seguimiento" de las ofertas:
+// 🟠 Por ejecutar · 🔵 En ejecución · 🟣 Ejecutado · 🟢 Facturada · 🔴 Cancelado
 const OSI_ESTADOS = {
-  'PROGRAMADO':   { bg:'#dbeafe', color:'#1d4ed8' },
-  'EN EJECUCIÓN': { bg:'#fef3c7', color:'#92400e' },
-  'COMPLETADO':   { bg:'#dcfce7', color:'#15803d' },
-  'CANCELADO':    { bg:'#fee2e2', color:'#b91c1c' },
+  'Por ejecutar': { bg:'#ffedd5', color:'#c2410c' },
+  'En ejecución': { bg:'#dbeafe', color:'#1d4ed8' },
+  'Ejecutado':    { bg:'#ede9fe', color:'#6d28d9' },
+  'Facturada':    { bg:'#dcfce7', color:'#15803d' },
+  'Cancelado':    { bg:'#fee2e2', color:'#b91c1c' },
 };
+const OSI_ESTADOS_OPS = ['Por ejecutar', 'En ejecución', 'Ejecutado', 'Cancelado'];
+function _normEst(s){ return (s||'').toUpperCase().normalize('NFD').replace(/[^A-Z ]/g,'').trim(); }
 
 function fmtCOP(v) {
   if (!v) return '—';
@@ -7615,6 +7620,39 @@ function renderProgresoLideres(rO) {
   }).join('');
 }
 
+// Pastilla-selector de estado: cambiar el estado de la OSI de un clic. Al cambiar,
+// la oferta casada se sincroniza sola en el backend (seguimiento).
+function _osiEstadoSelect(o) {
+  const actual = o.estado || 'Por ejecutar';
+  const est = OSI_ESTADOS[actual] || { bg:'#f0f0f0', color:'#666' };
+  // Si el estado es 'Facturada' (lo puso Comercial), se muestra fijo, no editable.
+  if (_normEst(actual) === 'FACTURADA') {
+    return `<span style="background:${est.bg};color:${est.color};padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">${actual}</span>`;
+  }
+  let opts = OSI_ESTADOS_OPS.slice();
+  if (!opts.some(s => _normEst(s) === _normEst(actual))) opts.unshift(actual);
+  const options = opts.map(s =>
+    `<option value="${s}" ${_normEst(s) === _normEst(actual) ? 'selected' : ''}>${s}</option>`).join('');
+  return `<select onchange="cambiarEstadoOSI(${o.id}, this.value)" title="Cambiar estado (la oferta se actualiza sola)"
+      style="background:${est.bg};color:${est.color};border:1px solid ${est.color}44;border-radius:20px;
+             padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${options}</select>`;
+}
+
+async function cambiarEstadoOSI(id, estado) {
+  try {
+    const res = await fetch(`/api/osi/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ estado })
+    });
+    if (!res.ok) throw new Error('bad');
+    showToast('✅ Estado actualizado — la oferta se sincronizó sola', 'success');
+    await cargarNotificaciones();          // recarga la tabla de OSI
+    if (typeof loadAll === 'function') loadAll();   // refresca ofertas/seguimiento
+  } catch (e) {
+    showToast('❌ No se pudo cambiar el estado', 'error');
+  }
+}
+
 function renderOSI(rO) {
   _osiTodas = Array.isArray(rO) ? rO : [];   // se guarda para el chequeo de choques de fechas
   const osiTbody = document.getElementById('osiBody');
@@ -7641,7 +7679,7 @@ function renderOSI(rO) {
       <td style="padding:11px 14px;font-size:12px;text-align:center;white-space:nowrap;">${o.fecha_despacho||'—'}</td>
       <td style="padding:11px 16px;text-align:right;font-weight:800;color:#15803d;white-space:nowrap;font-size:13px;">${fmtCOP(o.valor)}</td>
       <td style="padding:11px 14px;text-align:center;">
-        <span style="background:${est.bg};color:${est.color};padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">${o.estado}</span>
+        ${_osiEstadoSelect(o)}
       </td>
       <td style="padding:11px 14px;text-align:center;font-size:12px;white-space:nowrap;">${o.responsable||'—'}</td>
       <td style="padding:11px 14px;text-align:center;">
@@ -8252,10 +8290,56 @@ async function cosiCopiloto() {
   }
 }
 
+// Resalta en rojo un campo faltante (y lo quita al corregir).
+function _cosiFlag(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = on ? '#dc2626' : '';
+  el.style.boxShadow = on ? '0 0 0 2px rgba(220,38,38,.15)' : '';
+  el.style.background = on ? '#fef2f2' : '';
+}
+
+// 🔒 SEGURIDAD: valida que estén los datos CLAVE para poder crear una OSI.
+// Regla (Natalia 2026-09-05): Operaciones no debe crear una OSI sin saber
+// QUÉ mueve (equipo/configuración), DESDE y HACIA dónde (origen/destino),
+// para QUIÉN (cliente), quién la LIDERA y CUÁNDO arranca. Devuelve [] si todo ok.
+function _cosiValidarObligatorios() {
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const reqInputs = [
+    ['cosiCliente',      'Cliente'],
+    ['cosiOrigen',       'Origen'],
+    ['cosiDestino',      'Destino'],
+    ['cosiLider',        'Líder de proyecto'],
+    ['cosiFechaInicio',  'Fecha de inicio'],
+  ];
+  const faltan = [];
+  reqInputs.forEach(([id, label]) => {
+    const vacio = !v(id);
+    _cosiFlag(id, vacio);
+    if (vacio) faltan.push(label);
+  });
+  // Equipo: debe haber al menos un equipo con placa O una configuración escrita.
+  const equipoOk = _cosiEquipos.length > 0 &&
+    _cosiEquipos.some(e => (e.tracto_placa || e.trailer_placa || (e.otras || '').trim()));
+  const eqWrap = document.getElementById('cosiEquiposLista') || document.getElementById('cosiEquiposWrap');
+  if (eqWrap) eqWrap.style.outline = equipoOk ? '' : '2px solid #dc2626';
+  if (!equipoOk) faltan.push('Equipo / configuración (agrega al menos uno)');
+  return faltan;
+}
+
 async function guardarCrearOSI() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
   const chk = (id) => !!document.getElementById(id)?.checked;
   const contacto = (pre) => ({ nombre: v(pre+'Nombre'), correo: v(pre+'Correo'), cel: v(pre+'Cel') });
+  // No crear la OSI si faltan datos importantes.
+  const faltan = _cosiValidarObligatorios();
+  if (faltan.length) {
+    showToast('⚠️ No se puede crear la OSI. Falta: ' + faltan.join(' · '), 'warning');
+    const banner = document.getElementById('cosiIABanner');
+    if (banner) banner.innerHTML = '🔒 <b>Faltan datos obligatorios para crear la OSI:</b><br>• ' +
+      faltan.join('<br>• ') + '<br><span style="font-size:12px;opacity:.85;">Completa estos campos (marcados en rojo) y vuelve a intentar.</span>';
+    return;
+  }
   const body = {
     oferta_id: parseInt(v('cosiOfertaId')) || 0,
     oferta_num: v('cosiOfertaNum'),
@@ -8621,7 +8705,7 @@ function abrirModalOSI(osi) {
   document.getElementById('osiEditId').value          = osi.id;
   document.getElementById('osiEditResp').value        = osi.responsable || '';
   document.getElementById('osiEditEquipo').value      = osi.equipo || '';
-  document.getElementById('osiEditEstado').value      = osi.estado || 'PROGRAMADO';
+  document.getElementById('osiEditEstado').value      = osi.estado || 'Por ejecutar';
   document.getElementById('osiEditNotas').value       = osi.notas || '';
   document.getElementById('osiEditConductor').value   = osi.conductor || '';
   document.getElementById('osiEditPlaca').value       = osi.placa || '';

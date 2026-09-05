@@ -1982,6 +1982,14 @@ def _ensure_db():
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS conductor text")
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS placa text")
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS observaciones text")
+        # Estado de la OSI alineado 1:1 al "seguimiento" de la oferta (un solo idioma):
+        # Por ejecutar / En ejecución / Ejecutado / Cancelado. Así, cuando Operaciones
+        # mueve la OSI, la oferta casada se sincroniza sola. Migra los valores viejos.
+        cur.execute("ALTER TABLE osi ALTER COLUMN estado SET DEFAULT 'Por ejecutar'")
+        cur.execute("UPDATE osi SET estado='Por ejecutar' WHERE estado='PROGRAMADO'")
+        cur.execute("UPDATE osi SET estado='En ejecución' WHERE estado IN ('EN EJECUCIÓN','EN EJECUCION')")
+        cur.execute("UPDATE osi SET estado='Ejecutado'    WHERE estado IN ('COMPLETADO','EJECUTADO')")
+        cur.execute("UPDATE osi SET estado='Cancelado'    WHERE estado IN ('CANCELADO','CANCELADA')")
 
         # Catálogo Líder ↔ Cliente (Operaciones): qué líder atiende a qué cliente.
         # Se usa para autosugerir el líder al crear la OSI. En cada arranque se
@@ -5265,6 +5273,17 @@ def _proximo_numero_osi(cur) -> str:
 @app.post("/api/osi/crear")
 def crear_osi(body: CrearOSIBody, request: Request):
     try:
+        # 🔒 SEGURIDAD: una OSI no puede nacer sin los datos clave. Operaciones debe
+        # saber QUÉ mueve (equipo), DESDE/HACIA dónde, para QUIÉN y quién LIDERA.
+        _faltan = []
+        if not (body.cliente or "").strip():  _faltan.append("cliente")
+        if not (body.origen or "").strip():   _faltan.append("origen")
+        if not (body.destino or "").strip():  _faltan.append("destino")
+        if not (body.lider or "").strip():    _faltan.append("líder")
+        if not (body.equipo or "").strip():   _faltan.append("equipo")
+        if _faltan:
+            raise HTTPException(400, "Faltan datos obligatorios para crear la OSI: " +
+                                     ", ".join(_faltan))
         with get_conn() as conn:
             cur = conn.cursor()
             # Candado de sesión: si dos líderes generan OSI al mismo tiempo, el
@@ -5293,7 +5312,7 @@ def crear_osi(body: CrearOSIBody, request: Request):
             """, (numero_osi, body.oferta_id or None, body.oferta_num.strip(),
                   body.lider.strip(), body.equipo.strip(), body.cliente.strip(),
                   body.origen.strip(), body.destino.strip(), valor_osi,
-                  'PROGRAMADO', _d(body.fecha_inicio), body.conductor.strip(),
+                  'Por ejecutar', _d(body.fecha_inicio), body.conductor.strip(),
                   body.placa.strip().upper(),
                   # Guardamos el detalle operativo en observaciones (mañana se
                   # detallan columnas propias si hace falta).
@@ -5332,7 +5351,11 @@ def crear_osi(body: CrearOSIBody, request: Request):
             if body.oferta_id:
                 cur.execute("UPDATE notificaciones SET leida = true WHERE oferta_id=%s",
                             (body.oferta_id,))
+                # La oferta casada arranca su seguimiento en 'Por ejecutar'.
+                _sync_oferta_desde_osi(cur, body.oferta_id)
         return {"ok": True, "id": new_id, "numero_osi": numero_osi}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -5451,6 +5474,43 @@ def _lider_por_cliente(cur, cliente):
         if hit and len(k) > best_len:
             best, best_len = row[1], len(k)
     return best or ""
+
+
+# Estados operativos que Operaciones puede poner en una OSI (mismo idioma que el
+# "seguimiento" de la oferta). 'Facturada' NO está aquí: ese lo pone Comercial.
+_OSI_ESTADOS_OPS = ["Por ejecutar", "En ejecución", "Ejecutado", "Cancelado"]
+
+
+def _sync_oferta_desde_osi(cur, oferta_id):
+    """Recalcula el 'seguimiento' de la oferta a partir del estado de TODAS sus OSI.
+    Reglas acordadas con Natalia (2026-09-05):
+      · En ejecución  → si AL MENOS UNA OSI está en ejecución.
+      · Ejecutado     → SOLO cuando TODAS las OSI no-canceladas están ejecutadas.
+      · Cancelado     → si TODAS sus OSI están canceladas.
+      · Por ejecutar  → mientras queden viajes pendientes.
+    NUNCA pisa 'Facturada' (ese estado es de Comercial/Facturación)."""
+    if not oferta_id:
+        return
+    cur.execute("SELECT seguimiento FROM ofertas WHERE id=%s", (oferta_id,))
+    row = fetchone(cur)
+    if not row:
+        return
+    if _norm_key(row.get("seguimiento")) == "FACTURADA":
+        return  # Comercial es dueño de este estado
+    cur.execute("SELECT estado FROM osi WHERE oferta_id=%s", (oferta_id,))
+    estados = [_norm_key(r.get("estado")) for r in (fetchall(cur) or [])]
+    if not estados:
+        return
+    no_cancel = [e for e in estados if e not in ("CANCELADO", "CANCELADA")]
+    if not no_cancel:
+        nuevo = "Cancelado"
+    elif any(e in ("EN EJECUCION", "EN EJECUCIÓN") for e in no_cancel):
+        nuevo = "En ejecución"
+    elif all(e == "EJECUTADO" for e in no_cancel):
+        nuevo = "Ejecutado"
+    else:
+        nuevo = "Por ejecutar"
+    cur.execute("UPDATE ofertas SET seguimiento=%s WHERE id=%s", (nuevo, oferta_id))
 
 
 # ── Copiloto IA de OSI: llega con la OSI casi lista desde la oferta aceptada ───
@@ -5686,6 +5746,9 @@ def update_osi(osi_id: int, body: OSIUpdate, request: Request):
             row = fetchone(cur)
             if not row:
                 raise HTTPException(404, "OSI no encontrada")
+            # Si cambió el estado, sincroniza el 'seguimiento' de la oferta casada.
+            if "estado" in fields and row.get("oferta_id"):
+                _sync_oferta_desde_osi(cur, row["oferta_id"])
             return row
     except HTTPException:
         raise
