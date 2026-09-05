@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_canonmigra"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -4588,39 +4588,6 @@ def get_stats():
                 "por_mes":       q("SELECT mes, COUNT(*) AS cnt FROM ofertas WHERE NOT COALESCE(anulada,false) AND mes IS NOT NULL GROUP BY mes"),
                 "ultimas":       q("SELECT * FROM ofertas WHERE NOT COALESCE(anulada,false) ORDER BY CAST(num AS INTEGER) DESC LIMIT 8"),
             }
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-# ── TEMP: migra clientes existentes a su nombre oficial largo ─────────────────
-@app.post("/api/_canonmigra")
-def _canon_migra(token: str = ""):
-    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
-        raise HTTPException(403, "no")
-    try:
-        cambios = []
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT DISTINCT cliente FROM ofertas WHERE cliente IS NOT NULL AND cliente <> ''")
-            actuales = [r["cliente"] for r in fetchall(cur)]
-            for actual in actuales:
-                canon = _canon_cliente(actual)
-                if canon and canon != actual:
-                    cur.execute("INSERT INTO clientes (nombre_corto) VALUES (%s) ON CONFLICT DO NOTHING", (canon,))
-                    cur.execute("UPDATE ofertas SET cliente=%s WHERE cliente=%s", (canon, actual))
-                    movidas = cur.rowcount
-                    cur.execute("DELETE FROM clientes WHERE lower(nombre_corto)=lower(%s)", (actual,))
-                    cambios.append({"de": actual, "a": canon, "ofertas_movidas": movidas})
-            # También los contratos pendientes (tablero/proyección)
-            cont = []
-            cur.execute("SELECT DISTINCT cliente FROM contratos_pendientes WHERE cliente IS NOT NULL AND cliente <> ''")
-            for r in fetchall(cur):
-                actual = r["cliente"]; canon = _canon_cliente(actual)
-                if canon and canon != actual:
-                    cur.execute("UPDATE contratos_pendientes SET cliente=%s WHERE cliente=%s", (canon, actual))
-                    cont.append({"de": actual, "a": canon, "movidos": cur.rowcount})
-        return {"ok": True, "ofertas": cambios, "contratos": cont}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
