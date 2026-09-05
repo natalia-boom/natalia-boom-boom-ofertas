@@ -2395,7 +2395,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/_diagfactgrupo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -2430,6 +2430,26 @@ def _canon_cliente(nombre):
         return nombre
     n = re.sub(r"\s+", " ", str(nombre).strip()).upper()
     return _CLIENTES_CANON.get(n, n)
+
+
+# ── GRUPOS EMPRESARIALES para el TABLERO DE FACTURACIÓN ────────────────────────
+# Un mismo cliente factura bajo varias razones sociales (varios NIT). SOLO en el
+# ranking de facturación por cliente esas razones sociales se suman como uno solo.
+# Expresión SQL que devuelve el nombre del grupo (o el cliente tal cual si no
+# pertenece a ningún grupo). Se agrupa por NIT (dígitos) para máxima precisión.
+# COLOMBIAN NATURAL RESOURCES = CNR II (900333493) + CNR III (900268901) +
+# TRANSPORTE FERROPORTUARIO - TRANSFERPORT (900519515).
+_FACT_CLIENTE_GRUPO_SQL = """
+    CASE
+        WHEN regexp_replace(COALESCE(nit,''), '\\D', '', 'g') IN
+             ('900333493', '900268901', '900519515')
+          OR UPPER(cliente) LIKE '%COLOMBIAN NATURAL RESOURCES%'
+          OR UPPER(cliente) LIKE 'CNR III%'
+          OR UPPER(cliente) LIKE '%TRANSFERPORT%'
+        THEN 'COLOMBIAN NATURAL RESOURCES'
+        ELSE cliente
+    END
+"""
 
 
 @app.middleware("http")
@@ -4593,6 +4613,39 @@ def get_stats():
         raise HTTPException(500, str(e))
 
 
+# ── TEMP diag: verifica agrupación de facturación por grupo empresarial ───────
+@app.get("/api/_diagfactgrupo")
+def _diag_fact_grupo(token: str = ""):
+    if token != "k34dZAAnkqpSF_TZwF5e3V3M9l0WTTXe":
+        raise HTTPException(403, "no")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            # Detalle por razón social (NIT) del grupo COLOMBIAN NATURAL RESOURCES
+            cur.execute("""
+                SELECT nit, cliente, COUNT(*) AS n, COALESCE(SUM(subtotal),0) AS valor
+                FROM vulcano_facturas
+                WHERE excluida = false
+                  AND ( regexp_replace(COALESCE(nit,''),'\\D','','g') IN ('900333493','900268901','900519515')
+                        OR UPPER(cliente) LIKE '%COLOMBIAN NATURAL RESOURCES%'
+                        OR UPPER(cliente) LIKE 'CNR III%'
+                        OR UPPER(cliente) LIKE '%TRANSFERPORT%' )
+                GROUP BY nit, cliente ORDER BY valor DESC
+            """)
+            detalle = fetchall(cur)
+            cur.execute("""
+                SELECT {grp} AS cliente, COUNT(*) AS n, COALESCE(SUM(subtotal),0) AS valor
+                FROM vulcano_facturas
+                WHERE excluida = false AND cliente IS NOT NULL AND cliente <> ''
+                GROUP BY {grp} HAVING {grp} = 'COLOMBIAN NATURAL RESOURCES'
+            """.format(grp=_FACT_CLIENTE_GRUPO_SQL))
+            grupo = fetchall(cur)
+            return {"ok": True, "detalle_por_razon_social": detalle, "grupo_agrupado": grupo}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 @app.post("/auth/login")
 def login(body: LoginBody, response: Response):
@@ -6204,23 +6257,28 @@ def reporte_facturacion(anio: Optional[int] = Query(None)):
 def reporte_top_clientes(limit: int = Query(10)):
     """Top de clientes por facturación REAL (fuente: VULCANO conciliado).
     Usa el subtotal de las facturas NO excluidas, agrupado por cliente.
-    Devuelve el total general para poder calcular el % de cada cliente."""
+    Devuelve el total general para poder calcular el % de cada cliente.
+
+    GRUPO EMPRESARIAL: un mismo cliente puede facturar bajo varias razones
+    sociales (varios NIT). SOLO en este tablero de facturación esas razones
+    sociales se suman como un único cliente. Hoy: COLOMBIAN NATURAL RESOURCES
+    agrupa CNR II (900333493), CNR III (900268901) y TRANSFERPORT (900519515)."""
     try:
         limit = max(1, min(limit, 50))
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                SELECT cliente,
+                SELECT {grp} AS cliente,
                        COUNT(*) AS n_facturas,
                        COALESCE(SUM(subtotal), 0) AS valor
                 FROM vulcano_facturas
                 WHERE excluida = false
                   AND cliente IS NOT NULL AND cliente <> ''
-                GROUP BY cliente
+                GROUP BY {grp}
                 HAVING COALESCE(SUM(subtotal), 0) > 0
                 ORDER BY valor DESC
                 LIMIT %s
-            """, (limit,))
+            """.format(grp=_FACT_CLIENTE_GRUPO_SQL), (limit,))
             filas = fetchall(cur)
             cur.execute("""
                 SELECT COALESCE(SUM(subtotal), 0) AS total
