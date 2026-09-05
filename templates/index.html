@@ -2741,6 +2741,20 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     <div style="padding:22px 24px;">
       <input type="hidden" id="cosiOfertaId"><input type="hidden" id="cosiOfertaNum"><input type="hidden" id="cosiValor">
 
+      <!-- Copiloto IA: llega con la OSI casi lista y pregunta solo lo que falta -->
+      <div style="background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:15px;">⚡</span>
+          <span style="font-size:12px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:.4px;">Copiloto IA</span>
+          <span id="cosiIALoad" style="display:none;font-size:11px;color:#7c3aed;font-style:italic;">pensando…</span>
+        </div>
+        <div id="cosiIABanner" style="font-size:12.5px;color:#4c1d95;line-height:1.5;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:9px 11px;">Preparando la OSI desde la oferta…</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input id="cosiIAInput" placeholder="Ej: fechas del 10 al 12 sep, tracto ABC123, líder Boris" onkeydown="if(event.key==='Enter'){event.preventDefault();cosiCopiloto();}" style="flex:1;padding:8px 11px;border:1px solid #ddd6fe;border-radius:7px;font-size:13px;">
+          <button type="button" onclick="cosiCopiloto()" style="background:#6d28d9;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">Enviar</button>
+        </div>
+      </div>
+
       <!-- Bloque: viene de la oferta -->
       <div style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
         <div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">✅ Datos de la oferta (pre-llenado)</div>
@@ -7804,7 +7818,13 @@ async function abrirCrearOSI(n) {
   cosiChequeoChoque();   // limpia cualquier aviso de choque previo
   if (prefillEquipo) g('cosiEquipoInfo') && (g('cosiEquipoInfo').textContent = '📦 Equipo ofertado: ' + prefillEquipo);
 
+  // Copiloto IA: reinicia la conversación y pre-llena la OSI desde la oferta.
+  _cosiIAHist = [];
+  if (g('cosiIAInput')) g('cosiIAInput').value = '';
+  if (g('cosiIABanner')) g('cosiIABanner').textContent = 'Preparando la OSI desde la oferta…';
+
   g('modalCrearOSI').style.display = 'flex';
+  cosiCopiloto();   // arranca el pre-llenado automático (1 llamada IA)
 }
 
 // Placa "real" del equipo: cabezotes la traen en 'codigo'; trailers en 'placa'.
@@ -8129,6 +8149,96 @@ let _cosiEscoltaAuto = '';  // última sugerencia auto-escrita en ESCOLTAS (para
 
 function cerrarCrearOSI() {
   document.getElementById('modalCrearOSI').style.display = 'none';
+}
+
+// ── Copiloto IA de OSI ──────────────────────────────────────────────────────
+let _cosiIAHist = [];
+
+// Reúne lo que ya está lleno en el modal para que la IA no lo borre ni repita.
+function _cosiActuales() {
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  return {
+    cliente: v('cosiCliente'), tipo_operacion: v('cosiTipoOp'), solicitante: v('cosiSolicitante'),
+    origen: v('cosiOrigen'), destino: v('cosiDestino'), lider: v('cosiLider'),
+    lugar_cargue: v('cosiLugarCargue'), lugar_descargue: v('cosiLugarDescargue'),
+    especificacion: v('cosiEspecificacion'), tipo_carga: v('cosiTipoCarga'),
+    fecha_inicio: v('cosiFechaInicio'), fecha_final: v('cosiFechaFinal'), hora_servicio: v('cosiHora'),
+    operadores: _cosiOperadores.slice(), auxiliares: v('cosiAuxiliares'),
+    equipos: _cosiEquipos.map(x => [x.tracto_placa, x.trailer_placa].filter(Boolean).join('/'))
+  };
+}
+
+function _cosiSetIfEmpty(id, val, force) {
+  const el = document.getElementById(id);
+  if (!el || !val) return;
+  if (force || !el.value.trim()) el.value = val;
+}
+
+// Vuelca los campos propuestos por la IA en el formulario (sin pisar lo que ya tengas).
+function _cosiAplicarFields(f) {
+  if (!f) return;
+  if (f.tipo_operacion) { const el = document.getElementById('cosiTipoOp'); if (el && [...el.options].some(o => o.value === f.tipo_operacion)) el.value = f.tipo_operacion; }
+  _cosiSetIfEmpty('cosiOrigen', f.origen);           _cosiSetIfEmpty('cosiDestino', f.destino);
+  _cosiSetIfEmpty('cosiLugarCargue', f.lugar_cargue); _cosiSetIfEmpty('cosiLugarDescargue', f.lugar_descargue);
+  _cosiSetIfEmpty('cosiEspecificacion', f.especificacion);
+  _cosiSetIfEmpty('cosiLider', f.lider);
+  _cosiSetIfEmpty('cosiFechaInicio', f.fecha_inicio, true); _cosiSetIfEmpty('cosiFechaFinal', f.fecha_final, true);
+  _cosiSetIfEmpty('cosiHora', f.hora_servicio);
+  _cosiSetIfEmpty('cosiAuxiliares', f.auxiliares);
+  _cosiSetIfEmpty('cosiEscoltas', f.escoltas);
+  _cosiSetIfEmpty('cosiObs', f.observaciones);
+  if (f.tipo_carga) {
+    const el = document.getElementById('cosiTipoCarga');
+    if (el && [...el.options].some(o => o.value === f.tipo_carga)) {
+      el.value = f.tipo_carga;
+      if (f.tipo_carga_otro) _cosiSetIfEmpty('cosiTipoCargaOtro', f.tipo_carga_otro);
+      cosiTipoCargaCambio();
+    }
+  }
+  if (Array.isArray(f.operadores)) {
+    f.operadores.forEach(o => { o = (o || '').trim(); if (o && _cosiOperadores.indexOf(o) < 0) _cosiOperadores.push(o); });
+    cosiRenderOperadores();
+  }
+  // Equipo sugerido: solo si la placa calza EXACTA con una del catálogo (no inventa).
+  const placa = (f.tracto_placa || '').trim().toUpperCase();
+  const trailerPlaca = (f.trailer_placa || '').trim().toUpperCase();
+  if (placa || trailerPlaca) {
+    const findByPlaca = p => _equipos.find(e => (_cosiPlaca(e) || '').toUpperCase() === p);
+    const tr = placa ? findByPlaca(placa) : null;
+    const tl = trailerPlaca ? findByPlaca(trailerPlaca) : null;
+    if (tr || tl) {
+      const trP = tr ? _cosiPlaca(tr) : '', tlP = tl ? _cosiPlaca(tl) : '';
+      if (!_cosiEquipos.some(x => x.tracto_placa === trP && x.trailer_placa === tlP)) {
+        _cosiEquipos.push({ tracto_id: tr ? tr.id : '', tracto_placa: trP, trailer_id: tl ? tl.id : '', trailer_placa: tlP, otras: '' });
+        cosiRenderEquipos(); cosiChequeoChoque(); cosiValidarExtra();
+      }
+    }
+  }
+}
+
+async function cosiCopiloto() {
+  const input = document.getElementById('cosiIAInput');
+  const banner = document.getElementById('cosiIABanner');
+  const load = document.getElementById('cosiIALoad');
+  const mensaje = (input?.value || '').trim();
+  const ofertaId = parseInt((document.getElementById('cosiOfertaId')?.value) || '0') || 0;
+  if (load) load.style.display = 'inline';
+  if (input) input.value = '';
+  try {
+    const res = await fetch('/api/osi/copiloto', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oferta_id: ofertaId, mensaje: mensaje, actuales: _cosiActuales(), historial: _cosiIAHist })
+    });
+    if (!res.ok) throw new Error('IA no disponible');
+    const d = await res.json();
+    _cosiAplicarFields(d.fields);
+    if (mensaje) _cosiIAHist.push({ role: 'user', content: mensaje });
+    if (d.reply) { _cosiIAHist.push({ role: 'assistant', content: d.reply }); if (banner) banner.innerHTML = d.reply.replace(/\n/g, '<br>'); }
+  } catch (e) {
+    if (banner) banner.innerHTML = '⚠️ No pude autollenar con IA (revisa créditos o conexión). Puedes completar la OSI a mano abajo.';
+  } finally {
+    if (load) load.style.display = 'none';
+  }
 }
 
 async function guardarCrearOSI() {

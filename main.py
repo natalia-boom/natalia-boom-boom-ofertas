@@ -5347,6 +5347,122 @@ def osi_proximo_numero(request: Request):
         raise HTTPException(500, str(e))
 
 
+# ── Copiloto IA de OSI: llega con la OSI casi lista desde la oferta aceptada ───
+OSI_COPILOTO_PROMPT = """Eres el COPILOTO de Operaciones de BOOM Logistics Colombia. Ayudas a
+Natalia a crear una OSI (Orden de Servicio Interna) a partir de una oferta ACEPTADA, de forma
+rápida. Respondes SIEMPRE en español, breve y cálido (1-3 oraciones).
+
+TU TRABAJO:
+1. Con los datos de la oferta y la flota disponible, PROPÓN los campos de la OSI que puedas deducir.
+2. En una frase dile a Natalia qué dejaste listo y pregúntale SOLO lo que falta.
+3. Los 5 datos OBLIGATORIOS para poder crear la OSI son: CLIENTE, RUTA (origen y destino),
+   FECHAS (inicio y fin), EQUIPO y LÍDER. Enumera en una lista corta cuáles de esos 5 aún faltan.
+
+REGLAS DURAS:
+- NUNCA inventes placas. Solo puedes sugerir una placa si aparece EXACTA en la lista de FLOTA
+  DISPONIBLE. Si ninguna calza con el equipo ofertado, deja el equipo vacío y pídeselo a Natalia.
+- NUNCA inventes fechas. Solo llénalas si Natalia las dio en su mensaje.
+- tipo_carga = CARGA_EXTRADIMENSIONADA solo si la carga claramente excede medidas normales
+  (sobredimensión, piezas/medidas grandes, izaje de piezas grandes). Si no, CARGA_GENERAL o CONTENEDOR.
+- No borres ni contradigas datos que ya estén correctos en los CAMPOS ACTUALES; solo completa o corrige.
+
+FORMATO DE RESPUESTA:
+1. Primero tu mensaje conversacional a Natalia.
+2. Al FINAL incluye SIEMPRE este bloque con los campos propuestos (incluye SOLO los que tengas con
+   confianza; omite los que no sepas):
+
+<<<DATOS>>>
+{"tipo_operacion":"TRANSPORTE|IZAJE|SERVICIO|ALQUILER|MIXTO","origen":"","destino":"","lugar_cargue":"","lugar_descargue":"","especificacion":"","tipo_carga":"CARGA_GENERAL|CONTENEDOR|CARGA_EXTRADIMENSIONADA|OTROS","tipo_carga_otro":"","lider":"","fecha_inicio":"YYYY-MM-DD","fecha_final":"YYYY-MM-DD","hora_servicio":"HH:MM","tracto_placa":"","trailer_placa":"","operadores":[],"auxiliares":"","escoltas":"","observaciones":""}
+<<<FIN>>>
+"""
+
+
+class OSICopilotoBody(BaseModel):
+    oferta_id: int = 0
+    mensaje: str = ""
+    actuales: dict = {}
+    historial: list = []
+
+
+@app.post("/api/osi/copiloto")
+def osi_copiloto(body: OSICopilotoBody):
+    """El copiloto lee la oferta aceptada + la flota disponible y propone los campos
+    de la OSI ya rellenos, preguntando solo lo que falte. Reusa el motor de IA."""
+    if not ANTHROPIC_OK or not ANTHROPIC_API_KEY:
+        raise HTTPException(503, "IA no configurada")
+    try:
+        oferta = {}
+        flota = []
+        with get_conn() as conn:
+            cur = conn.cursor()
+            if body.oferta_id:
+                cur.execute("SELECT num, cliente, tipo, realizada, valor, pdf_data "
+                            "FROM ofertas WHERE id=%s", (body.oferta_id,))
+                r = fetchone(cur)
+                if r:
+                    pdf = r.get("pdf_data")
+                    if isinstance(pdf, str):
+                        try: pdf = json.loads(pdf)
+                        except Exception: pdf = {}
+                    pdf = pdf or {}
+                    equipos_of = "; ".join(e.get("equipo", "") for e in (pdf.get("equipos") or []) if e.get("equipo"))
+                    oferta = {
+                        "num": r.get("num"), "cliente": r.get("cliente"),
+                        "tipo": r.get("tipo"), "comercial": r.get("realizada"),
+                        "valor": r.get("valor"),
+                        "origen": (pdf.get("origen") or "").strip(),
+                        "destino": (pdf.get("destino") or "").strip(),
+                        "descripcion": (pdf.get("descripcion") or "").strip(),
+                        "equipo_ofertado": equipos_of,
+                    }
+            # Flota disponible (placas reales) para sugerir equipo sin inventar
+            cur.execute("SELECT categoria, codigo, placa, marca, clase FROM equipos "
+                        "WHERE activo IS NOT FALSE ORDER BY categoria, codigo")
+            for e in fetchall(cur):
+                placa = (e.get("placa") or e.get("codigo") or "").strip()
+                if placa:
+                    extra = " ".join(x for x in [e.get("categoria"), e.get("marca"), e.get("clase")] if x)
+                    flota.append(f"{placa} ({extra.strip()})")
+        contexto = (
+            "OFERTA ACEPTADA:\n" + json.dumps(oferta, ensure_ascii=False) +
+            "\n\nCAMPOS ACTUALES DE LA OSI (ya llenos, no los borres):\n" +
+            json.dumps(body.actuales or {}, ensure_ascii=False) +
+            "\n\nFLOTA DISPONIBLE (placas reales, NO inventes otras):\n" +
+            ("; ".join(flota[:120]) or "(sin flota cargada)") +
+            "\n\nMENSAJE DE NATALIA:\n" +
+            (body.mensaje or "(sin mensaje — solo pre-llena lo que puedas de la oferta)")
+        )
+        msgs = []
+        for h in (body.historial or [])[-6:]:
+            if isinstance(h, dict) and h.get("role") in ("user", "assistant") and h.get("content"):
+                msgs.append({"role": h["role"], "content": str(h["content"])[:4000]})
+        msgs.append({"role": "user", "content": contexto})
+        client = _anthropic_client()
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1200,
+            system=OSI_COPILOTO_PROMPT,
+            messages=msgs,
+        )
+        raw = (message.content[0].text or "").strip()
+        fields = None
+        reply = raw
+        s = raw.find("<<<DATOS>>>")
+        e2 = raw.find("<<<FIN>>>")
+        if s != -1 and e2 != -1:
+            reply = raw[:s].strip()
+            try:
+                fields = json.loads(raw[s + len("<<<DATOS>>>"):e2].strip())
+            except Exception:
+                fields = None
+        return {"reply": reply, "fields": fields, "oferta": oferta}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/clientes_contrato")
 def get_clientes_contrato():
     """Clientes con CONTRATO (facturación recurrente/mensual, no por oferta suelta).
