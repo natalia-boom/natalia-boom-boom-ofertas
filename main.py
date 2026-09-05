@@ -1984,8 +1984,10 @@ def _ensure_db():
         cur.execute("ALTER TABLE osi ADD COLUMN IF NOT EXISTS observaciones text")
 
         # Catálogo Líder ↔ Cliente (Operaciones): qué líder atiende a qué cliente.
-        # Se usa para autosugerir el líder al crear la OSI. Se siembra una sola vez
-        # (si está vacía) para que las ediciones futuras de Natalia no se pisen.
+        # Se usa para autosugerir el líder al crear la OSI. En cada arranque se
+        # asegura la lista base con ON CONFLICT DO NOTHING: así se agregan clientes
+        # NUEVOS que sumemos aquí, pero NUNCA se pisa una reasignación que Natalia
+        # haya hecho después desde la app (el DO NOTHING respeta lo ya existente).
         cur.execute("""
             CREATE TABLE IF NOT EXISTS lider_cliente (
                 id          bigserial primary key,
@@ -1994,24 +1996,21 @@ def _ensure_db():
                 created_at  timestamptz default now()
             )
         """)
-        cur.execute("SELECT COUNT(*) FROM lider_cliente")
-        _lc_row = cur.fetchone()
-        if (_lc_row[0] if _lc_row else 0) == 0:
-            _seed_lc = {
-                "Sergio Pérez":   ["CRANE", "FCL", "CEVA", "SSAB", "REDGAMA", "GAMALOG"],
-                "Yennifer Balza": ["TIBA", "TERNIUM", "SERPOMAR", "TEBSA", "SAVINO DEL BENE",
-                                   "SACYR", "ENERGÍA EFICIENTE", "RELIANZ", "AHT"],
-                "Roberto Romero": ["GLOBAL LOGISTICS", "CARBONES DEL CERREJON", "GM&M", "CNR",
-                                   "COLOMBIAN NATURAL RESOURCES", "CENTRA", "ELOGIA",
-                                   "SION GLOBAL", "AUSA"],
-                "Yilliam Ibarra": ["ISA INTERCOLOMBIA", "HARTRODT"],
-                "Carlos Navarro": ["OBEN"],
-            }
-            for _lider, _claves in _seed_lc.items():
-                for _k in _claves:
-                    cur.execute(
-                        "INSERT INTO lider_cliente (cliente_key, lider) VALUES (%s,%s) "
-                        "ON CONFLICT (cliente_key) DO NOTHING", (_k, _lider))
+        _seed_lc = {
+            "Sergio Pérez":   ["CRANE", "FCL", "CEVA", "SSAB", "REDGAMA", "GAMALOG", "BDP"],
+            "Yennifer Balza": ["TIBA", "TERNIUM", "SERPOMAR", "TEBSA", "SAVINO DEL BENE",
+                               "SACYR", "ENERGÍA EFICIENTE", "RELIANZ", "AHT"],
+            "Roberto Romero": ["GLOBAL LOGISTICS", "CARBONES DEL CERREJON", "GM&M", "CNR",
+                               "COLOMBIAN NATURAL RESOURCES", "CENTRA", "ELOGIA",
+                               "SION GLOBAL", "AUSA"],
+            "Yilliam Ibarra": ["ISA INTERCOLOMBIA", "HARTRODT"],
+            "Carlos Navarro": ["OBEN"],
+        }
+        for _lider, _claves in _seed_lc.items():
+            for _k in _claves:
+                cur.execute(
+                    "INSERT INTO lider_cliente (cliente_key, lider) VALUES (%s,%s) "
+                    "ON CONFLICT (cliente_key) DO NOTHING", (_k, _lider))
 
         # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
         cur.execute("""
