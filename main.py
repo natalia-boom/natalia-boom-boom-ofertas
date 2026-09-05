@@ -5348,6 +5348,10 @@ def osi_proximo_numero(request: Request):
 
 
 # ── Copiloto IA de OSI: llega con la OSI casi lista desde la oferta aceptada ───
+# Equipo de OPERACIONES = quienes crean OSI y son los "líderes de proyecto".
+# (El equipo COMERCIAL —Boris, Willington, Natalia— hace ofertas, NO es líder de OSI.)
+_OPS_LIDERES = ["Sergio Pérez", "Yilliam Ibarra", "Yennifer Balza", "Roberto Romero", "Carlos Navarro"]
+
 OSI_COPILOTO_PROMPT = """Eres el COPILOTO de Operaciones de BOOM Logistics Colombia. Ayudas a
 Natalia a crear una OSI (Orden de Servicio Interna) a partir de una oferta ACEPTADA, de forma
 rápida. Respondes SIEMPRE en español, breve y cálido (1-3 oraciones).
@@ -5362,6 +5366,9 @@ REGLAS DURAS:
 - NUNCA inventes placas. Solo puedes sugerir una placa si aparece EXACTA en la lista de FLOTA
   DISPONIBLE. Si ninguna calza con el equipo ofertado, deja el equipo vacío y pídeselo a Natalia.
 - NUNCA inventes fechas. Solo llénalas si Natalia las dio en su mensaje.
+- El LÍDER de proyecto es SIEMPRE alguien del EQUIPO DE OPERACIONES (te doy la lista). NUNCA pongas
+  al comercial/solicitante de la oferta como líder. Si Natalia no dijo quién, deja "lider" vacío y
+  pregúntale cuál de Operaciones lo lidera.
 - tipo_carga = CARGA_EXTRADIMENSIONADA solo si la carga claramente excede medidas normales
   (sobredimensión, piezas/medidas grandes, izaje de piezas grandes). Si no, CARGA_GENERAL o CONTENEDOR.
 - No borres ni contradigas datos que ya estén correctos en los CAMPOS ACTUALES; solo completa o corrige.
@@ -5429,6 +5436,8 @@ def osi_copiloto(body: OSICopilotoBody):
             json.dumps(body.actuales or {}, ensure_ascii=False) +
             "\n\nFLOTA DISPONIBLE (placas reales, NO inventes otras):\n" +
             ("; ".join(flota[:120]) or "(sin flota cargada)") +
+            "\n\nEQUIPO DE OPERACIONES (el LÍDER debe ser uno de estos, NUNCA el comercial):\n" +
+            "; ".join(_OPS_LIDERES) +
             "\n\nMENSAJE DE NATALIA:\n" +
             (body.mensaje or "(sin mensaje — solo pre-llena lo que puedas de la oferta)")
         )
