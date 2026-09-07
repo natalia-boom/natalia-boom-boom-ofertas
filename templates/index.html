@@ -2949,6 +2949,67 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </div>
 
+<!-- MODAL PRESUPUESTO POR OSI (módulo Rentabilidad) -->
+<div id="modalPresu" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1150;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 0;">
+  <div style="background:#f5f5f5;border-radius:14px;width:820px;max-width:96vw;box-shadow:0 8px 32px rgba(0,0,0,.22);">
+    <div style="background:#111827;color:#fff;padding:16px 22px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:16px;font-weight:800;">💰 Presupuesto de la OSI</div>
+        <div id="presuSubtitulo" style="font-size:12px;opacity:.8;margin-top:2px;">—</div>
+      </div>
+      <button onclick="cerrarPresupuesto()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fff;">&times;</button>
+    </div>
+    <div style="padding:20px 22px;">
+      <input type="hidden" id="presuOsiId">
+      <!-- Datos que llegan de la OSI -->
+      <div style="background:#ecfdf5;border:1px solid #d1fae5;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">✅ Datos de la OSI (automático)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">CLIENTE</label><input id="presuCliente" readonly style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;background:#fff;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;"># OFERTA</label><input id="presuOferta" readonly style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;background:#fff;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;"># OSI</label><input id="presuNumOsi" readonly style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;background:#fff;"></div>
+          <div style="grid-column:1/-1;"><label style="font-size:11px;font-weight:700;color:#64748b;">FACTURACIÓN ESPERADA (COP)</label><input id="presuFacturacion" type="number" min="0" oninput="presuCalcular()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;font-weight:700;"></div>
+        </div>
+      </div>
+
+      <!-- Parámetros editables -->
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;letter-spacing:.4px;">⚙️ Tarifas base <span style="font-weight:600;text-transform:none;color:#9a3412;">(las puedes ajustar)</span></div>
+          <button type="button" onclick="presuGuardarConfig()" style="background:#c2410c;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">Guardar tarifas</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">GALÓN ACPM (COP)</label><input id="presuPrecioGalon" type="number" min="0" oninput="presuCalcular()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">KM/GAL CARGADO</label><input id="presuRendCargado" type="number" step="0.1" min="0.1" oninput="presuCalcular()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">KM/GAL VACÍO</label><input id="presuRendVacio" type="number" step="0.1" min="0.1" oninput="presuCalcular()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+          <div><label style="font-size:11px;font-weight:700;color:#64748b;">VIÁTICO/PERSONA/DÍA</label><input id="presuValorViatico" type="number" min="0" oninput="presuCalcular()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <!-- Equipos del presupuesto -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:800;color:#111827;">🚛 Equipos</div>
+        <button type="button" onclick="presuAgregarEquipo()" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">+ Agregar equipo</button>
+      </div>
+      <div id="presuEquiposLista"></div>
+
+      <!-- Resultado -->
+      <div style="background:#111827;color:#fff;border-radius:10px;padding:16px 18px;margin-top:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+          <div><div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;">Costo estimado</div><div id="presuTotalCosto" style="font-size:20px;font-weight:800;color:#fca5a5;">$ 0</div></div>
+          <div><div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;">Facturación esperada</div><div id="presuTotalFact" style="font-size:20px;font-weight:800;color:#fff;">$ 0</div></div>
+          <div><div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;">Utilidad operativa</div><div id="presuUtilidad" style="font-size:20px;font-weight:800;color:#6ee7b7;">$ 0</div><div id="presuMargen" style="font-size:12px;opacity:.85;">—</div></div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+        <button onclick="cerrarPresupuesto()" style="background:#eef0f3;border:none;color:#556;border-radius:6px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">Cerrar</button>
+        <button onclick="presuGuardar()" style="background:#0f766e;border:none;color:#fff;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">💾 Guardar presupuesto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR OSI -->
 <div id="modalOSI" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;padding:28px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);">
@@ -7683,11 +7744,207 @@ function renderOSI(rO) {
         ${_osiEstadoSelect(o)}
       </td>
       <td style="padding:11px 14px;text-align:center;font-size:12px;white-space:nowrap;">${o.responsable||'—'}</td>
-      <td style="padding:11px 14px;text-align:center;">
+      <td style="padding:11px 14px;text-align:center;white-space:nowrap;">
         <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Editar</button>
+        <button onclick="abrirPresupuesto(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:5px;">💰 Presupuesto</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 💰 PRESUPUESTO POR OSI (módulo Rentabilidad)
+// ══════════════════════════════════════════════════════════════════════════
+let _presuEquipos = [];
+let _presuSeq = 0;
+const _presuCfg = { precio_galon:11000, rend_cargado:5.5, rend_vacio:8.0, valor_viatico:100000 };
+
+function _presuNum(v){ return parseFloat(v)||0; }
+function _presuMoney(n){ return '$ ' + (Math.round(n)||0).toLocaleString('es-CO'); }
+
+function _presuNuevoEquipo(desc){
+  _presuSeq++;
+  return { id:'e'+_presuSeq, desc:desc||'', dias:1, operarios:1, auxiliares:0,
+    tramos:[{ id:'t'+_presuSeq+'a', tipo:'cargado', orig:'', dest:'', km:0 }],
+    peajes:0, escolta:0, transporte:0, parqueaderos:0, imprevistos:0 };
+}
+
+async function abrirPresupuesto(o){
+  document.getElementById('presuOsiId').value = o.id || '';
+  document.getElementById('presuCliente').value = o.cliente || '';
+  const numFmt = (o.oferta_num && String(o.oferta_num).length===6) ? '26-'+String(o.oferta_num).slice(2) : (o.oferta_num||'—');
+  document.getElementById('presuOferta').value = numFmt;
+  document.getElementById('presuNumOsi').value = o.numero_osi || '';
+  document.getElementById('presuFacturacion').value = o.valor || 0;
+  document.getElementById('presuSubtitulo').textContent = (o.numero_osi||'') + '  ·  ' + (o.cliente||'');
+  // Cargar tarifas base
+  try {
+    const cfg = await fetch('/api/presupuesto/config').then(r=>r.json());
+    if (cfg && !cfg.detail){ Object.assign(_presuCfg, cfg); }
+  } catch(e){}
+  document.getElementById('presuPrecioGalon').value = _presuCfg.precio_galon;
+  document.getElementById('presuRendCargado').value = _presuCfg.rend_cargado;
+  document.getElementById('presuRendVacio').value   = _presuCfg.rend_vacio;
+  document.getElementById('presuValorViatico').value= _presuCfg.valor_viatico;
+  // ¿Ya hay presupuesto guardado para esta OSI?
+  _presuEquipos = [];
+  try {
+    const pr = await fetch('/api/presupuesto/'+o.id).then(r=>r.json());
+    if (pr && pr.existe && pr.datos && Array.isArray(pr.datos.equipos) && pr.datos.equipos.length){
+      _presuEquipos = pr.datos.equipos.map(eq => {
+        _presuSeq++;
+        return { id:'e'+_presuSeq, desc:eq.desc||'', dias:_presuNum(eq.dias)||1,
+          operarios:_presuNum(eq.operarios)||1, auxiliares:_presuNum(eq.auxiliares)||0,
+          tramos:(eq.tramos||[]).map((t,i)=>({ id:'e'+_presuSeq+'t'+i, tipo:t.tipo||'cargado',
+            orig:t.orig||'', dest:t.dest||'', km:_presuNum(t.km) })),
+          peajes:_presuNum(eq.peajes), escolta:_presuNum(eq.escolta),
+          transporte:_presuNum(eq.transporte), parqueaderos:_presuNum(eq.parqueaderos),
+          imprevistos:_presuNum(eq.imprevistos) };
+      });
+      if (pr.facturacion_esperada) document.getElementById('presuFacturacion').value = pr.facturacion_esperada;
+    }
+  } catch(e){}
+  if (!_presuEquipos.length){
+    // Semilla: un equipo con la ruta y el equipo de la OSI
+    const eq = _presuNuevoEquipo(o.equipo || '');
+    eq.tramos[0].orig = o.origen || '';
+    eq.tramos[0].dest = o.destino || '';
+    if (Array.isArray(o.operadores) && o.operadores.length) eq.operarios = o.operadores.length;
+    _presuEquipos = [eq];
+  }
+  presuRenderEquipos();
+  presuCalcular();
+  document.getElementById('modalPresu').style.display = 'flex';
+}
+function cerrarPresupuesto(){ document.getElementById('modalPresu').style.display = 'none'; }
+
+function presuAgregarEquipo(){ _presuEquipos.push(_presuNuevoEquipo('')); presuRenderEquipos(); presuCalcular(); }
+function presuEliminarEquipo(id){ _presuEquipos = _presuEquipos.filter(e=>e.id!==id); presuRenderEquipos(); presuCalcular(); }
+function presuUpd(id, campo, val){ const e=_presuEquipos.find(x=>x.id===id); if(e){ e[campo]=val; presuCalcular(); } }
+function presuAgregarTramo(eqId){ const e=_presuEquipos.find(x=>x.id===eqId); if(e){ e.tramos.push({ id:eqId+'t'+Date.now(), tipo:'cargado', orig:'', dest:'', km:0 }); presuRenderEquipos(); presuCalcular(); } }
+function presuEliminarTramo(eqId, tId){ const e=_presuEquipos.find(x=>x.id===eqId); if(e){ e.tramos=e.tramos.filter(t=>t.id!==tId); presuRenderEquipos(); presuCalcular(); } }
+function presuUpdTramo(eqId, tId, campo, val){ const e=_presuEquipos.find(x=>x.id===eqId); if(!e) return; const t=e.tramos.find(t=>t.id===tId); if(t){ t[campo]=val; presuCalcular(); } }
+
+function _presuGalones(eq){
+  const rc = _presuNum(document.getElementById('presuRendCargado').value) || 5.5;
+  const rv = _presuNum(document.getElementById('presuRendVacio').value) || 8.0;
+  let kc=0, kv=0;
+  (eq.tramos||[]).forEach(t=>{ const km=_presuNum(t.km); if(t.tipo==='vacio') kv+=km; else kc+=km; });
+  const gc = kc>0 ? Math.ceil(kc/rc) : 0;
+  const gv = kv>0 ? Math.ceil(kv/rv) : 0;
+  return { gc, gv, gal:gc+gv, kc, kv };
+}
+function _presuCostoEquipo(eq){
+  const pg = _presuNum(document.getElementById('presuPrecioGalon').value) || 11000;
+  const vv = _presuNum(document.getElementById('presuValorViatico').value) || 100000;
+  const g = _presuGalones(eq);
+  const comb = g.gal * pg;
+  const viat = _presuNum(eq.dias) * (_presuNum(eq.operarios) + _presuNum(eq.auxiliares)) * vv;
+  const otros = _presuNum(eq.peajes)+_presuNum(eq.escolta)+_presuNum(eq.transporte)+_presuNum(eq.parqueaderos)+_presuNum(eq.imprevistos);
+  return { comb, viat, otros, gal:g.gal, sub: comb+viat+otros };
+}
+
+function presuRenderEquipos(){
+  const cont = document.getElementById('presuEquiposLista');
+  if (!cont) return;
+  cont.innerHTML = _presuEquipos.map((eq, idx) => {
+    const tramos = eq.tramos.map(t => `
+      <div style="display:grid;grid-template-columns:90px 1fr 1fr 90px 28px;gap:6px;align-items:center;margin-bottom:5px;">
+        <select onchange="presuUpdTramo('${eq.id}','${t.id}','tipo',this.value)" style="padding:5px 6px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;">
+          <option value="cargado" ${t.tipo==='cargado'?'selected':''}>Cargado</option>
+          <option value="vacio" ${t.tipo==='vacio'?'selected':''}>Vacío</option>
+        </select>
+        <input value="${(t.orig||'').replace(/"/g,'&quot;')}" placeholder="Origen" onchange="presuUpdTramo('${eq.id}','${t.id}','orig',this.value)" style="padding:5px 7px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;">
+        <input value="${(t.dest||'').replace(/"/g,'&quot;')}" placeholder="Destino" onchange="presuUpdTramo('${eq.id}','${t.id}','dest',this.value)" style="padding:5px 7px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;">
+        <input type="number" min="0" value="${t.km||''}" placeholder="KM" oninput="presuUpdTramo('${eq.id}','${t.id}','km',this.value)" style="padding:5px 7px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;">
+        <button type="button" onclick="presuEliminarTramo('${eq.id}','${t.id}')" title="Quitar tramo" style="background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:5px;font-size:12px;cursor:pointer;">✕</button>
+      </div>`).join('');
+    return `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;">
+        <input value="${(eq.desc||'').replace(/"/g,'&quot;')}" placeholder="Equipo ${idx+1} (ej: Cama baja + tracto)" onchange="presuUpd('${eq.id}','desc',this.value)" style="flex:1;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;font-weight:600;">
+        <span style="font-size:12px;color:#64748b;">Subtotal: <b id="presu-sub-${eq.id}" style="color:#0f766e;">$ 0</b></span>
+        ${_presuEquipos.length>1 ? `<button type="button" onclick="presuEliminarEquipo('${eq.id}')" title="Quitar equipo" style="background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;">🗑️</button>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">DÍAS</label><input type="number" min="0" value="${eq.dias||''}" oninput="presuUpd('${eq.id}','dias',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">OPERARIOS</label><input type="number" min="0" value="${eq.operarios||''}" oninput="presuUpd('${eq.id}','operarios',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">AUXILIARES</label><input type="number" min="0" value="${eq.auxiliares||''}" oninput="presuUpd('${eq.id}','auxiliares',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+      </div>
+      <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.3px;margin-bottom:5px;">Tramos <span id="presu-gal-${eq.id}" style="font-weight:600;text-transform:none;color:#0f766e;"></span></div>
+      ${tramos}
+      <button type="button" onclick="presuAgregarTramo('${eq.id}')" style="background:none;border:none;color:#0f766e;font-size:11px;font-weight:700;cursor:pointer;padding:2px 0;margin-bottom:8px;">+ Agregar tramo</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;">
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">PEAJES</label><input type="number" min="0" value="${eq.peajes||''}" oninput="presuUpd('${eq.id}','peajes',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">ESCOLTA</label><input type="number" min="0" value="${eq.escolta||''}" oninput="presuUpd('${eq.id}','escolta',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">TRANSPORTE</label><input type="number" min="0" value="${eq.transporte||''}" oninput="presuUpd('${eq.id}','transporte',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">PARQUEO</label><input type="number" min="0" value="${eq.parqueaderos||''}" oninput="presuUpd('${eq.id}','parqueaderos',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;">IMPREVISTOS</label><input type="number" min="0" value="${eq.imprevistos||''}" oninput="presuUpd('${eq.id}','imprevistos',this.value)" style="width:100%;padding:6px 8px;border:1px solid #e0e0e0;border-radius:5px;font-size:12px;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function presuCalcular(){
+  let total = 0;
+  _presuEquipos.forEach(eq => {
+    const c = _presuCostoEquipo(eq);
+    total += c.sub;
+    const sEl = document.getElementById('presu-sub-'+eq.id);
+    if (sEl) sEl.textContent = _presuMoney(c.sub);
+    const gEl = document.getElementById('presu-gal-'+eq.id);
+    if (gEl) gEl.textContent = c.gal>0 ? ('· '+c.gal+' gal → '+_presuMoney(c.comb)) : '';
+  });
+  const fact = _presuNum(document.getElementById('presuFacturacion').value);
+  const util = fact - total;
+  document.getElementById('presuTotalCosto').textContent = _presuMoney(total);
+  document.getElementById('presuTotalFact').textContent = _presuMoney(fact);
+  document.getElementById('presuUtilidad').textContent = _presuMoney(util);
+  const utilEl = document.getElementById('presuUtilidad');
+  utilEl.style.color = util >= 0 ? '#6ee7b7' : '#fca5a5';
+  document.getElementById('presuMargen').textContent = fact>0 ? ((util/fact*100).toFixed(1)+'% de margen') : '—';
+  return { total, fact, util };
+}
+
+async function presuGuardarConfig(){
+  const body = {
+    precio_galon: _presuNum(document.getElementById('presuPrecioGalon').value)||11000,
+    rend_cargado: _presuNum(document.getElementById('presuRendCargado').value)||5.5,
+    rend_vacio:   _presuNum(document.getElementById('presuRendVacio').value)||8.0,
+    valor_viatico:_presuNum(document.getElementById('presuValorViatico').value)||100000,
+  };
+  try {
+    await fetch('/api/presupuesto/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    Object.assign(_presuCfg, body);
+    alert('Tarifas guardadas. Se usarán para los próximos presupuestos.');
+  } catch(e){ alert('No se pudo guardar las tarifas.'); }
+}
+
+async function presuGuardar(){
+  const osiId = document.getElementById('presuOsiId').value;
+  if (!osiId){ alert('OSI no válida'); return; }
+  const r = presuCalcular();
+  const body = {
+    osi_id: parseInt(osiId),
+    numero_osi: document.getElementById('presuNumOsi').value,
+    oferta_num: document.getElementById('presuOferta').value,
+    cliente: document.getElementById('presuCliente').value,
+    facturacion_esperada: _presuNum(document.getElementById('presuFacturacion').value),
+    total_estimado: Math.round(r.total),
+    total_real: 0,
+    datos: { equipos: _presuEquipos, tarifas: {
+      precio_galon: _presuNum(document.getElementById('presuPrecioGalon').value),
+      rend_cargado: _presuNum(document.getElementById('presuRendCargado').value),
+      rend_vacio:   _presuNum(document.getElementById('presuRendVacio').value),
+      valor_viatico:_presuNum(document.getElementById('presuValorViatico').value),
+    } },
+  };
+  try {
+    const res = await fetch('/api/presupuesto/guardar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!res.ok) throw new Error();
+    alert('Presupuesto guardado para la OSI ' + body.numero_osi);
+    cerrarPresupuesto();
+  } catch(e){ alert('No se pudo guardar el presupuesto.'); }
 }
 
 function renderAceptadas() {

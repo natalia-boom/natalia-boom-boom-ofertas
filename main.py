@@ -2020,6 +2020,39 @@ def _ensure_db():
                     "INSERT INTO lider_cliente (cliente_key, lider) VALUES (%s,%s) "
                     "ON CONFLICT (cliente_key) DO NOTHING", (_k, _lider))
 
+        # ── Presupuesto por OSI (módulo Rentabilidad) ──────────────────────
+        # Un presupuesto por OSI. Los detalles (equipos, tramos, proveedores,
+        # subcontratados y costos reales) se guardan como JSON en 'datos' para
+        # replicar el artefacto de Natalia sin encajonar el modelo.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS presupuesto_osi (
+                id                   bigserial primary key,
+                osi_id               bigint unique,
+                numero_osi           text,
+                oferta_num           text,
+                cliente              text,
+                facturacion_esperada bigint default 0,
+                total_estimado       bigint default 0,
+                total_real           bigint default 0,
+                datos                text,
+                created_at           timestamptz default now(),
+                updated_at           timestamptz default now()
+            )
+        """)
+        # Parámetros editables del presupuesto (una sola fila, id=1). Así Natalia
+        # ajusta el precio del galón o el viático sin depender de código.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS presupuesto_config (
+                id             int primary key default 1,
+                precio_galon   bigint default 11000,
+                rend_cargado   numeric default 5.5,
+                rend_vacio     numeric default 8.0,
+                valor_viatico  bigint default 100000,
+                updated_at     timestamptz default now()
+            )
+        """)
+        cur.execute("INSERT INTO presupuesto_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING")
+
         # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
         cur.execute("""
             CREATE TABLE IF NOT EXISTS equipos (
@@ -5750,6 +5783,104 @@ def update_osi(osi_id: int, body: OSIUpdate, request: Request):
             if "estado" in fields and row.get("oferta_id"):
                 _sync_oferta_desde_osi(cur, row["oferta_id"])
             return row
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── Presupuesto por OSI (módulo Rentabilidad) ────────────────────────────────
+@app.get("/api/presupuesto/config")
+def presupuesto_config_get(request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM presupuesto_config WHERE id=1")
+            row = fetchone(cur)
+        if not row:
+            return {"precio_galon": 11000, "rend_cargado": 5.5, "rend_vacio": 8.0, "valor_viatico": 100000}
+        return {
+            "precio_galon": int(row.get("precio_galon") or 11000),
+            "rend_cargado": float(row.get("rend_cargado") or 5.5),
+            "rend_vacio": float(row.get("rend_vacio") or 8.0),
+            "valor_viatico": int(row.get("valor_viatico") or 100000),
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/presupuesto/config")
+def presupuesto_config_set(body: dict, request: Request):
+    try:
+        pg = int(body.get("precio_galon") or 11000)
+        rc = float(body.get("rend_cargado") or 5.5)
+        rv = float(body.get("rend_vacio") or 8.0)
+        vv = int(body.get("valor_viatico") or 100000)
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE presupuesto_config SET precio_galon=%s, rend_cargado=%s, "
+                "rend_vacio=%s, valor_viatico=%s, updated_at=now() WHERE id=1",
+                (pg, rc, rv, vv))
+        return {"ok": True, "precio_galon": pg, "rend_cargado": rc, "rend_vacio": rv, "valor_viatico": vv}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/presupuesto/{osi_id}")
+def presupuesto_get(osi_id: int, request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM presupuesto_osi WHERE osi_id=%s", (osi_id,))
+            row = fetchone(cur)
+        if not row:
+            return {"existe": False}
+        datos = row.get("datos")
+        if isinstance(datos, str):
+            try: datos = json.loads(datos)
+            except Exception: datos = {}
+        return {
+            "existe": True,
+            "osi_id": osi_id,
+            "numero_osi": row.get("numero_osi"),
+            "oferta_num": row.get("oferta_num"),
+            "cliente": row.get("cliente"),
+            "facturacion_esperada": int(row.get("facturacion_esperada") or 0),
+            "total_estimado": int(row.get("total_estimado") or 0),
+            "total_real": int(row.get("total_real") or 0),
+            "datos": datos or {},
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/presupuesto/guardar")
+def presupuesto_guardar(body: dict, request: Request):
+    try:
+        osi_id = body.get("osi_id")
+        if not osi_id:
+            raise HTTPException(400, "Falta osi_id")
+        numero_osi = (body.get("numero_osi") or "").strip()
+        oferta_num = (body.get("oferta_num") or "").strip()
+        cliente = (body.get("cliente") or "").strip()
+        fact = int(body.get("facturacion_esperada") or 0)
+        tot_est = int(body.get("total_estimado") or 0)
+        tot_real = int(body.get("total_real") or 0)
+        datos = json.dumps(body.get("datos") or {}, ensure_ascii=False)
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO presupuesto_osi (osi_id, numero_osi, oferta_num, cliente, "
+                "facturacion_esperada, total_estimado, total_real, datos) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+                "ON CONFLICT (osi_id) DO UPDATE SET numero_osi=EXCLUDED.numero_osi, "
+                "oferta_num=EXCLUDED.oferta_num, cliente=EXCLUDED.cliente, "
+                "facturacion_esperada=EXCLUDED.facturacion_esperada, "
+                "total_estimado=EXCLUDED.total_estimado, total_real=EXCLUDED.total_real, "
+                "datos=EXCLUDED.datos, updated_at=now()",
+                (osi_id, numero_osi, oferta_num, cliente, fact, tot_est, tot_real, datos))
+        return {"ok": True}
     except HTTPException:
         raise
     except Exception as e:
