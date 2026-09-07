@@ -1628,20 +1628,27 @@ def _ensure_db():
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
 
-        # ── Corrección de cliente: SOE 360 → GECOLSA ──────────────────────────
-        # Varias ofertas se cargaron con el cliente "SOE 360" cuando en realidad
-        # son de GECOLSA. La facturación de Vulcano confirma la identidad:
-        # "GENERAL DE EQUIPOS DE COLOMBIA SA" (NIT 860002576) = GECOLSA
-        # (factura de la oferta 26-0941). Se corrigen SOLO las ofertas cuya
-        # descripción/facturación son GECOLSA. Se dejan por fuera 26-0638,
-        # 26-0809 y 26-1060 (no nombran GECOLSA ni están facturadas). Idempotente.
-        _gecolsa_nums = ('260933', '260942', '260342', '260559', '260816',
-                         '260817', '260814', '261067', '261076', '260943')
-        _ph_gec = ",".join(["%s"] * len(_gecolsa_nums))
-        cur.execute(
-            f"UPDATE ofertas SET cliente='GECOLSA' "
-            f"WHERE num IN ({_ph_gec}) AND cliente <> 'GECOLSA'",
-            _gecolsa_nums)
+        # ── Corrección de cliente: SOE 360 → GECOLSA (SOLO lo facturado) ──────
+        # La ÚNICA fuente válida para decir que una oferta es GECOLSA es la
+        # facturación de Vulcano al cliente "GENERAL DE EQUIPOS DE COLOMBIA SA"
+        # (NIT 860002576). Según Vulcano, las facturas GECOLSA apuntan a:
+        #   BLCE3888/3889 → 26-0941 ; BLCE3925 → 26-1014 ; BLCE3926 → 26-1076
+        # Por eso GECOLSA son EXACTAMENTE esas 3 ofertas. El resto de las que
+        # figuran como "SOE 360" se dejan como estaban (SOE 360 es su cliente).
+        cur.execute("UPDATE ofertas SET cliente='GECOLSA' WHERE num IN ('260941','261014','261076') AND cliente <> 'GECOLSA'")
+        # One-time: revertir la sobre-corrección previa (commit 84e6ecf marcó 10
+        # ofertas como GECOLSA; solo 26-1076 era correcta). Guardado con marca
+        # para NO pisar cambios manuales que Natalia haga después.
+        cur.execute("CREATE TABLE IF NOT EXISTS app_migraciones (clave text primary key, aplicada_en timestamptz default now())")
+        cur.execute("SELECT 1 FROM app_migraciones WHERE clave='soe360_revert_v1'")
+        if not cur.fetchone():
+            _revert = ('260933', '260942', '260342', '260559', '260816',
+                       '260817', '260814', '261067', '260943')
+            _phr = ",".join(["%s"] * len(_revert))
+            cur.execute(
+                f"UPDATE ofertas SET cliente='SOE 360' WHERE num IN ({_phr}) AND cliente='GECOLSA'",
+                _revert)
+            cur.execute("INSERT INTO app_migraciones (clave) VALUES ('soe360_revert_v1')")
 
         # ── CANDADO DE CONSECUTIVO ────────────────────────────────────────────
         # Evita que dos ofertas ACTIVAS compartan el mismo número (bug de
