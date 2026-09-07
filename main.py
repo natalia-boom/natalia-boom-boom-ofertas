@@ -1628,6 +1628,21 @@ def _ensure_db():
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
 
+        # ── Corrección de cliente: SOE 360 → GECOLSA ──────────────────────────
+        # Varias ofertas se cargaron con el cliente "SOE 360" cuando en realidad
+        # son de GECOLSA. La facturación de Vulcano confirma la identidad:
+        # "GENERAL DE EQUIPOS DE COLOMBIA SA" (NIT 860002576) = GECOLSA
+        # (factura de la oferta 26-0941). Se corrigen SOLO las ofertas cuya
+        # descripción/facturación son GECOLSA. Se dejan por fuera 26-0638,
+        # 26-0809 y 26-1060 (no nombran GECOLSA ni están facturadas). Idempotente.
+        _gecolsa_nums = ('260933', '260942', '260342', '260559', '260816',
+                         '260817', '260814', '261067', '261076', '260943')
+        _ph_gec = ",".join(["%s"] * len(_gecolsa_nums))
+        cur.execute(
+            f"UPDATE ofertas SET cliente='GECOLSA' "
+            f"WHERE num IN ({_ph_gec}) AND cliente <> 'GECOLSA'",
+            _gecolsa_nums)
+
         # ── CANDADO DE CONSECUTIVO ────────────────────────────────────────────
         # Evita que dos ofertas ACTIVAS compartan el mismo número (bug de
         # consecutivo duplicado). Tiene dos partes idempotentes:
