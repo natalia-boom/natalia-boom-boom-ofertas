@@ -2814,6 +2814,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA INICIO</label><input id="cosiFechaInicio" type="date" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">HORA SERVICIO</label><input id="cosiHora" type="time" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">FECHA FINAL ESTIMADA</label><input id="cosiFechaFinal" type="date" onchange="cosiChequeoChoque()" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#64748b;">FACTURACIÓN ESPERADA</label><input id="cosiFacturacionView" readonly title="Valor tomado de la oferta casada" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;background:#f8fafc;color:#0f172a;font-weight:700;"></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;">ESPECIFICACIÓN DE LA CARGA</label><input id="cosiEspecificacion" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;"></div>
         <div>
           <label style="font-size:11px;font-weight:700;color:#64748b;">TIPO DE CARGA</label>
@@ -7777,6 +7778,7 @@ async function abrirCrearOSI(n) {
   g('cosiOfertaId').value  = n.oferta_id || '';
   g('cosiOfertaNum').value = n.oferta_num || '';
   g('cosiValor').value     = n.valor || 0;
+  if (g('cosiFacturacionView')) g('cosiFacturacionView').value = (n.valor ? '$ ' + Number(n.valor).toLocaleString('es-CO') : '—');
   g('cosiCliente').value   = n.cliente || '';
   g('cosiOrigen').value    = n.origen || '';
   g('cosiDestino').value   = n.destino || '';
