@@ -6377,6 +6377,50 @@ def _vulcano_marcar_gecolsa(cur):
     return {"ofertas_gecolsa": n, "nums": sorted(nums)}
 
 
+# Meses en español para mover una oferta al bloque 'FACTURADO <mes>' de la Proyección.
+_MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+             "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+
+def _sync_facturas_estado_proyecto(cur):
+    """Sincroniza la PROYECCIÓN con la facturación real.
+
+    Problema que resuelve (caso SSAB, Natalia 2026-09-08): la Proyección lee la
+    tabla `facturas` por su columna `estado_proyecto`, pero esa tabla era un
+    snapshot que NADIE actualizaba. Cuando Vulcano cerraba una oferta
+    (seguimiento='Facturada' en `ofertas`), la Proyección seguía mostrándola como
+    EJECUTADO / POR EJECUTAR, y por eso una oferta ya facturada aparecía como
+    'ejecutada'. Aquí la movemos sola: toda oferta cerrada arrastra sus líneas de
+    la Proyección al bloque 'FACTURADO <mes>' (mes de su fecha de facturación).
+
+    Es idempotente: SOLO toca filas que aún están en un estado de ejecución
+    (POR EJECUTAR / EN EJECUCIÓN / EJECUTADO). No inventa filas ni cambia el total
+    general: solo cambia el bucket, así la conciliación se mantiene."""
+    cur.execute("""
+        SELECT num, fecha_facturacion
+        FROM ofertas
+        WHERE UPPER(COALESCE(seguimiento,'')) = 'FACTURADA'
+    """)
+    pendientes = cur.fetchall()
+    n = 0
+    for num, fecha in pendientes:
+        mes = ""
+        if fecha is not None:
+            try:
+                mes = _MESES_ES[fecha.month - 1]
+            except Exception:
+                mes = ""
+        estado = ("FACTURADO " + mes).strip()
+        cur.execute("""
+            UPDATE facturas
+            SET estado_proyecto = %s
+            WHERE oferta_num = %s
+              AND UPPER(TRIM(COALESCE(estado_proyecto,''))) IN
+                  ('POR EJECUTAR','EN EJECUCION','EN EJECUCIÓN','EJECUTADO')
+        """, (estado, num))
+        n += cur.rowcount or 0
+    return {"facturas_sincronizadas": n}
+
+
 @app.post("/api/vulcano/importar")
 async def vulcano_importar(archivo: UploadFile = File(...)):
     """Sube el Excel descargado de VULCANO y lo carga a la tabla espejo.
@@ -6514,6 +6558,9 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
             aplicado = _vulcano_aplicar_a_ofertas(cur)
             # Regla dura: marca como GECOLSA solo lo facturado al NIT 860002576.
             gecolsa = _vulcano_marcar_gecolsa(cur)
+            # Proyección automática: mueve las ofertas ya facturadas de
+            # EJECUTADO/POR EJECUTAR a 'FACTURADO <mes>' (arregla el caso SSAB).
+            proy_sync = _sync_facturas_estado_proyecto(cur)
             resumen = _vulcano_calc_resumen(cur)
     except HTTPException:
         raise
@@ -6523,7 +6570,8 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
 
     return {"ok": True, "leidas": len(filas), "nuevas": nuevas,
             "actualizadas": actualizadas, "resumen": resumen,
-            "auto_facturado": aplicado, "gecolsa": gecolsa}
+            "auto_facturado": aplicado, "gecolsa": gecolsa,
+            "proyeccion_sync": proy_sync}
 
 
 def _vulcano_calc_resumen(cur):
@@ -7008,6 +7056,21 @@ def reporte_tablero():
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+@app.on_event("startup")
+def _startup_sync_proyeccion():
+    """Auto-cura la Proyección en cada arranque/deploy: mueve las ofertas ya
+    facturadas de EJECUTADO/POR EJECUTAR al bloque 'FACTURADO <mes>'. Así el caso
+    SSAB (y cualquier otra oferta facturada que quedó como 'ejecutada') se corrige
+    solo, sin esperar a la próxima importación de Vulcano."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            res = _sync_facturas_estado_proyecto(cur)
+        print(f"[STARTUP] Proyección sincronizada: {res}")
+    except Exception as e:
+        print(f"[STARTUP] No se pudo sincronizar la Proyección: {e}")
 
 
 if __name__ == '__main__':
