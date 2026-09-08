@@ -5043,13 +5043,21 @@ def get_notificaciones(request: Request):
         raise HTTPException(500, str(e))
 
 
+# Fecha de corte del panel de alertas: solo se muestran como "notificación pendiente"
+# las ofertas aceptadas DESDE esta fecha en adelante. Pedido de Natalia (2026-09-08):
+# el módulo de OSI es nuevo, así que las ofertas aceptadas ANTES del 24-ago quedaban
+# sonando como alertas viejas que nunca tendrán OSI. El corte arranca el conteo desde
+# el 24/25 de agosto (cuando la operación empieza a llevar OSI). No borra datos.
+_NOTIF_ALERTAS_DESDE = "2026-08-24"
+
 @app.get("/api/notificaciones/pendientes")
 def notificaciones_pendientes(request: Request):
     """FUENTE DE VERDAD del panel de alertas: TODA oferta ACEPTADA/notificada por la
     plataforma que AÚN NO tiene OSI creada. No depende de la tabla notificaciones ni
     de si una tarjeta fue 'leída' — así NUNCA se pierde una OSI pendiente. La tarjeta
     desaparece sola cuando se le crea la OSI. Origen/destino salen del pdf_data de la
-    oferta (misma fuente que usaba el trigger de aceptación)."""
+    oferta (misma fuente que usaba el trigger de aceptación).
+    Solo cuenta lo aceptado desde _NOTIF_ALERTAS_DESDE (ver nota arriba)."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -5067,9 +5075,10 @@ def notificaciones_pendientes(request: Request):
                   AND NOT COALESCE(o.anulada, false)
                   AND NOT COALESCE(o.es_prueba, false)
                   AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+                  AND COALESCE(o.aceptada_fecha, o.created_at) >= %s
                 ORDER BY COALESCE(o.aceptada_fecha, o.created_at) DESC NULLS LAST,
                          CAST(o.num AS INTEGER) DESC
-            """)
+            """, (_NOTIF_ALERTAS_DESDE,))
             rows = fetchall(cur)
         for r in rows:
             if r.get("created_at"):
@@ -5094,7 +5103,8 @@ def count_notificaciones(request: Request):
                   AND NOT COALESCE(o.anulada, false)
                   AND NOT COALESCE(o.es_prueba, false)
                   AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
-            """)
+                  AND COALESCE(o.aceptada_fecha, o.created_at) >= %s
+            """, (_NOTIF_ALERTAS_DESDE,))
             row = fetchone(cur)
             count = row["total"] if row else 0
             # La oferta aceptada-sin-OSI más reciente (para el sonido/aviso: saber QUÉ llegó)
@@ -5105,8 +5115,9 @@ def count_notificaciones(request: Request):
                   AND NOT COALESCE(o.anulada, false)
                   AND NOT COALESCE(o.es_prueba, false)
                   AND NOT EXISTS (SELECT 1 FROM osi s WHERE s.oferta_id = o.id)
+                  AND COALESCE(o.aceptada_fecha, o.created_at) >= %s
                 ORDER BY o.id DESC LIMIT 1
-            """)
+            """, (_NOTIF_ALERTAS_DESDE,))
             last = fetchone(cur)
             return {
                 "count": count,
