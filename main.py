@@ -6155,6 +6155,35 @@ def _vulcano_aplicar_a_ofertas(cur):
     return {"ofertas_afectadas": n_fact, "ofertas_cerradas": n_cierre}
 
 
+# NIT oficial de GECOLSA (razón social "GENERAL DE EQUIPOS DE COLOMBIA SA").
+_GECOLSA_NIT = "860002576"
+
+def _vulcano_marcar_gecolsa(cur):
+    """REGLA DURA (Natalia 2026-09-08): una oferta es GECOLSA *únicamente* cuando la
+    facturación de Vulcano salió a "GENERAL DE EQUIPOS DE COLOMBIA SA" (NIT 860002576).
+    La descripción de la oferta NO decide; la factura sí. Esto evita el error de confundir
+    ofertas de SOE 360 (que mencionan a GECOLSA en el texto) con ofertas de GECOLSA.
+    Corre en cada importación de Vulcano: toma las facturas NO excluidas con ese NIT,
+    saca su N° de oferta y pone cliente='GECOLSA'. Es idempotente (solo toca las que
+    aún no están en GECOLSA)."""
+    cur.execute("""
+        SELECT oferta_ref FROM vulcano_facturas
+        WHERE NOT excluida AND nit = %s
+          AND oferta_ref IS NOT NULL AND TRIM(oferta_ref) <> ''
+    """, (_GECOLSA_NIT,))
+    nums = set()
+    for (oref,) in cur.fetchall():
+        for m in re.findall(r"26-?(\d{3,4})", str(oref)):
+            nums.add("26" + m.zfill(4))
+    n = 0
+    for num in nums:
+        cur.execute(
+            "UPDATE ofertas SET cliente='GECOLSA' WHERE num=%s AND cliente <> 'GECOLSA'",
+            (num,))
+        n += cur.rowcount or 0
+    return {"ofertas_gecolsa": n, "nums": sorted(nums)}
+
+
 @app.post("/api/vulcano/importar")
 async def vulcano_importar(archivo: UploadFile = File(...)):
     """Sube el Excel descargado de VULCANO y lo carga a la tabla espejo.
@@ -6290,6 +6319,8 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
                     actualizadas += 1
             # Auto-facturado: cruza las facturas con sus ofertas y cierra las completas.
             aplicado = _vulcano_aplicar_a_ofertas(cur)
+            # Regla dura: marca como GECOLSA solo lo facturado al NIT 860002576.
+            gecolsa = _vulcano_marcar_gecolsa(cur)
             resumen = _vulcano_calc_resumen(cur)
     except HTTPException:
         raise
@@ -6299,7 +6330,7 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
 
     return {"ok": True, "leidas": len(filas), "nuevas": nuevas,
             "actualizadas": actualizadas, "resumen": resumen,
-            "auto_facturado": aplicado}
+            "auto_facturado": aplicado, "gecolsa": gecolsa}
 
 
 def _vulcano_calc_resumen(cur):
