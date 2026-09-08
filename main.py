@@ -2061,6 +2061,22 @@ def _ensure_db():
                 updated_at           timestamptz default now()
             )
         """)
+        # ── Flujo de APROBACIÓN del presupuesto (pedido Natalia 2026-09-08) ──────
+        # El presupuesto lo arma PROYECTOS después de la OSI y lo APRUEBA Boris.
+        # estado: BORRADOR -> ENVIADO -> APROBADO / RECHAZADO. Se guarda quién y
+        # cuándo (queda firmado para auditoría interna). 'justificacion' es
+        # obligatoria cuando el presupuesto va en pérdida al enviarlo.
+        for _col, _tipo in (
+            ("estado", "text DEFAULT 'BORRADOR'"),
+            ("justificacion", "text"),
+            ("enviado_por", "text"),
+            ("enviado_at", "timestamptz"),
+            ("aprobado_por", "text"),
+            ("aprobado_at", "timestamptz"),
+            ("comentario_aprob", "text"),
+        ):
+            cur.execute(f"ALTER TABLE presupuesto_osi ADD COLUMN IF NOT EXISTS {_col} {_tipo}")
+        cur.execute("UPDATE presupuesto_osi SET estado='BORRADOR' WHERE estado IS NULL")
         # Parámetros editables del presupuesto (una sola fila, id=1). Así Natalia
         # ajusta el precio del galón o el viático sin depender de código.
         cur.execute("""
@@ -2494,6 +2510,11 @@ _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # OSI, agregar equipos, atender alertas); en todo lo demás (ofertas, etc.) sigue
 # siendo de solo lectura.
 _OPERACIONES_WRITE_PREFIXES = ("/api/osi", "/api/equipos", "/api/notificaciones")
+# Presupuesto/Rentabilidad: Proyectos (módulo 'operaciones') arma y envía el
+# presupuesto; Boris (módulo 'rentabilidad') lo aprueba/rechaza. Ambos son
+# 'viewer', así que se les habilita la escritura SOLO en estas rutas. El
+# permiso fino (quién puede enviar vs. aprobar) lo valida cada endpoint.
+_PRESUPUESTO_WRITE_PREFIX = "/api/presupuesto"
 
 
 # ── Nombre OFICIAL (largo) de cada cliente ────────────────────────────────────
@@ -2567,11 +2588,18 @@ async def auth_middleware(request: Request, call_next):
     if user["rol"] == "viewer" and request.method in _WRITE_METHODS:
         # Excepción: un viewer con el módulo 'operaciones' puede editar SÓLO en
         # las rutas de Operaciones. Fuera de ahí sigue siendo de solo lectura.
+        _mods = user.get("modulos") or []
         puede_operaciones = (
-            "operaciones" in (user.get("modulos") or [])
+            "operaciones" in _mods
             and path.startswith(_OPERACIONES_WRITE_PREFIXES)
         )
-        if not puede_operaciones:
+        # Presupuestos: los pueden escribir Proyectos (operaciones) y Boris
+        # (rentabilidad). El endpoint decide la acción concreta permitida.
+        puede_presupuesto = (
+            ("operaciones" in _mods or "rentabilidad" in _mods)
+            and path.startswith(_PRESUPUESTO_WRITE_PREFIX)
+        )
+        if not (puede_operaciones or puede_presupuesto):
             return JSONResponse({"detail": "Acceso de solo lectura"}, status_code=403)
 
     if path.startswith("/api/usuarios") and request.method in _WRITE_METHODS and user["rol"] != "admin":
@@ -5768,7 +5796,9 @@ def get_osi(request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM osi ORDER BY created_at DESC")
+            cur.execute("SELECT o.*, p.estado AS presu_estado "
+                        "FROM osi o LEFT JOIN presupuesto_osi p ON p.osi_id = o.id "
+                        "ORDER BY o.created_at DESC")
             rows = fetchall(cur)
         # Desglosa el detalle operativo guardado como JSON en 'observaciones'
         # para que la tabla pueda mostrar tipo de operación y especificación.
@@ -5823,6 +5853,23 @@ def update_osi(osi_id: int, body: OSIUpdate, request: Request):
 
 
 # ── Presupuesto por OSI (módulo Rentabilidad) ────────────────────────────────
+def _require_modulo(request: Request, *mods):
+    """Devuelve el usuario si es admin o tiene alguno de los módulos indicados;
+    si no, lanza 403. Se usa para separar quién ENVÍA (Proyectos/operaciones) de
+    quién APRUEBA (Boris/rentabilidad) los presupuestos."""
+    u = getattr(request.state, "user", None) or {}
+    if u.get("rol") == "admin":
+        return u
+    umods = u.get("modulos") or []
+    if any(m in umods for m in mods):
+        return u
+    raise HTTPException(403, "No tienes permiso para esta acción")
+
+
+def _presu_actor(u: dict) -> str:
+    return (u.get("nombre") or u.get("username") or "—").strip()
+
+
 @app.get("/api/presupuesto/config")
 def presupuesto_config_get(request: Request):
     try:
@@ -5860,6 +5907,61 @@ def presupuesto_config_set(body: dict, request: Request):
         raise HTTPException(500, str(e))
 
 
+def _presu_row_public(row: dict) -> dict:
+    """Arma el dict de salida de un presupuesto, con utilidad/margen calculados."""
+    fact = int(row.get("facturacion_esperada") or 0)
+    tot = int(row.get("total_estimado") or 0)
+    util = fact - tot
+    margen = round(util / fact * 100, 1) if fact > 0 else None
+    return {
+        "osi_id": row.get("osi_id"),
+        "numero_osi": row.get("numero_osi"),
+        "oferta_num": row.get("oferta_num"),
+        "cliente": row.get("cliente"),
+        "facturacion_esperada": fact,
+        "total_estimado": tot,
+        "utilidad": util,
+        "margen": margen,
+        "en_perdida": util < 0,
+        "estado": (row.get("estado") or "BORRADOR"),
+        "justificacion": row.get("justificacion") or "",
+        "enviado_por": row.get("enviado_por") or "",
+        "enviado_at": row.get("enviado_at"),
+        "aprobado_por": row.get("aprobado_por") or "",
+        "aprobado_at": row.get("aprobado_at"),
+        "comentario_aprob": row.get("comentario_aprob") or "",
+    }
+
+
+@app.get("/api/presupuesto/pendientes")
+def presupuesto_pendientes(request: Request):
+    """Bandeja de aprobación de Boris: presupuestos ENVIADOS esperando decisión.
+    Ordena los que van en pérdida primero (para que salten a la vista)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM presupuesto_osi WHERE estado='ENVIADO' "
+                        "ORDER BY enviado_at DESC NULLS LAST")
+            rows = fetchall(cur)
+        out = [_presu_row_public(r) for r in rows]
+        out.sort(key=lambda x: (0 if x["en_perdida"] else 1))
+        return out
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/presupuesto/pendientes/count")
+def presupuesto_pendientes_count(request: Request):
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS total FROM presupuesto_osi WHERE estado='ENVIADO'")
+            row = fetchone(cur)
+        return {"count": int((row or {}).get("total") or 0)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/presupuesto/{osi_id}")
 def presupuesto_get(osi_id: int, request: Request):
     try:
@@ -5873,17 +5975,12 @@ def presupuesto_get(osi_id: int, request: Request):
         if isinstance(datos, str):
             try: datos = json.loads(datos)
             except Exception: datos = {}
-        return {
-            "existe": True,
-            "osi_id": osi_id,
-            "numero_osi": row.get("numero_osi"),
-            "oferta_num": row.get("oferta_num"),
-            "cliente": row.get("cliente"),
-            "facturacion_esperada": int(row.get("facturacion_esperada") or 0),
-            "total_estimado": int(row.get("total_estimado") or 0),
-            "total_real": int(row.get("total_real") or 0),
-            "datos": datos or {},
-        }
+        out = _presu_row_public(row)
+        out["existe"] = True
+        out["osi_id"] = osi_id
+        out["total_real"] = int(row.get("total_real") or 0)
+        out["datos"] = datos or {}
+        return out
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -5914,6 +6011,91 @@ def presupuesto_guardar(body: dict, request: Request):
                 "datos=EXCLUDED.datos, updated_at=now()",
                 (osi_id, numero_osi, oferta_num, cliente, fact, tot_est, tot_real, datos))
         return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/presupuesto/{osi_id}/enviar")
+def presupuesto_enviar(osi_id: int, body: dict, request: Request):
+    """Proyectos manda el presupuesto a aprobación de Boris. Si va en pérdida
+    (utilidad < 0) exige una justificación. Solo desde BORRADOR o RECHAZADO."""
+    u = _require_modulo(request, "operaciones")
+    try:
+        justif = (body.get("justificacion") or "").strip()
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM presupuesto_osi WHERE osi_id=%s", (osi_id,))
+            row = fetchone(cur)
+            if not row:
+                raise HTTPException(404, "Primero guarda el presupuesto de esta OSI.")
+            estado = (row.get("estado") or "BORRADOR")
+            if estado not in ("BORRADOR", "RECHAZADO"):
+                raise HTTPException(400, f"El presupuesto ya está {estado}.")
+            fact = int(row.get("facturacion_esperada") or 0)
+            tot = int(row.get("total_estimado") or 0)
+            if (fact - tot) < 0 and not justif:
+                raise HTTPException(400, "El presupuesto va en pérdida: escribe una justificación para enviarlo.")
+            cur.execute(
+                "UPDATE presupuesto_osi SET estado='ENVIADO', enviado_por=%s, "
+                "enviado_at=now(), justificacion=%s, aprobado_por=NULL, "
+                "aprobado_at=NULL, comentario_aprob=NULL, updated_at=now() WHERE osi_id=%s",
+                (_presu_actor(u), justif, osi_id))
+        return {"ok": True, "estado": "ENVIADO"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/presupuesto/{osi_id}/aprobar")
+def presupuesto_aprobar(osi_id: int, body: dict, request: Request):
+    """Boris aprueba el presupuesto (queda firmado con su nombre y fecha)."""
+    u = _require_modulo(request, "rentabilidad")
+    try:
+        coment = (body.get("comentario") or "").strip()
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT estado FROM presupuesto_osi WHERE osi_id=%s", (osi_id,))
+            row = fetchone(cur)
+            if not row:
+                raise HTTPException(404, "Presupuesto no encontrado.")
+            if (row.get("estado") or "") != "ENVIADO":
+                raise HTTPException(400, "Solo se puede aprobar un presupuesto ENVIADO.")
+            cur.execute(
+                "UPDATE presupuesto_osi SET estado='APROBADO', aprobado_por=%s, "
+                "aprobado_at=now(), comentario_aprob=%s, updated_at=now() WHERE osi_id=%s",
+                (_presu_actor(u), coment, osi_id))
+        return {"ok": True, "estado": "APROBADO"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/presupuesto/{osi_id}/rechazar")
+def presupuesto_rechazar(osi_id: int, body: dict, request: Request):
+    """Boris rechaza el presupuesto con un comentario. Vuelve a Proyectos para
+    corregir y reenviar. El comentario es obligatorio (dice qué ajustar)."""
+    u = _require_modulo(request, "rentabilidad")
+    try:
+        coment = (body.get("comentario") or "").strip()
+        if not coment:
+            raise HTTPException(400, "Escribe un comentario indicando qué se debe ajustar.")
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT estado FROM presupuesto_osi WHERE osi_id=%s", (osi_id,))
+            row = fetchone(cur)
+            if not row:
+                raise HTTPException(404, "Presupuesto no encontrado.")
+            if (row.get("estado") or "") != "ENVIADO":
+                raise HTTPException(400, "Solo se puede rechazar un presupuesto ENVIADO.")
+            cur.execute(
+                "UPDATE presupuesto_osi SET estado='RECHAZADO', aprobado_por=%s, "
+                "aprobado_at=now(), comentario_aprob=%s, updated_at=now() WHERE osi_id=%s",
+                (_presu_actor(u), coment, osi_id))
+        return {"ok": True, "estado": "RECHAZADO"}
     except HTTPException:
         raise
     except Exception as e:

@@ -2335,6 +2335,17 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
 <!-- ==================== RENTABILIDAD ==================== -->
 <section class="tab-panel" id="tab-rentabilidad">
+  <!-- Bandeja de aprobación de presupuestos (Boris) -->
+  <div class="section-card" style="border-left:4px solid #1d4ed8;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="margin:0;">📋 Presupuestos por aprobar <span id="presuPendCount" style="display:none;background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:800;margin-left:6px;">0</span></div>
+      <button class="btn" onclick="cargarPresuPendientes()" style="font-size:12px;">🔄 Actualizar</button>
+    </div>
+    <div id="presuPendLista" style="margin-top:14px;">
+      <div style="padding:20px;text-align:center;color:#9aa3b0;">Cargando…</div>
+    </div>
+  </div>
+
   <div class="section-card">
     <div class="section-title">💹 Módulo de Rentabilidad</div>
 
@@ -2957,10 +2968,15 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div style="font-size:16px;font-weight:800;">💰 Presupuesto de la OSI</div>
         <div id="presuSubtitulo" style="font-size:12px;opacity:.8;margin-top:2px;">—</div>
       </div>
-      <button onclick="cerrarPresupuesto()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fff;">&times;</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="presuEstadoPill"></span>
+        <button onclick="cerrarPresupuesto()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fff;">&times;</button>
+      </div>
     </div>
     <div style="padding:20px 22px;">
       <input type="hidden" id="presuOsiId">
+      <!-- Banner de estado de aprobación (aprobado/rechazado/enviado) -->
+      <div id="presuBanner" style="display:none;border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;font-weight:600;"></div>
       <!-- Datos que llegan de la OSI -->
       <div style="background:#ecfdf5;border:1px solid #d1fae5;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
         <div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">✅ Datos de la OSI (automático)</div>
@@ -3002,9 +3018,16 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         </div>
       </div>
 
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+      <!-- Justificación (obligatoria si el presupuesto va en pérdida al enviar) -->
+      <div id="presuJustifWrap" style="display:none;margin-top:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;">
+        <label style="font-size:11px;font-weight:800;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;">⚠️ Este presupuesto va en pérdida — justificación para aprobación</label>
+        <textarea id="presuJustif" rows="2" placeholder="Ej: se acepta menor margen por relación estratégica con el cliente / retorno con carga compensa…" style="width:100%;margin-top:6px;padding:8px 10px;border:1px solid #fecaca;border-radius:6px;font-size:13px;resize:vertical;"></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap;">
         <button onclick="cerrarPresupuesto()" style="background:#eef0f3;border:none;color:#556;border-radius:6px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">Cerrar</button>
-        <button onclick="presuGuardar()" style="background:#0f766e;border:none;color:#fff;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">💾 Guardar presupuesto</button>
+        <button id="presuBtnGuardar" onclick="presuGuardar()" style="background:#0f766e;border:none;color:#fff;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">💾 Guardar presupuesto</button>
+        <button id="presuBtnEnviar" onclick="presuEnviar()" style="background:#1d4ed8;border:none;color:#fff;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;">📤 Enviar a aprobación</button>
       </div>
     </div>
   </div>
@@ -7747,6 +7770,7 @@ function renderOSI(rO) {
       <td style="padding:11px 14px;text-align:center;white-space:nowrap;">
         <button onclick="abrirModalOSI(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:var(--orange);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Editar</button>
         <button onclick="abrirPresupuesto(${JSON.stringify(o).replace(/"/g,'&quot;')})" style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:5px;">💰 Presupuesto</button>
+        <div style="margin-top:6px;">${_presuPillHtml(o.presu_estado)}</div>
       </td>
     </tr>`;
   }).join('');
@@ -7761,6 +7785,20 @@ const _presuCfg = { precio_galon:11000, rend_cargado:5.5, rend_vacio:8.0, valor_
 
 function _presuNum(v){ return parseFloat(v)||0; }
 function _presuMoney(n){ return '$ ' + (Math.round(n)||0).toLocaleString('es-CO'); }
+
+// Estado de aprobación del presupuesto -> pastilla de color
+const _PRESU_ESTADOS = {
+  BORRADOR:  { txt:'🟡 Borrador',  bg:'#fef9c3', fg:'#854d0e' },
+  ENVIADO:   { txt:'🔵 Enviado',   bg:'#dbeafe', fg:'#1e40af' },
+  APROBADO:  { txt:'🟢 Aprobado',  bg:'#dcfce7', fg:'#166534' },
+  RECHAZADO: { txt:'🔴 Rechazado', bg:'#fee2e2', fg:'#991b1b' },
+};
+function _presuPillHtml(estado){
+  if (!estado) return '<span style="font-size:10px;color:#9aa3b0;">sin presupuesto</span>';
+  const e = _PRESU_ESTADOS[estado] || _PRESU_ESTADOS.BORRADOR;
+  return `<span style="display:inline-block;background:${e.bg};color:${e.fg};border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;white-space:nowrap;">${e.txt}</span>`;
+}
+let _presuEstadoActual = 'BORRADOR';   // estado del presupuesto abierto en el modal
 
 function _presuNuevoEquipo(desc){
   _presuSeq++;
@@ -7788,8 +7826,13 @@ async function abrirPresupuesto(o){
   document.getElementById('presuValorViatico').value= _presuCfg.valor_viatico;
   // ¿Ya hay presupuesto guardado para esta OSI?
   _presuEquipos = [];
+  _presuEstadoActual = 'BORRADOR';
+  let _prCargado = null;
+  document.getElementById('presuJustif').value = '';
   try {
     const pr = await fetch('/api/presupuesto/'+o.id).then(r=>r.json());
+    _prCargado = pr;
+    if (pr && pr.existe){ _presuEstadoActual = pr.estado || 'BORRADOR'; if (pr.justificacion) document.getElementById('presuJustif').value = pr.justificacion; }
     if (pr && pr.existe && pr.datos && Array.isArray(pr.datos.equipos) && pr.datos.equipos.length){
       _presuEquipos = pr.datos.equipos.map(eq => {
         _presuSeq++;
@@ -7814,9 +7857,38 @@ async function abrirPresupuesto(o){
   }
   presuRenderEquipos();
   presuCalcular();
+  presuAplicarEstado(_prCargado);
   document.getElementById('modalPresu').style.display = 'flex';
 }
 function cerrarPresupuesto(){ document.getElementById('modalPresu').style.display = 'none'; }
+
+// Pinta pastilla + banner + botones según el estado de aprobación del presupuesto.
+function presuAplicarEstado(pr){
+  const est = _presuEstadoActual || 'BORRADOR';
+  document.getElementById('presuEstadoPill').innerHTML = _presuPillHtml(est);
+  const editable = (est === 'BORRADOR' || est === 'RECHAZADO');
+  const mods = (typeof currentUser !== 'undefined' && currentUser && currentUser.modulos) ? currentUser.modulos : [];
+  const esProyectos = (currentUser && currentUser.rol === 'admin') || mods.includes('operaciones');
+  // Botones: guardar/enviar solo si el presupuesto es editable y el usuario es Proyectos.
+  document.getElementById('presuBtnGuardar').style.display = (editable && esProyectos) ? '' : 'none';
+  document.getElementById('presuBtnEnviar').style.display  = (editable && esProyectos) ? '' : 'none';
+  // Banner informativo
+  const b = document.getElementById('presuBanner');
+  const fmt = (s) => s ? new Date(s).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  if (est === 'APROBADO'){
+    b.style.display='block'; b.style.background='#dcfce7'; b.style.color='#166534'; b.style.border='1px solid #bbf7d0';
+    b.innerHTML = `🟢 <b>Aprobado</b> por ${pr && pr.aprobado_por || '—'} · ${fmt(pr && pr.aprobado_at)}${pr && pr.comentario_aprob ? ' · “'+pr.comentario_aprob+'”' : ''}`;
+  } else if (est === 'RECHAZADO'){
+    b.style.display='block'; b.style.background='#fee2e2'; b.style.color='#991b1b'; b.style.border='1px solid #fecaca';
+    b.innerHTML = `🔴 <b>Rechazado</b> por ${pr && pr.aprobado_por || '—'} · ${fmt(pr && pr.aprobado_at)}${pr && pr.comentario_aprob ? ' · “'+pr.comentario_aprob+'”' : ''}<br><span style="font-weight:500;">Corrige y vuelve a enviar a aprobación.</span>`;
+  } else if (est === 'ENVIADO'){
+    b.style.display='block'; b.style.background='#dbeafe'; b.style.color='#1e40af'; b.style.border='1px solid #bfdbfe';
+    b.innerHTML = `🔵 <b>Enviado a aprobación</b> por ${pr && pr.enviado_por || '—'} · ${fmt(pr && pr.enviado_at)} · esperando decisión de Boris.`;
+  } else {
+    b.style.display='none';
+  }
+  presuCalcular();
+}
 
 function presuAgregarEquipo(){ _presuEquipos.push(_presuNuevoEquipo('')); presuRenderEquipos(); presuCalcular(); }
 function presuEliminarEquipo(id){ _presuEquipos = _presuEquipos.filter(e=>e.id!==id); presuRenderEquipos(); presuCalcular(); }
@@ -7903,7 +7975,38 @@ function presuCalcular(){
   const utilEl = document.getElementById('presuUtilidad');
   utilEl.style.color = util >= 0 ? '#6ee7b7' : '#fca5a5';
   document.getElementById('presuMargen').textContent = fact>0 ? ((util/fact*100).toFixed(1)+'% de margen') : '—';
+  // La justificación aparece solo si va en pérdida y el presupuesto es editable.
+  const editable = (_presuEstadoActual === 'BORRADOR' || _presuEstadoActual === 'RECHAZADO');
+  const wrap = document.getElementById('presuJustifWrap');
+  if (wrap) wrap.style.display = (util < 0 && editable) ? 'block' : 'none';
   return { total, fact, util };
+}
+
+async function presuEnviar(){
+  const osiId = document.getElementById('presuOsiId').value;
+  if (!osiId){ alert('OSI no válida'); return; }
+  const r = presuCalcular();
+  const justif = (document.getElementById('presuJustif').value || '').trim();
+  if (r.util < 0 && !justif){
+    alert('Este presupuesto va en pérdida. Escribe una justificación para poder enviarlo a aprobación.');
+    document.getElementById('presuJustif').focus();
+    return;
+  }
+  if (!confirm('¿Enviar este presupuesto a aprobación de Boris?')) return;
+  // Guarda primero (por si hubo cambios sin guardar) y luego envía.
+  try {
+    await presuGuardar(true);
+    const res = await fetch('/api/presupuesto/'+osiId+'/enviar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ justificacion: justif })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw new Error(data.detail || 'Error');
+    _presuEstadoActual = 'ENVIADO';
+    alert('✅ Presupuesto enviado a aprobación. Boris lo verá en su módulo de Rentabilidad.');
+    cerrarPresupuesto();
+    if (typeof cargarOSI === 'function') cargarOSI();
+  } catch(e){ alert('No se pudo enviar: ' + (e.message || e)); }
 }
 
 async function presuGuardarConfig(){
@@ -7920,9 +8023,9 @@ async function presuGuardarConfig(){
   } catch(e){ alert('No se pudo guardar las tarifas.'); }
 }
 
-async function presuGuardar(){
+async function presuGuardar(silent){
   const osiId = document.getElementById('presuOsiId').value;
-  if (!osiId){ alert('OSI no válida'); return; }
+  if (!osiId){ if(!silent) alert('OSI no válida'); throw new Error('OSI no válida'); }
   const r = presuCalcular();
   const body = {
     osi_id: parseInt(osiId),
@@ -7942,9 +8045,12 @@ async function presuGuardar(){
   try {
     const res = await fetch('/api/presupuesto/guardar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if (!res.ok) throw new Error();
-    alert('Presupuesto guardado para la OSI ' + body.numero_osi);
-    cerrarPresupuesto();
-  } catch(e){ alert('No se pudo guardar el presupuesto.'); }
+    if (!silent){
+      alert('Presupuesto guardado para la OSI ' + body.numero_osi);
+      cerrarPresupuesto();
+      if (typeof cargarOSI === 'function') cargarOSI();
+    }
+  } catch(e){ if(!silent) alert('No se pudo guardar el presupuesto.'); throw e; }
 }
 
 function renderAceptadas() {
@@ -9330,6 +9436,78 @@ function initRentabilidad() {
   }
   sel.value = anioActual;
   loadRentabilidad();
+  cargarPresuPendientes();
+}
+
+// ── Bandeja de aprobación de presupuestos (Boris) ──────────────────────────
+async function cargarPresuPendientes(){
+  const cont = document.getElementById('presuPendLista');
+  if (!cont) return;
+  cont.innerHTML = '<div style="padding:20px;text-align:center;color:#9aa3b0;">Cargando…</div>';
+  let data = [];
+  try { data = await fetch('/api/presupuesto/pendientes').then(r=>r.json()); } catch(e){ data = []; }
+  if (!Array.isArray(data)) data = [];
+  const badge = document.getElementById('presuPendCount');
+  if (badge){ badge.textContent = data.length; badge.style.display = data.length ? 'inline-block' : 'none'; }
+  if (!data.length){
+    cont.innerHTML = '<div style="padding:24px;text-align:center;color:#9aa3b0;"><div style="font-size:30px;margin-bottom:6px;">✅</div>No hay presupuestos por aprobar.</div>';
+    return;
+  }
+  const money = (n)=> '$ ' + (Math.round(n)||0).toLocaleString('es-CO');
+  const numFmt = (n)=> (n && String(n).length===6) ? '26-'+String(n).slice(2) : (n||'—');
+  cont.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;">' + data.map(p => {
+    const perdida = p.en_perdida;
+    const margenTxt = (p.margen==null) ? '—' : (p.margen+'%');
+    const utilColor = perdida ? '#dc2626' : '#16a34a';
+    return `<div style="background:#fff;border:1px solid ${perdida?'#fecaca':'#e5e7eb'};border-radius:12px;padding:15px 16px;box-shadow:0 1px 4px rgba(0,0,0,.05);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:800;color:#111827;font-size:15px;">${p.cliente||'—'}</div>
+        <span style="font-size:11px;color:#8a94a3;font-weight:700;">${p.numero_osi||''} · Of ${numFmt(p.oferta_num)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px;font-size:12.5px;color:#556;">
+        <div>Facturación</div><div style="text-align:right;font-weight:700;">${money(p.facturacion_esperada)}</div>
+        <div>Costo estimado</div><div style="text-align:right;font-weight:700;">${money(p.total_estimado)}</div>
+        <div>Utilidad</div><div style="text-align:right;font-weight:800;color:${utilColor};">${money(p.utilidad)} (${margenTxt})</div>
+      </div>
+      ${perdida ? `<div style="margin-top:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:11.5px;color:#991b1b;"><b>⚠️ En pérdida.</b> ${p.justificacion ? 'Justificación: “'+p.justificacion+'”' : 'Sin justificación.'}</div>` : ''}
+      <div style="font-size:11px;color:#9aa3b0;margin-top:8px;">Enviado por ${p.enviado_por||'—'}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="presuAprobar(${p.osi_id})" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">✅ Aprobar</button>
+        <button onclick="presuRechazar(${p.osi_id})" style="flex:1;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">❌ Rechazar</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function presuAprobar(osiId){
+  const coment = prompt('Comentario de aprobación (opcional):', 'Aprobado');
+  if (coment === null) return;  // canceló
+  try {
+    const res = await fetch('/api/presupuesto/'+osiId+'/aprobar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ comentario: (coment||'').trim() })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw new Error(data.detail || 'Error');
+    alert('✅ Presupuesto aprobado.');
+    cargarPresuPendientes();
+  } catch(e){ alert('No se pudo aprobar: ' + (e.message||e)); }
+}
+
+async function presuRechazar(osiId){
+  const coment = prompt('¿Qué se debe ajustar? (obligatorio)', '');
+  if (coment === null) return;
+  if (!coment.trim()){ alert('Debes escribir un comentario indicando qué ajustar.'); return; }
+  try {
+    const res = await fetch('/api/presupuesto/'+osiId+'/rechazar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ comentario: coment.trim() })
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw new Error(data.detail || 'Error');
+    alert('Presupuesto devuelto a Proyectos para corrección.');
+    cargarPresuPendientes();
+  } catch(e){ alert('No se pudo rechazar: ' + (e.message||e)); }
 }
 
 async function loadRentabilidad() {
