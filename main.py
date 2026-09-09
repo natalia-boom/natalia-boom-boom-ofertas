@@ -3518,7 +3518,8 @@ async def gastos_importar(request: Request, archivo: UploadFile = File(...)):
                     actualizadas += 1
             _recalc_total_real(cur)
             # Resumen para la pantalla.
-            cur.execute("SELECT numero_osi FROM presupuesto_osi WHERE numero_osi IS NOT NULL")
+            cur.execute("SELECT numero_osi FROM presupuesto_osi "
+                        "WHERE numero_osi IS NOT NULL AND estado='APROBADO'")
             osis_con_presu = {r["numero_osi"] for r in fetchall(cur)}
     except HTTPException:
         raise
@@ -3562,9 +3563,11 @@ def rentabilidad_osi():
                 "SELECT osi, COUNT(*) AS n, COALESCE(SUM(monto),0) AS monto "
                 "FROM gastos_vulcano WHERE NOT anulado AND osi IS NOT NULL GROUP BY osi")
             eje = {r["osi"]: (int(r["n"]), int(r["monto"])) for r in fetchall(cur)}
+            # Solo el presupuesto APROBADO por Boris sirve de base a Jorge.
             cur.execute(
                 "SELECT numero_osi, oferta_num, cliente, facturacion_esperada, "
-                "total_estimado, estado FROM presupuesto_osi ORDER BY numero_osi")
+                "total_estimado, estado FROM presupuesto_osi "
+                "WHERE estado='APROBADO' ORDER BY numero_osi")
             presus = fetchall(cur)
             rows = []
             con_presu = set()
@@ -6227,6 +6230,23 @@ def presupuesto_pendientes_count(request: Request):
             cur.execute("SELECT COUNT(*) AS total FROM presupuesto_osi WHERE estado='ENVIADO'")
             row = fetchone(cur)
         return {"count": int((row or {}).get("total") or 0)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/presupuesto/aprobados")
+def presupuesto_aprobados(request: Request):
+    """Historial de decisiones de Boris: presupuestos ya APROBADOS (y RECHAZADOS).
+    Se muestra debajo de la bandeja: Oferta, OSI, Cliente, Valor facturado,
+    Valor del presupuesto y el estado (APROBADO/RECHAZADO)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM presupuesto_osi "
+                        "WHERE estado IN ('APROBADO','RECHAZADO') "
+                        "ORDER BY aprobado_at DESC NULLS LAST")
+            rows = fetchall(cur)
+        return [_presu_row_public(r) for r in rows]
     except Exception as e:
         raise HTTPException(500, str(e))
 

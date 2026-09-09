@@ -928,6 +928,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')">🚛 Equipos</button>
   <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
   <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
+  <button class="tab-btn" id="tabAprobacionesBtn" style="display:none;" onclick="switchTab('aprobaciones')">✅ Aprobación de Presupuestos</button>
   <button class="tab-btn" id="tabRentabilidadBtn" style="display:none;" onclick="switchTab('rentabilidad')">💹 Rentabilidad</button>
 </nav>
 
@@ -2342,9 +2343,9 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 </section>
 
-<!-- ==================== RENTABILIDAD ==================== -->
-<section class="tab-panel" id="tab-rentabilidad">
-  <!-- Bandeja de aprobación de presupuestos (Boris) -->
+<!-- ==================== APROBACIÓN DE PRESUPUESTOS (Boris) ==================== -->
+<!-- Módulo INDEPENDIENTE de Rentabilidad: aquí Boris solo aprueba/rechaza -->
+<section class="tab-panel" id="tab-aprobaciones">
   <div class="section-card" id="rentCardAprobacion" style="border-left:4px solid #1d4ed8;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div class="section-title" style="margin:0;">📋 Presupuestos por aprobar <span id="presuPendCount" style="display:none;background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:800;margin-left:6px;">0</span></div>
@@ -2355,6 +2356,35 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     </div>
   </div>
 
+  <!-- Historial: presupuestos ya aprobados / rechazados -->
+  <div class="section-card" id="rentCardAprobados" style="border-left:4px solid #16a34a;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="margin:0;">✅ Presupuestos aprobados</div>
+      <button class="btn" onclick="cargarPresuAprobados()" style="font-size:12px;">🔄 Actualizar</button>
+    </div>
+    <div style="overflow-x:auto;margin-top:14px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--petrol);color:#fff;">
+            <th style="padding:9px 10px;text-align:left;">Oferta</th>
+            <th style="padding:9px 10px;text-align:left;">OSI</th>
+            <th style="padding:9px 10px;text-align:left;">Cliente</th>
+            <th style="padding:9px 10px;text-align:right;">Valor facturado</th>
+            <th style="padding:9px 10px;text-align:right;">Valor presupuesto</th>
+            <th style="padding:9px 10px;text-align:center;">Estado</th>
+          </tr>
+        </thead>
+        <tbody id="presuAprobadosTbody">
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:#9aa3b0;">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== RENTABILIDAD (Jorge) ==================== -->
+<!-- Módulo INDEPENDIENTE de Aprobación: análisis + importar gastos de Vulcano -->
+<section class="tab-panel" id="tab-rentabilidad">
   <div class="section-card" id="rentCardAnalisis">
     <div class="section-title">💹 Módulo de Rentabilidad</div>
 
@@ -3400,7 +3430,7 @@ const MODULO_INFO = {
   tarifario:     { subtitulo: 'Tarifario Automático',             tab: 'tarifario',      tabsComercial: false },
   ti:            { subtitulo: 'Tecnología — TI',                  tab: 'ti',             tabsComercial: false },
   rentabilidad:  { subtitulo: 'Módulo de Rentabilidad',           tab: 'rentabilidad',   tabsComercial: false },
-  aprobar_presupuesto: { subtitulo: 'Aprobación de Presupuestos', tab: 'rentabilidad',   tabsComercial: false },
+  aprobar_presupuesto: { subtitulo: 'Aprobación de Presupuestos', tab: 'aprobaciones',   tabsComercial: false },
 };
 
 function enterModulo(modulo) {
@@ -3420,19 +3450,13 @@ function enterModulo(modulo) {
   document.getElementById('tabTarifarioBtn').style.display     = modulo === 'tarifario'     ? '' : 'none';
   document.getElementById('tabUsuariosBtn').style.display      = 'none'; // Usuarios está dentro del módulo TI
   document.getElementById('tabTiBtn').style.display            = modulo === 'ti'            ? '' : 'none';
+  // Aprobación (Boris) y Rentabilidad (Jorge) son DOS módulos independientes,
+  // cada uno con su propia pestaña. El admin ve ambas.
+  const _adm = (currentUser && currentUser.rol === 'admin');
   const esRent = (modulo === 'rentabilidad');
   const esAprob = (modulo === 'aprobar_presupuesto');
-  document.getElementById('tabRentabilidadBtn').style.display  = (esRent || esAprob) ? '' : 'none';
-  if (esRent || esAprob) {
-    const _adm = (currentUser && currentUser.rol === 'admin');
-    // Boris ve la bandeja de aprobación; Jorge ve el análisis de rentabilidad.
-    // El admin ve ambos. Cada quien entra por su tarjeta y ve solo lo suyo.
-    const cA = document.getElementById('rentCardAprobacion');
-    const cR = document.getElementById('rentCardAnalisis');
-    if (cA) cA.style.display = (esAprob || _adm) ? '' : 'none';
-    if (cR) cR.style.display = (esRent  || _adm) ? '' : 'none';
-    document.getElementById('tabRentabilidadBtn').textContent = esAprob ? '✅ Aprobación' : '💹 Rentabilidad';
-  }
+  document.getElementById('tabAprobacionesBtn').style.display  = (esAprob || _adm) ? '' : 'none';
+  document.getElementById('tabRentabilidadBtn').style.display  = (esRent  || _adm) ? '' : 'none';
   document.getElementById('btnCambiarModulo').style.display    = (currentUser && (currentUser.rol === 'admin' || (currentUser.modulos||[]).length > 1)) ? '' : 'none';
   document.getElementById('appHeader').querySelector('.header-subtitle').textContent = info.subtitulo;
   document.body.classList.remove('rol-admin','rol-comercial','rol-operaciones','rol-viewer');
@@ -3440,7 +3464,8 @@ function enterModulo(modulo) {
   mostrarApp();
   if (info.tabsComercial) { switchTab('dashboard'); initApp(); }
   else if (modulo === 'ti') { switchTab('ti'); tiSwitchTab('estado'); }
-  else if (modulo === 'rentabilidad' || modulo === 'aprobar_presupuesto') { switchTab('rentabilidad'); }
+  else if (modulo === 'aprobar_presupuesto') { switchTab('aprobaciones'); }
+  else if (modulo === 'rentabilidad') { switchTab('rentabilidad'); }
   else { switchTab(info.tab); }
 }
 
@@ -3862,6 +3887,7 @@ function switchTab(name) {
   if (name === 'clientes')   cargarClientes();
   if (name === 'aprobadas')  { initInformeFact(); loadFacturacion2025(); loadContratos(); loadOtros(); loadResumenFacturacion(); cargarVulcano(); cargarMeta(); loadTopClientes(); }
   if (name === 'tablero')    loadTablero();
+  if (name === 'aprobaciones') { cargarPresuPendientes(); cargarPresuAprobados(); }
   if (name === 'rentabilidad') initRentabilidad();
   if (name === 'proyeccion') renderProyeccion();
   // Activa columnas ajustables cuando la tabla ya está visible (con datos).
@@ -9503,7 +9529,6 @@ function initRentabilidad() {
   sel.value = anioActual;
   loadRentabilidad();
   loadRentabilidadOSI();
-  cargarPresuPendientes();
 }
 
 // ── Rentabilidad REAL por OSI (Facturado vs Presupuestado vs Ejecutado) ──────
@@ -9671,8 +9696,38 @@ async function presuAprobar(osiId){
     const data = await res.json().catch(()=>({}));
     if (!res.ok) throw new Error(data.detail || 'Error');
     alert('✅ Presupuesto aprobado.');
-    cargarPresuPendientes();
+    cargarPresuPendientes(); cargarPresuAprobados();
   } catch(e){ alert('No se pudo aprobar: ' + (e.message||e)); }
+}
+
+// ── Historial de presupuestos aprobados / rechazados (debajo de la bandeja) ──
+async function cargarPresuAprobados(){
+  const tb = document.getElementById('presuAprobadosTbody');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9aa3b0;">Cargando…</td></tr>';
+  let data = [];
+  try { data = await fetch('/api/presupuesto/aprobados').then(r=>r.json()); } catch(e){ data = []; }
+  if (!Array.isArray(data)) data = [];
+  if (!data.length){
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#9aa3b0;">Aún no hay presupuestos aprobados.</td></tr>';
+    return;
+  }
+  const money = (n)=> '$ ' + (Math.round(n)||0).toLocaleString('es-CO');
+  const ofFmt = (n)=> (n && String(n).length===6) ? '26-'+String(n).slice(2) : (n||'—');
+  tb.innerHTML = data.map(p=>{
+    const aprob = (p.estado === 'APROBADO');
+    const pill = aprob
+      ? '<span style="background:#dcfce7;color:#166534;font-weight:800;border-radius:999px;padding:2px 10px;font-size:11.5px;">✅ APROBADO</span>'
+      : '<span style="background:#fee2e2;color:#991b1b;font-weight:800;border-radius:999px;padding:2px 10px;font-size:11.5px;">❌ RECHAZADO</span>';
+    return `<tr style="border-bottom:1px solid #eef2f7;">
+      <td style="padding:8px 10px;font-weight:600;">${ofFmt(p.oferta_num)}</td>
+      <td style="padding:8px 10px;">${p.numero_osi||'—'}</td>
+      <td style="padding:8px 10px;">${p.cliente||'—'}</td>
+      <td style="padding:8px 10px;text-align:right;">${money(p.facturacion_esperada)}</td>
+      <td style="padding:8px 10px;text-align:right;">${money(p.total_estimado)}</td>
+      <td style="padding:8px 10px;text-align:center;">${pill}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function presuRechazar(osiId){
@@ -9687,7 +9742,7 @@ async function presuRechazar(osiId){
     const data = await res.json().catch(()=>({}));
     if (!res.ok) throw new Error(data.detail || 'Error');
     alert('Presupuesto devuelto a Proyectos para corrección.');
-    cargarPresuPendientes();
+    cargarPresuPendientes(); cargarPresuAprobados();
   } catch(e){ alert('No se pudo rechazar: ' + (e.message||e)); }
 }
 
