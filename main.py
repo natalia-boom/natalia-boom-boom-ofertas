@@ -2503,7 +2503,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/debug/proyeccion"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -7053,6 +7053,43 @@ def reporte_tablero():
             "seguimiento_pendiente": seguimiento,
             "por_ejecutivo": por_ejecutivo,
         }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/debug/proyeccion")
+def debug_proyeccion(cliente: str = Query("SSAB")):
+    """TEMPORAL (diagnóstico caso SSAB). Devuelve el estado crudo de una oferta en
+    las DOS tablas para ver por qué la Proyección no la movió: `ofertas`
+    (seguimiento/facturado) vs `facturas` (estado_proyecto). Se quita después."""
+    like = f"%{cliente.upper()}%"
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT num, cliente, respuesta, seguimiento, COALESCE(valor,0), "
+                "COALESCE(valor_facturado,0), fecha_facturacion, no_factura "
+                "FROM ofertas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
+                "ORDER BY num", (like,))
+            ofertas = [{
+                "num": r[0], "cliente": r[1], "respuesta": r[2],
+                "seguimiento": r[3], "valor": int(r[4] or 0),
+                "valor_facturado": int(r[5] or 0),
+                "fecha_facturacion": str(r[6]) if r[6] else None,
+                "no_factura": r[7],
+            } for r in cur.fetchall()]
+            nums = [o["num"] for o in ofertas if o["num"]]
+            cur.execute(
+                "SELECT oferta_num, cliente, estado_proyecto, mes, COALESCE(valor,0) "
+                "FROM facturas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
+                "OR oferta_num = ANY(%s) ORDER BY oferta_num",
+                (like, nums or [""]))
+            facturas = [{
+                "oferta_num": r[0], "cliente": r[1], "estado_proyecto": r[2],
+                "mes": r[3], "valor": int(r[4] or 0),
+            } for r in cur.fetchall()]
+        return {"filtro": cliente, "ofertas": ofertas, "facturas": facturas}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
