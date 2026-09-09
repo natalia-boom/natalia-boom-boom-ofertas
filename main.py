@@ -2503,7 +2503,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/debug/proyeccion"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -7078,52 +7078,6 @@ def reporte_tablero():
             "seguimiento_pendiente": seguimiento,
             "por_ejecutivo": por_ejecutivo,
         }
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(500, str(e))
-
-
-@app.get("/api/debug/proyeccion")
-def debug_proyeccion(cliente: str = Query("SSAB"), num: str = Query("")):
-    """TEMPORAL (diagnóstico caso SSAB). Estado crudo de una oferta en las TRES
-    tablas: `ofertas` (seguimiento/facturado), `facturas` (estado_proyecto de la
-    Proyección) y `vulcano_facturas` (facturación real). Se quita después."""
-    like = f"%{cliente.upper()}%"
-    numlike = f"%{num}%"
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT num, cliente, respuesta, seguimiento, COALESCE(valor,0), "
-                "COALESCE(valor_facturado,0), fecha_facturacion, no_factura "
-                "FROM ofertas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
-                "OR (%s <> '' AND num LIKE %s) ORDER BY num", (like, num, numlike))
-            ofertas = [{
-                "num": r[0], "cliente": r[1], "respuesta": r[2],
-                "seguimiento": r[3], "valor": int(r[4] or 0),
-                "valor_facturado": int(r[5] or 0),
-                "fecha_facturacion": str(r[6]) if r[6] else None,
-                "no_factura": r[7],
-            } for r in cur.fetchall()]
-            cur.execute(
-                "SELECT oferta_num, cliente, estado_proyecto, mes, COALESCE(valor,0) "
-                "FROM facturas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
-                "OR (%s <> '' AND oferta_num LIKE %s) ORDER BY oferta_num",
-                (like, num, numlike))
-            facturas = [{
-                "oferta_num": r[0], "cliente": r[1], "estado_proyecto": r[2],
-                "mes": r[3], "valor": int(r[4] or 0),
-            } for r in cur.fetchall()]
-            cur.execute(
-                "SELECT factura, cliente, nit, oferta_ref, mes, COALESCE(subtotal,0), "
-                "excluida FROM vulcano_facturas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
-                "OR (%s <> '' AND oferta_ref LIKE %s) ORDER BY factura", (like, num, numlike))
-            vulcano = [{
-                "factura": r[0], "cliente": r[1], "nit": r[2], "oferta_ref": r[3],
-                "mes": r[4], "subtotal": int(r[5] or 0), "excluida": r[6],
-            } for r in cur.fetchall()]
-        return {"filtro": cliente, "num": num, "ofertas": ofertas,
-                "facturas": facturas, "vulcano": vulcano}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
