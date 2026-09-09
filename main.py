@@ -2077,6 +2077,30 @@ def _ensure_db():
         ):
             cur.execute(f"ALTER TABLE presupuesto_osi ADD COLUMN IF NOT EXISTS {_col} {_tipo}")
         cur.execute("UPDATE presupuesto_osi SET estado='BORRADOR' WHERE estado IS NULL")
+        # ── Gasto REAL por OSI (relación de anticipos que exporta Jorge de Vulcano) ──
+        # Cada anticipo se amarra a su OSI por el manifiesto (regla de Natalia:
+        # si el manifiesto empieza por año 25/26 es la OSI; si no, el DocReference).
+        # La suma por OSI alimenta presupuesto_osi.total_real (lo EJECUTADO).
+        # dedup por 'documento' (número del anticipo en Vulcano) -> reimportar no duplica.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS gastos_vulcano (
+                id           bigserial primary key,
+                documento    text unique,
+                tipo         text,
+                manifiesto   text,
+                docref       text,
+                osi          text,
+                fecha        date,
+                titular      text,
+                placa        text,
+                nombre       text,
+                monto        bigint default 0,
+                comentarios  text,
+                anulado      boolean default false,
+                importado_at timestamptz default now()
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_gastos_vulcano_osi ON gastos_vulcano(osi)")
         # Parámetros editables del presupuesto (una sola fila, id=1). Así Natalia
         # ajusta el precio del galón o el viático sin depender de código.
         cur.execute("""
@@ -2515,6 +2539,9 @@ _OPERACIONES_WRITE_PREFIXES = ("/api/osi", "/api/equipos", "/api/notificaciones"
 # 'viewer', así que se les habilita la escritura SOLO en estas rutas. El
 # permiso fino (quién puede enviar vs. aprobar) lo valida cada endpoint.
 _PRESUPUESTO_WRITE_PREFIX = "/api/presupuesto"
+# Gastos reales por OSI: Jorge (módulo 'rentabilidad', viewer) sube la relación
+# de anticipos de Vulcano. Se le habilita la escritura SOLO en esta ruta.
+_GASTOS_WRITE_PREFIX = "/api/gastos"
 
 
 # ── Nombre OFICIAL (largo) de cada cliente ────────────────────────────────────
@@ -2600,7 +2627,12 @@ async def auth_middleware(request: Request, call_next):
             ("operaciones" in _mods or "aprobar_presupuesto" in _mods)
             and path.startswith(_PRESUPUESTO_WRITE_PREFIX)
         )
-        if not (puede_operaciones or puede_presupuesto):
+        # Gastos reales: Jorge (rentabilidad) sube la relación de anticipos.
+        puede_gastos = (
+            "rentabilidad" in _mods
+            and path.startswith(_GASTOS_WRITE_PREFIX)
+        )
+        if not (puede_operaciones or puede_presupuesto or puede_gastos):
             return JSONResponse({"detail": "Acceso de solo lectura"}, status_code=403)
 
     if path.startswith("/api/usuarios") and request.method in _WRITE_METHODS and user["rol"] != "admin":
@@ -3347,6 +3379,241 @@ def get_rentabilidad(anio: Optional[str] = None, mes: Optional[str] = None):
             """, params)
             rows = fetchall(cur)
         return {"rows": rows}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+# ── Gasto REAL por OSI: relación de anticipos que Jorge exporta de Vulcano ────
+_OSI_RE = re.compile(r"^2[0-9]{4}$")
+
+
+def _gasto_osi(manifiesto, docref):
+    """Regla de Natalia: la OSI es el manifiesto si empieza por año (25/26...);
+    si el manifiesto no es una OSI, se toma el DocReference. Devuelve 'O#####'
+    (como se guarda numero_osi en presupuesto_osi) o None si no cruza."""
+    for v in (manifiesto, docref):
+        s = re.sub(r"\D", "", str(v or ""))
+        if _OSI_RE.match(s):
+            return "O" + s
+    return None
+
+
+def _recalc_total_real(cur):
+    """Recalcula el EJECUTADO de cada presupuesto = suma de sus anticipos (no
+    anulados), amarrados por OSI. No toca presupuestos sin gastos."""
+    cur.execute("""
+        UPDATE presupuesto_osi p SET total_real = COALESCE((
+            SELECT SUM(g.monto) FROM gastos_vulcano g
+            WHERE g.osi = p.numero_osi AND NOT g.anulado
+        ), 0), updated_at = now()
+    """)
+
+
+@app.post("/api/gastos/importar")
+async def gastos_importar(request: Request, archivo: UploadFile = File(...)):
+    """Jorge sube la 'Consulta de anticipos' exportada de Vulcano. Cada anticipo
+    se ubica en su OSI por el manifiesto y alimenta el EJECUTADO (total_real) del
+    presupuesto de esa OSI. Dedup por número de documento -> reimportar no duplica."""
+    _require_modulo(request, "rentabilidad")
+    if not OPENPYXL_OK:
+        raise HTTPException(500, "openpyxl no está instalado en el servidor")
+    from openpyxl import load_workbook
+    contenido = await archivo.read()
+    try:
+        wb = load_workbook(BytesIO(contenido), data_only=True)
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo leer el Excel: {e}")
+
+    ws = None
+    for nombre in wb.sheetnames:
+        if "anticip" in nombre.lower():
+            ws = wb[nombre]; break
+    ws = ws or wb[wb.sheetnames[0]]
+
+    hdr = {}
+    for c in range(1, ws.max_column + 1):
+        v = ws.cell(1, c).value
+        if v:
+            hdr[str(v).strip().lower()] = c
+
+    def col(*names):
+        for a in names:
+            if a in hdr:
+                return hdr[a]
+        return None
+
+    ix = {
+        "doc": col("documento"), "tipo": col("tipo"),
+        "manif": col("manifiesto"), "ref": col("docreference", "docref", "docreferencia"),
+        "fecha": col("fecha"), "tit": col("titular"), "placa": col("placa"),
+        "nom": col("nombre"), "monto": col("monto"),
+        "com": col("comentarios"), "anul": col("anulado"),
+    }
+    if not ix["doc"] or not ix["monto"] or not ix["manif"]:
+        raise HTTPException(400, "El Excel no parece la consulta de anticipos "
+                                 "(faltan columnas Documento/Manifiesto/Monto).")
+
+    filas = []
+    botadas = 0
+    for r in range(2, ws.max_row + 1):
+        doc = ws.cell(r, ix["doc"]).value
+        nom = ws.cell(r, ix["nom"]).value if ix["nom"] else None
+        # Fila de TOTAL del reporte: sin documento ni nombre.
+        if doc is None and nom is None:
+            botadas += 1
+            continue
+        documento = _vul_str(doc)
+        if not documento:
+            botadas += 1
+            continue
+        manif = _vul_str(ws.cell(r, ix["manif"]).value)
+        ref = _vul_str(ws.cell(r, ix["ref"]).value) if ix["ref"] else None
+        fecha_val = ws.cell(r, ix["fecha"]).value if ix["fecha"] else None
+        fecha = fecha_val.date() if isinstance(fecha_val, datetime) else (fecha_val if isinstance(fecha_val, date) else None)
+        anul_raw = (str(ws.cell(r, ix["anul"]).value).strip().lower() if ix["anul"] and ws.cell(r, ix["anul"]).value is not None else "")
+        filas.append({
+            "documento": documento,
+            "tipo": _vul_str(ws.cell(r, ix["tipo"]).value) if ix["tipo"] else None,
+            "manifiesto": manif, "docref": ref,
+            "osi": _gasto_osi(manif, ref),
+            "fecha": fecha,
+            "titular": _vul_str(ws.cell(r, ix["tit"]).value) if ix["tit"] else None,
+            "placa": _vul_str(ws.cell(r, ix["placa"]).value) if ix["placa"] else None,
+            "nombre": _vul_str(nom),
+            "monto": _vul_num(ws.cell(r, ix["monto"]).value),
+            "comentarios": _vul_str(ws.cell(r, ix["com"]).value) if ix["com"] else None,
+            "anulado": anul_raw in ("si", "sí", "yes", "true", "1"),
+        })
+
+    if not filas:
+        raise HTTPException(400, "El Excel no tiene anticipos legibles.")
+
+    nuevas = actualizadas = 0
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            for f in filas:
+                cur.execute("SELECT id FROM gastos_vulcano WHERE documento=%s", (f["documento"],))
+                if fetchone(cur) is None:
+                    cur.execute("""
+                        INSERT INTO gastos_vulcano
+                            (documento, tipo, manifiesto, docref, osi, fecha, titular,
+                             placa, nombre, monto, comentarios, anulado)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (f["documento"], f["tipo"], f["manifiesto"], f["docref"], f["osi"],
+                          f["fecha"], f["titular"], f["placa"], f["nombre"], f["monto"],
+                          f["comentarios"], f["anulado"]))
+                    nuevas += 1
+                else:
+                    cur.execute("""
+                        UPDATE gastos_vulcano SET
+                            tipo=%s, manifiesto=%s, docref=%s, osi=%s, fecha=%s,
+                            titular=%s, placa=%s, nombre=%s, monto=%s, comentarios=%s,
+                            anulado=%s, importado_at=now()
+                        WHERE documento=%s
+                    """, (f["tipo"], f["manifiesto"], f["docref"], f["osi"], f["fecha"],
+                          f["titular"], f["placa"], f["nombre"], f["monto"], f["comentarios"],
+                          f["anulado"], f["documento"]))
+                    actualizadas += 1
+            _recalc_total_real(cur)
+            # Resumen para la pantalla.
+            cur.execute("SELECT numero_osi FROM presupuesto_osi WHERE numero_osi IS NOT NULL")
+            osis_con_presu = {r["numero_osi"] for r in fetchall(cur)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+    reales = [f for f in filas if not f["anulado"]]
+    monto_total = sum(f["monto"] for f in reales)
+    sin_osi = [f for f in reales if not f["osi"]]
+    cruzaron = [f for f in reales if f["osi"] and f["osi"] in osis_con_presu]
+    sin_presu = {}
+    for f in reales:
+        if f["osi"] and f["osi"] not in osis_con_presu:
+            sin_presu.setdefault(f["osi"], 0)
+            sin_presu[f["osi"]] += f["monto"]
+    return {
+        "ok": True,
+        "leidas": len(filas), "fila_total_botada": botadas,
+        "nuevas": nuevas, "actualizadas": actualizadas,
+        "anulados": sum(1 for f in filas if f["anulado"]),
+        "monto_total": monto_total,
+        "cruzaron_osi_con_presupuesto": len(cruzaron),
+        "monto_cruzado": sum(f["monto"] for f in cruzaron),
+        "osis_sin_presupuesto": [{"osi": k, "monto": v} for k, v in sorted(sin_presu.items())],
+        "sin_osi": len(sin_osi),
+        "monto_sin_osi": sum(f["monto"] for f in sin_osi),
+    }
+
+
+@app.get("/api/rentabilidad/osi")
+def rentabilidad_osi():
+    """Rentabilidad real por OSI (=oferta): Facturado vs Presupuestado vs
+    Ejecutado. El presupuesto lo arma el líder; el ejecutado sale de los
+    anticipos importados de Vulcano (gastos_vulcano)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            # Ejecutado por OSI (fuente de verdad: los anticipos no anulados).
+            cur.execute(
+                "SELECT osi, COUNT(*) AS n, COALESCE(SUM(monto),0) AS monto "
+                "FROM gastos_vulcano WHERE NOT anulado AND osi IS NOT NULL GROUP BY osi")
+            eje = {r["osi"]: (int(r["n"]), int(r["monto"])) for r in fetchall(cur)}
+            cur.execute(
+                "SELECT numero_osi, oferta_num, cliente, facturacion_esperada, "
+                "total_estimado, estado FROM presupuesto_osi ORDER BY numero_osi")
+            presus = fetchall(cur)
+            rows = []
+            con_presu = set()
+            for p in presus:
+                osi = p["numero_osi"]
+                con_presu.add(osi)
+                of_digits = re.sub(r"\D", "", str(p["oferta_num"] or ""))
+                facturado = 0
+                if of_digits:
+                    cur.execute(
+                        "SELECT COALESCE(SUM(valor),0) AS f FROM facturas "
+                        "WHERE regexp_replace(oferta_num,'\\D','','g')=%s "
+                        "AND UPPER(TRIM(COALESCE(estado_proyecto,''))) LIKE 'FACTURADO%%'",
+                        (of_digits,))
+                    facturado = int(fetchone(cur)["f"] or 0)
+                n_ant, ejec = eje.get(osi, (0, 0))
+                presupuestado = int(p["total_estimado"] or 0)
+                rows.append({
+                    "osi": osi, "oferta": p["oferta_num"], "cliente": p["cliente"],
+                    "facturado": facturado, "presupuestado": presupuestado,
+                    "ejecutado": ejec, "n_anticipos": n_ant,
+                    "utilidad": facturado - ejec,
+                    "sobre_presupuesto": (ejec > presupuestado and presupuestado > 0),
+                    "estado_presupuesto": p["estado"],
+                })
+            # OSIs con gastos pero SIN presupuesto creado.
+            sin_presu = [{"osi": o, "ejecutado": v[1], "n_anticipos": v[0]}
+                         for o, v in sorted(eje.items()) if o not in con_presu]
+            # Gastos sin OSI (a revisar).
+            cur.execute(
+                "SELECT documento, monto, manifiesto, docref, nombre FROM gastos_vulcano "
+                "WHERE osi IS NULL AND NOT anulado ORDER BY monto DESC")
+            sin_osi = fetchall(cur)
+        return {"rows": rows, "sin_presupuesto": sin_presu, "sin_osi": sin_osi}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/gastos/por_osi")
+def gastos_por_osi(osi: str = Query(...)):
+    """Detalle de anticipos de una OSI (para abrir el desglose del EJECUTADO)."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT documento, tipo, fecha, placa, nombre, monto, comentarios, anulado "
+                "FROM gastos_vulcano WHERE osi=%s ORDER BY fecha, documento", (osi,))
+            return {"osi": osi, "anticipos": fetchall(cur)}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

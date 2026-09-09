@@ -2366,6 +2366,48 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <div class="kpi-card"><div class="kpi-label">Margen Promedio</div><div class="kpi-value" id="rentMargen">—</div></div>
     </div>
 
+    <!-- ===== Gasto REAL por OSI (anticipos de Vulcano) ===== -->
+    <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--petrol);">📊 Rentabilidad real por OSI</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+            Facturado vs Presupuestado vs lo que <b>realmente se gastó</b> (anticipos de Vulcano, ubicados en su OSI automáticamente).
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="file" id="gastosFile" accept=".xlsx,.xls" style="display:none;" onchange="importarGastosVulcano(this)">
+          <button class="btn btn-primary" onclick="document.getElementById('gastosFile').click()" id="btnImpGastos" style="font-size:13px;">
+            ⬆️ Importar gastos de Vulcano
+          </button>
+          <button class="btn" onclick="loadRentabilidadOSI()" style="font-size:12px;">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div id="gastosImpMsg" style="margin-top:12px;font-size:13px;"></div>
+
+      <div style="overflow-x:auto;margin-top:14px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--petrol);color:#fff;">
+              <th style="padding:9px 10px;text-align:left;">OSI</th>
+              <th style="padding:9px 10px;text-align:left;">Oferta</th>
+              <th style="padding:9px 10px;text-align:left;">Cliente</th>
+              <th style="padding:9px 10px;text-align:right;">Facturado</th>
+              <th style="padding:9px 10px;text-align:right;">Presupuestado</th>
+              <th style="padding:9px 10px;text-align:right;">Ejecutado (real)</th>
+              <th style="padding:9px 10px;text-align:right;">Utilidad real</th>
+              <th style="padding:9px 10px;text-align:center;">¿Se pasó?</th>
+              <th style="padding:9px 10px;text-align:center;">Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="rentOsiTbody">
+            <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">Sin datos aún. Sube la relación de anticipos de Vulcano.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="rentOsiExtra" style="margin-top:14px;"></div>
+    </div>
+
     <!-- Filtros -->
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
       <select id="rentFiltroAnio" onchange="loadRentabilidad()" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
@@ -9460,7 +9502,122 @@ function initRentabilidad() {
   }
   sel.value = anioActual;
   loadRentabilidad();
+  loadRentabilidadOSI();
   cargarPresuPendientes();
+}
+
+// ── Rentabilidad REAL por OSI (Facturado vs Presupuestado vs Ejecutado) ──────
+const _rentMoney = (n)=> '$ ' + (Math.round(n)||0).toLocaleString('es-CO');
+const _rentOfFmt = (n)=> { const s=String(n||''); return s.length===6 ? s.slice(0,2)+'-'+s.slice(2) : (n||'—'); };
+
+async function importarGastosVulcano(input){
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('btnImpGastos');
+  const msg = document.getElementById('gastosImpMsg');
+  btn.disabled = true; const _t = btn.textContent; btn.textContent = '⏳ Importando…';
+  msg.innerHTML = '<span style="color:#6b7280;">Leyendo y ubicando cada anticipo en su OSI…</span>';
+  try {
+    const fd = new FormData(); fd.append('archivo', file);
+    const r = await fetch('/api/gastos/importar', { method:'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Error al importar');
+    let extra = '';
+    if (d.sin_osi) extra += ` · <b style="color:#b45309;">${d.sin_osi} sin OSI</b> (${_rentMoney(d.monto_sin_osi)})`;
+    const nPresu = (d.osis_sin_presupuesto||[]).length;
+    if (nPresu) extra += ` · <b style="color:#b45309;">${nPresu} OSI con gasto pero sin presupuesto</b>`;
+    msg.innerHTML = `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px 12px;color:#065f46;">
+      ✅ <b>${d.leidas}</b> anticipos leídos · <b>${d.nuevas}</b> nuevos, <b>${d.actualizadas}</b> actualizados ·
+      total <b>${_rentMoney(d.monto_total)}</b>. Cruzaron con presupuesto: <b>${d.cruzaron_osi_con_presupuesto}</b> OSI (${_rentMoney(d.monto_cruzado)})${extra}.
+    </div>`;
+    loadRentabilidadOSI();
+  } catch(e){
+    msg.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#991b1b;">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = _t; input.value = '';
+  }
+}
+
+async function loadRentabilidadOSI(){
+  const tb = document.getElementById('rentOsiTbody');
+  const extra = document.getElementById('rentOsiExtra');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#9aa3b0;">Cargando…</td></tr>';
+  let d;
+  try { d = await fetch('/api/rentabilidad/osi').then(r=>r.json()); }
+  catch(e){ tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#dc2626;">Error al cargar.</td></tr>'; return; }
+  const rows = d.rows || [];
+  if (!rows.length){
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#9aa3b0;">Aún no hay presupuestos por OSI. Cuando el líder cree el presupuesto y subas los anticipos, aquí verás la rentabilidad real.</td></tr>';
+  } else {
+    tb.innerHTML = rows.map(r=>{
+      const util = r.utilidad;
+      const utilColor = util < 0 ? '#dc2626' : '#16a34a';
+      const paso = r.sobre_presupuesto;
+      const semaforo = (r.ejecutado===0)
+        ? '<span style="color:#9aa3b0;">— sin gasto</span>'
+        : (paso ? '<span style="color:#dc2626;font-weight:700;">🔴 Sí</span>'
+                : '<span style="color:#16a34a;font-weight:700;">🟢 No</span>');
+      return `<tr style="border-bottom:1px solid #eef2f7;">
+        <td style="padding:8px 10px;font-weight:600;">${r.osi||'—'}</td>
+        <td style="padding:8px 10px;">${_rentOfFmt(r.oferta)}</td>
+        <td style="padding:8px 10px;">${r.cliente||'—'}</td>
+        <td style="padding:8px 10px;text-align:right;">${_rentMoney(r.facturado)}</td>
+        <td style="padding:8px 10px;text-align:right;">${_rentMoney(r.presupuestado)}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:600;">${_rentMoney(r.ejecutado)}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:800;color:${utilColor};">${_rentMoney(util)}</td>
+        <td style="padding:8px 10px;text-align:center;">${semaforo}</td>
+        <td style="padding:8px 10px;text-align:center;">${r.n_anticipos ? `<button class="btn" style="font-size:11px;padding:3px 8px;" onclick="verAnticiposOSI('${r.osi}')">👁️ ${r.n_anticipos}</button>` : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+  // Avisos: gastos sin presupuesto / sin OSI
+  let html = '';
+  const sinPresu = d.sin_presupuesto || [];
+  if (sinPresu.length){
+    html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:6px;font-size:12.5px;color:#92400e;">
+      <b>⚠️ ${sinPresu.length} OSI con gasto real pero SIN presupuesto creado.</b> El líder aún no armó el presupuesto de estas OSI:
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${sinPresu.map(s=>`<span style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:2px 8px;">${s.osi}: ${_rentMoney(s.ejecutado)}</span>`).join('')}</div>
+    </div>`;
+  }
+  const sinOsi = d.sin_osi || [];
+  if (sinOsi.length){
+    const tot = sinOsi.reduce((a,b)=>a+(b.monto||0),0);
+    html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;margin-top:8px;font-size:12.5px;color:#991b1b;">
+      <b>🔎 ${sinOsi.length} anticipos sin OSI</b> (${_rentMoney(tot)}) — el manifiesto/DocReference no permitió ubicarlos. Revisar en Vulcano:
+      <div style="margin-top:6px;max-height:160px;overflow:auto;">${sinOsi.slice(0,50).map(s=>`<div style="padding:3px 0;border-bottom:1px dashed #fecaca;">${s.documento||''} · ${s.nombre||''} · manif <b>${s.manifiesto||'—'}</b> / ref <b>${s.docref||'—'}</b> · ${_rentMoney(s.monto)}</div>`).join('')}</div>
+    </div>`;
+  }
+  extra.innerHTML = html;
+}
+
+async function verAnticiposOSI(osi){
+  let d;
+  try { d = await fetch('/api/gastos/por_osi?osi='+encodeURIComponent(osi)).then(r=>r.json()); }
+  catch(e){ alert('No se pudo cargar el detalle.'); return; }
+  const a = d.anticipos || [];
+  const tot = a.filter(x=>!x.anulado).reduce((s,x)=>s+(x.monto||0),0);
+  const filas = a.map(x=>`<tr style="border-bottom:1px solid #eef2f7;${x.anulado?'opacity:.5;text-decoration:line-through;':''}">
+      <td style="padding:6px 8px;">${x.documento||''}</td>
+      <td style="padding:6px 8px;">${x.tipo||''}</td>
+      <td style="padding:6px 8px;">${x.fecha||''}</td>
+      <td style="padding:6px 8px;">${x.placa||''}</td>
+      <td style="padding:6px 8px;">${x.nombre||''}</td>
+      <td style="padding:6px 8px;text-align:right;">${_rentMoney(x.monto)}</td>
+    </tr>`).join('');
+  const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+    <div style="background:#fff;border-radius:14px;max-width:720px;width:92%;max-height:85vh;overflow:auto;padding:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-weight:800;font-size:16px;color:var(--petrol);">Anticipos de ${osi} — ejecutado ${_rentMoney(tot)}</div>
+        <button class="btn" onclick="this.closest('div[style*=fixed]').remove()" style="font-size:12px;">✖ Cerrar</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f1f5f9;"><th style="padding:7px 8px;text-align:left;">Documento</th><th style="padding:7px 8px;text-align:left;">Tipo</th><th style="padding:7px 8px;text-align:left;">Fecha</th><th style="padding:7px 8px;text-align:left;">Placa</th><th style="padding:7px 8px;text-align:left;">Nombre</th><th style="padding:7px 8px;text-align:right;">Monto</th></tr></thead>
+        <tbody>${filas || '<tr><td colspan="6" style="padding:16px;text-align:center;color:#9aa3b0;">Sin anticipos.</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+  const wrap = document.createElement('div'); wrap.innerHTML = html; document.body.appendChild(wrap.firstElementChild);
 }
 
 // ── Bandeja de aprobación de presupuestos (Boris) ──────────────────────────
