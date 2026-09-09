@@ -869,10 +869,16 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="modulo-desc">Administración de áreas, usuarios, permisos y estado del sistema</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
+    <div class="modulo-card disabled" id="cardAprobaciones" onclick="enterModulo('aprobar_presupuesto')">
+      <div class="modulo-icon">✅</div>
+      <div class="modulo-title">Aprobación de Presupuestos</div>
+      <div class="modulo-desc">Revisa y aprueba (o devuelve para ajustar) los presupuestos que arma el líder del proyecto</div>
+      <div class="modulo-tag">Ingresar</div>
+    </div>
     <div class="modulo-card disabled" id="cardRentabilidad" onclick="enterModulo('rentabilidad')">
       <div class="modulo-icon">💹</div>
       <div class="modulo-title">Rentabilidad</div>
-      <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente</div>
+      <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente ejecutado</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
   </div>
@@ -1660,6 +1666,9 @@ body.rol-viewer .write-only { display:none !important; }
               <input type="checkbox" id="nuModRentabilidad" value="rentabilidad"> 💹 Rentabilidad
             </label>
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
+              <input type="checkbox" id="nuModAprobaciones" value="aprobar_presupuesto"> ✅ Aprobar Presupuestos
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#fff;padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;">
               <input type="checkbox" id="nuModTarifario" value="tarifario"> 📋 Tarifario
             </label>
           </div>
@@ -2336,7 +2345,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 <!-- ==================== RENTABILIDAD ==================== -->
 <section class="tab-panel" id="tab-rentabilidad">
   <!-- Bandeja de aprobación de presupuestos (Boris) -->
-  <div class="section-card" style="border-left:4px solid #1d4ed8;">
+  <div class="section-card" id="rentCardAprobacion" style="border-left:4px solid #1d4ed8;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div class="section-title" style="margin:0;">📋 Presupuestos por aprobar <span id="presuPendCount" style="display:none;background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:800;margin-left:6px;">0</span></div>
       <button class="btn" onclick="cargarPresuPendientes()" style="font-size:12px;">🔄 Actualizar</button>
@@ -2346,7 +2355,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
     </div>
   </div>
 
-  <div class="section-card">
+  <div class="section-card" id="rentCardAnalisis">
     <div class="section-title">💹 Módulo de Rentabilidad</div>
 
     <!-- KPIs -->
@@ -3328,6 +3337,7 @@ function showModuloSelector(user) {
     tarifario:     document.getElementById('cardTarifario'),
     ti:            document.getElementById('cardTi'),
     rentabilidad:  document.getElementById('cardRentabilidad'),
+    aprobar_presupuesto: document.getElementById('cardAprobaciones'),
   };
   // Por defecto todas deshabilitadas
   Object.values(cards).forEach(c => { if(c) c.classList.add('disabled'); });
@@ -3348,6 +3358,7 @@ const MODULO_INFO = {
   tarifario:     { subtitulo: 'Tarifario Automático',             tab: 'tarifario',      tabsComercial: false },
   ti:            { subtitulo: 'Tecnología — TI',                  tab: 'ti',             tabsComercial: false },
   rentabilidad:  { subtitulo: 'Módulo de Rentabilidad',           tab: 'rentabilidad',   tabsComercial: false },
+  aprobar_presupuesto: { subtitulo: 'Aprobación de Presupuestos', tab: 'rentabilidad',   tabsComercial: false },
 };
 
 function enterModulo(modulo) {
@@ -3367,7 +3378,19 @@ function enterModulo(modulo) {
   document.getElementById('tabTarifarioBtn').style.display     = modulo === 'tarifario'     ? '' : 'none';
   document.getElementById('tabUsuariosBtn').style.display      = 'none'; // Usuarios está dentro del módulo TI
   document.getElementById('tabTiBtn').style.display            = modulo === 'ti'            ? '' : 'none';
-  document.getElementById('tabRentabilidadBtn').style.display  = modulo === 'rentabilidad'  ? '' : 'none';
+  const esRent = (modulo === 'rentabilidad');
+  const esAprob = (modulo === 'aprobar_presupuesto');
+  document.getElementById('tabRentabilidadBtn').style.display  = (esRent || esAprob) ? '' : 'none';
+  if (esRent || esAprob) {
+    const _adm = (currentUser && currentUser.rol === 'admin');
+    // Boris ve la bandeja de aprobación; Jorge ve el análisis de rentabilidad.
+    // El admin ve ambos. Cada quien entra por su tarjeta y ve solo lo suyo.
+    const cA = document.getElementById('rentCardAprobacion');
+    const cR = document.getElementById('rentCardAnalisis');
+    if (cA) cA.style.display = (esAprob || _adm) ? '' : 'none';
+    if (cR) cR.style.display = (esRent  || _adm) ? '' : 'none';
+    document.getElementById('tabRentabilidadBtn').textContent = esAprob ? '✅ Aprobación' : '💹 Rentabilidad';
+  }
   document.getElementById('btnCambiarModulo').style.display    = (currentUser && (currentUser.rol === 'admin' || (currentUser.modulos||[]).length > 1)) ? '' : 'none';
   document.getElementById('appHeader').querySelector('.header-subtitle').textContent = info.subtitulo;
   document.body.classList.remove('rol-admin','rol-comercial','rol-operaciones','rol-viewer');
@@ -3375,7 +3398,7 @@ function enterModulo(modulo) {
   mostrarApp();
   if (info.tabsComercial) { switchTab('dashboard'); initApp(); }
   else if (modulo === 'ti') { switchTab('ti'); tiSwitchTab('estado'); }
-  else if (modulo === 'rentabilidad') { switchTab('rentabilidad'); }
+  else if (modulo === 'rentabilidad' || modulo === 'aprobar_presupuesto') { switchTab('rentabilidad'); }
   else { switchTab(info.tab); }
 }
 
@@ -3518,6 +3541,7 @@ function renderUsuarios(users) {
   const MODULOS_LIST = [
     { key: 'comercial',    label: '📊 Comercial' },
     { key: 'operaciones',  label: '🚚 Operaciones' },
+    { key: 'aprobar_presupuesto', label: '✅ Aprobar Presupuestos' },
     { key: 'rentabilidad', label: '💹 Rentabilidad' },
     { key: 'tarifario',    label: '📋 Tarifario' },
   ];
@@ -3587,7 +3611,7 @@ async function crearUsuario() {
   const username = document.getElementById('nuUsername').value.trim();
   const password = document.getElementById('nuPassword').value;
   const rol      = document.getElementById('nuRol').value;
-  const modulos  = ['nuModComercial','nuModOperaciones','nuModRentabilidad','nuModTarifario']
+  const modulos  = ['nuModComercial','nuModOperaciones','nuModRentabilidad','nuModAprobaciones','nuModTarifario']
                     .filter(id => document.getElementById(id).checked)
                     .map(id => document.getElementById(id).value);
   if (!nombre || !username || !password) { showToast('Completa todos los campos', 'warning'); return; }

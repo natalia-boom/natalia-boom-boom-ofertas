@@ -2593,10 +2593,11 @@ async def auth_middleware(request: Request, call_next):
             "operaciones" in _mods
             and path.startswith(_OPERACIONES_WRITE_PREFIXES)
         )
-        # Presupuestos: los pueden escribir Proyectos (operaciones) y Boris
-        # (rentabilidad). El endpoint decide la acción concreta permitida.
+        # Presupuestos: los escriben Proyectos (operaciones) para armar/enviar y
+        # Boris (aprobar_presupuesto) para aprobar/rechazar. El endpoint decide
+        # la acción concreta permitida.
         puede_presupuesto = (
-            ("operaciones" in _mods or "rentabilidad" in _mods)
+            ("operaciones" in _mods or "aprobar_presupuesto" in _mods)
             and path.startswith(_PRESUPUESTO_WRITE_PREFIX)
         )
         if not (puede_operaciones or puede_presupuesto):
@@ -4889,7 +4890,7 @@ class AreaUpdate(BaseModel):
     icono: Optional[str] = None
     activo: Optional[bool] = None
 
-MODULOS_DISPONIBLES = ["dashboard", "generar", "control", "aprobadas", "operaciones", "tarifario"]
+MODULOS_DISPONIBLES = ["dashboard", "generar", "control", "aprobadas", "operaciones", "tarifario", "aprobar_presupuesto", "rentabilidad"]
 
 
 def _require_admin(request: Request):
@@ -5856,7 +5857,8 @@ def update_osi(osi_id: int, body: OSIUpdate, request: Request):
 def _require_modulo(request: Request, *mods):
     """Devuelve el usuario si es admin o tiene alguno de los módulos indicados;
     si no, lanza 403. Se usa para separar quién ENVÍA (Proyectos/operaciones) de
-    quién APRUEBA (Boris/rentabilidad) los presupuestos."""
+    quién APRUEBA (Boris/aprobar_presupuesto) los presupuestos. La rentabilidad
+    posterior (Jorge) usa su propio módulo 'rentabilidad'."""
     u = getattr(request.state, "user", None) or {}
     if u.get("rol") == "admin":
         return u
@@ -6052,7 +6054,7 @@ def presupuesto_enviar(osi_id: int, body: dict, request: Request):
 @app.post("/api/presupuesto/{osi_id}/aprobar")
 def presupuesto_aprobar(osi_id: int, body: dict, request: Request):
     """Boris aprueba el presupuesto (queda firmado con su nombre y fecha)."""
-    u = _require_modulo(request, "rentabilidad")
+    u = _require_modulo(request, "aprobar_presupuesto")
     try:
         coment = (body.get("comentario") or "").strip()
         with get_conn() as conn:
@@ -6078,7 +6080,7 @@ def presupuesto_aprobar(osi_id: int, body: dict, request: Request):
 def presupuesto_rechazar(osi_id: int, body: dict, request: Request):
     """Boris rechaza el presupuesto con un comentario. Vuelve a Proyectos para
     corregir y reenviar. El comentario es obligatorio (dice qué ajustar)."""
-    u = _require_modulo(request, "rentabilidad")
+    u = _require_modulo(request, "aprobar_presupuesto")
     try:
         coment = (body.get("comentario") or "").strip()
         if not coment:
