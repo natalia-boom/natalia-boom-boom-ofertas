@@ -7059,11 +7059,12 @@ def reporte_tablero():
 
 
 @app.get("/api/debug/proyeccion")
-def debug_proyeccion(cliente: str = Query("SSAB")):
-    """TEMPORAL (diagnóstico caso SSAB). Devuelve el estado crudo de una oferta en
-    las DOS tablas para ver por qué la Proyección no la movió: `ofertas`
-    (seguimiento/facturado) vs `facturas` (estado_proyecto). Se quita después."""
+def debug_proyeccion(cliente: str = Query("SSAB"), num: str = Query("")):
+    """TEMPORAL (diagnóstico caso SSAB). Estado crudo de una oferta en las TRES
+    tablas: `ofertas` (seguimiento/facturado), `facturas` (estado_proyecto de la
+    Proyección) y `vulcano_facturas` (facturación real). Se quita después."""
     like = f"%{cliente.upper()}%"
+    numlike = f"%{num}%"
     try:
         with get_conn() as conn:
             cur = conn.cursor()
@@ -7071,7 +7072,7 @@ def debug_proyeccion(cliente: str = Query("SSAB")):
                 "SELECT num, cliente, respuesta, seguimiento, COALESCE(valor,0), "
                 "COALESCE(valor_facturado,0), fecha_facturacion, no_factura "
                 "FROM ofertas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
-                "ORDER BY num", (like,))
+                "OR (%s <> '' AND num LIKE %s) ORDER BY num", (like, num, numlike))
             ofertas = [{
                 "num": r[0], "cliente": r[1], "respuesta": r[2],
                 "seguimiento": r[3], "valor": int(r[4] or 0),
@@ -7079,17 +7080,25 @@ def debug_proyeccion(cliente: str = Query("SSAB")):
                 "fecha_facturacion": str(r[6]) if r[6] else None,
                 "no_factura": r[7],
             } for r in cur.fetchall()]
-            nums = [o["num"] for o in ofertas if o["num"]]
             cur.execute(
                 "SELECT oferta_num, cliente, estado_proyecto, mes, COALESCE(valor,0) "
                 "FROM facturas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
-                "OR oferta_num = ANY(%s) ORDER BY oferta_num",
-                (like, nums or [""]))
+                "OR (%s <> '' AND oferta_num LIKE %s) ORDER BY oferta_num",
+                (like, num, numlike))
             facturas = [{
                 "oferta_num": r[0], "cliente": r[1], "estado_proyecto": r[2],
                 "mes": r[3], "valor": int(r[4] or 0),
             } for r in cur.fetchall()]
-        return {"filtro": cliente, "ofertas": ofertas, "facturas": facturas}
+            cur.execute(
+                "SELECT factura, cliente, nit, oferta_ref, mes, COALESCE(subtotal,0), "
+                "excluida FROM vulcano_facturas WHERE UPPER(COALESCE(cliente,'')) LIKE %s "
+                "OR (%s <> '' AND oferta_ref LIKE %s) ORDER BY factura", (like, num, numlike))
+            vulcano = [{
+                "factura": r[0], "cliente": r[1], "nit": r[2], "oferta_ref": r[3],
+                "mes": r[4], "subtotal": int(r[5] or 0), "excluida": r[6],
+            } for r in cur.fetchall()]
+        return {"filtro": cliente, "num": num, "ofertas": ofertas,
+                "facturas": facturas, "vulcano": vulcano}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
