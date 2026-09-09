@@ -6392,23 +6392,48 @@ def _sync_facturas_estado_proyecto(cur):
     'ejecutada'. Aquí la movemos sola: toda oferta cerrada arrastra sus líneas de
     la Proyección al bloque 'FACTURADO <mes>' (mes de su fecha de facturación).
 
+    VERDAD DE TERRENO = la facturación de Vulcano. El caso SSAB (oferta 260708)
+    demostró que no basta con mirar `ofertas.seguimiento`: esa oferta estaba
+    facturada en Vulcano (factura BLCE3931, agosto) pero en `ofertas` había quedado
+    como 'Ejecutado' con facturado 0. Por eso aquí marcamos FACTURADO combinando
+    DOS señales, y Vulcano manda para el mes:
+      1) `ofertas` con seguimiento='Facturada'  (cierre normal de la app).
+      2) `vulcano_facturas` NO excluidas de UNA sola oferta  (facturación real).
+
     Es idempotente: SOLO toca filas que aún están en un estado de ejecución
     (POR EJECUTAR / EN EJECUCIÓN / EJECUTADO). No inventa filas ni cambia el total
     general: solo cambia el bucket, así la conciliación se mantiene."""
+    facturado = {}   # num26 -> mes (ES mayúsculas) o ""
+    # 1) Cierres normales de la app.
     cur.execute("""
         SELECT num, fecha_facturacion
         FROM ofertas
         WHERE UPPER(COALESCE(seguimiento,'')) = 'FACTURADA'
     """)
-    pendientes = cur.fetchall()
-    n = 0
-    for num, fecha in pendientes:
+    for num, fecha in cur.fetchall():
         mes = ""
         if fecha is not None:
             try:
                 mes = _MESES_ES[fecha.month - 1]
             except Exception:
                 mes = ""
+        facturado[num] = mes
+    # 2) Facturación REAL de Vulcano (manda el mes de la factura). Solo facturas de
+    #    una sola oferta, para no repartir multi-oferta y no inflar nada.
+    cur.execute("""
+        SELECT oferta_ref, mes
+        FROM vulcano_facturas
+        WHERE NOT excluida AND oferta_ref IS NOT NULL AND TRIM(oferta_ref) <> ''
+    """)
+    for oref, vmes in cur.fetchall():
+        nums = set("26" + m.zfill(4) for m in re.findall(r"26-?(\d{3,4})", str(oref)))
+        if len(nums) != 1:
+            continue
+        num = next(iter(nums))
+        vmes_u = (str(vmes or "")).strip().upper()
+        facturado[num] = vmes_u or facturado.get(num, "")
+    n = 0
+    for num, mes in facturado.items():
         estado = ("FACTURADO " + mes).strip()
         cur.execute("""
             UPDATE facturas
@@ -7113,8 +7138,11 @@ def _startup_sync_proyeccion():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+            # 1) Cierra en `ofertas` lo que Vulcano ya facturó (seguimiento/facturado).
+            aplicado = _vulcano_aplicar_a_ofertas(cur)
+            # 2) Mueve la Proyección a 'FACTURADO <mes>' según esa facturación real.
             res = _sync_facturas_estado_proyecto(cur)
-        print(f"[STARTUP] Proyección sincronizada: {res}")
+        print(f"[STARTUP] Auto-facturado {aplicado} · Proyección {res}")
     except Exception as e:
         print(f"[STARTUP] No se pudo sincronizar la Proyección: {e}")
 
