@@ -2132,6 +2132,20 @@ def _ensure_db():
             )
         """)
 
+        # Informe de rentabilidad que genera el artefacto de Jorge, guardado por
+        # OSI (auto-guardado cuando él descarga). Es el HTML completo tal cual lo
+        # produce su herramienta; Boris lo descarga desde su pestaña.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS costeo_informe (
+                numero_osi   text primary key,
+                html         text,
+                oferta_num   text,
+                cliente      text,
+                updated_by   text,
+                updated_at   timestamptz default now()
+            )
+        """)
+
         # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
         cur.execute("""
             CREATE TABLE IF NOT EXISTS equipos (
@@ -3351,6 +3365,17 @@ def manual():
     return FileResponse("templates/manual.html")
 
 
+@app.get("/rentabilidad/herramienta", response_class=HTMLResponse)
+def rentabilidad_herramienta():
+    """Sirve el artefacto de costeo de Jorge TAL CUAL (sin modificarlo), para
+    incrustarlo dentro de la plataforma (módulo Rentabilidad). Al servirse
+    same-origin, la plataforma puede capturar el informe que él genera y
+    guardarlo solo en la OSI, sin tocar su herramienta."""
+    return FileResponse("templates/costeo_herramienta.html", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache", "Expires": "0"})
+
+
 @app.get("/anexo-legal")
 def anexo_legal():
     """Anexo 1 – Condiciones Legales de la Cotización. Público (el cliente lo
@@ -4078,12 +4103,20 @@ def _costeo_informe_html(d: dict) -> str:
 
 @app.get("/api/costeo/osi/{numero_osi}/informe")
 def costeo_osi_informe(numero_osi: str, request: Request):
-    """Descarga el informe de costeo en HTML (lo puede abrir/imprimir a PDF).
+    """Descarga el informe de rentabilidad en HTML. Prioriza el informe que
+    generó el artefacto de Jorge (guardado en costeo_informe). Si aún no lo ha
+    hecho, cae al informe automático de la plataforma como respaldo.
     Accesible por Jorge, Boris y admin."""
     _require_modulo(request, "rentabilidad", "aprobar_presupuesto")
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+            cur.execute("SELECT html FROM costeo_informe WHERE numero_osi=%s", (numero_osi,))
+            saved = fetchone(cur)
+            if saved and (saved.get("html") or "").strip():
+                fn = f"Informe_{numero_osi}_Boom.html"
+                return HTMLResponse(saved["html"], headers={
+                    "Content-Disposition": f'attachment; filename="{fn}"'})
             d = _costeo_calcular(cur, numero_osi)
         html = _costeo_informe_html(d)
         fn = f"Informe_Rentabilidad_{numero_osi}.html"
@@ -4093,6 +4126,59 @@ def costeo_osi_informe(numero_osi: str, request: Request):
         raise
     except Exception as e:
         traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/costeo/osi/{numero_osi}/informe-guardado")
+async def costeo_osi_informe_guardar(numero_osi: str, request: Request):
+    """Auto-guardado: la plataforma captura el informe que generó el artefacto
+    de Jorge y lo guarda pegado a la OSI. Solo Rentabilidad (Jorge)."""
+    u = _require_modulo(request, "rentabilidad")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    html = (body or {}).get("html") or ""
+    if not html.strip():
+        raise HTTPException(400, "Informe vacío")
+    quien = _presu_actor(u)
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO costeo_informe (numero_osi, html, oferta_num, cliente, updated_by, updated_at)
+                VALUES (%s,%s,%s,%s,%s, now())
+                ON CONFLICT (numero_osi) DO UPDATE SET
+                  html=EXCLUDED.html, oferta_num=EXCLUDED.oferta_num,
+                  cliente=EXCLUDED.cliente, updated_by=EXCLUDED.updated_by,
+                  updated_at=now()
+            """, (numero_osi, html, (body or {}).get("oferta_num") or None,
+                  (body or {}).get("cliente") or None, quien))
+            conn.commit()
+        return {"ok": True, "numero_osi": numero_osi}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/costeo/osi/{numero_osi}/informe-guardado")
+def costeo_osi_informe_estado(numero_osi: str, request: Request):
+    """¿Ya hay informe del artefacto guardado para esta OSI? (para pintar el
+    botón). Lo consultan Jorge, Boris y admin."""
+    _require_modulo(request, "rentabilidad", "aprobar_presupuesto")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT oferta_num, cliente, updated_by, updated_at "
+                        "FROM costeo_informe WHERE numero_osi=%s", (numero_osi,))
+            r = fetchone(cur)
+        if not r:
+            return {"existe": False}
+        ua = r.get("updated_at")
+        return {"existe": True, "oferta_num": r.get("oferta_num"),
+                "cliente": r.get("cliente"), "updated_by": r.get("updated_by"),
+                "updated_at": ua.isoformat() if isinstance(ua, (date, datetime)) else ua}
+    except Exception as e:
         raise HTTPException(500, str(e))
 
 

@@ -1,0 +1,2558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costeo por Servicio – Boom Logistics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f0f0;color:#222;min-height:100vh}
+#app{max-width:1120px;margin:0 auto;padding:20px 16px 60px}
+
+/* HEADER */
+.hdr{background:#1a1a1a;color:#ff8c00;padding:14px 20px;border-radius:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.hdr h1{font-size:16px;font-weight:800}
+.hdr small{font-size:10px;opacity:.6;display:block;margin-bottom:3px}
+
+/* CARDS */
+.card{background:#fff;border-radius:8px;padding:16px;margin-bottom:14px;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+.ctitle{font-size:11px;font-weight:800;text-transform:uppercase;color:#fff;background:#1a1a1a;padding:7px 14px;margin:-16px -16px 14px;border-radius:8px 8px 0 0;border-left:4px solid #ff8c00;letter-spacing:.8px;display:flex;justify-content:space-between;align-items:center}
+
+/* FORMS */
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select{border:1px solid #ddd;border-radius:4px;padding:7px 9px;font-size:12px;background:#fafafa;outline:none;width:100%;transition:border .15s}
+.fg input:focus,.fg select:focus{border-color:#ff8c00;background:#fffdf8}
+.fg input.hi{font-size:14px;font-weight:700;border-color:#ff8c00}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.s2{grid-column:span 2}
+.mt10{margin-top:10px}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:700;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.bo{background:#ff8c00;color:#fff}
+.bd{background:#1a1a1a;color:#ff8c00}
+.bg{background:#eee;color:#444}
+.bs{padding:4px 10px;font-size:11px}
+.btn-x{background:none;border:1px solid #ddd;color:#aaa;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:12px;line-height:1;transition:all .15s}
+.btn-x:hover{background:#fee;border-color:#fcc;color:#c00}
+
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{background:#1a1a1a;color:#ff8c00;padding:7px 8px;font-size:10px;font-weight:700;text-align:left;white-space:nowrap;position:sticky;top:0;z-index:1}
+.tbl th.r{text-align:right}
+.tbl td{padding:5px 7px;border-bottom:1px solid #eee;vertical-align:middle}
+.tbl td.r{text-align:right;white-space:nowrap}
+.tbl td select,.tbl td input{border:1px solid #e5e5e5;border-radius:3px;padding:3px 6px;font-size:11px;background:transparent;outline:none}
+.tbl td select:focus,.tbl td input:focus{border-color:#ff8c00;background:#fffbe6}
+.tbl tr:hover td{background:#fffdf5}
+.tbl tr.tr-tot td{background:#1a1a1a;color:#ff8c00;font-weight:700;border:none;padding:8px 8px}
+.tbl tr.excl td{opacity:.35;text-decoration:line-through}
+
+/* CATEGORY BADGE */
+.cb{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;white-space:nowrap}
+
+/* IMPORT ZONE */
+.dz{border:2px dashed #ff8c00;background:#fffbe6;border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:.15s}
+.dz:hover,.dz.drag{background:#fff3cc}
+.dz .dz-ico{font-size:36px}
+.dz h3{font-size:14px;font-weight:700;color:#1a1a1a;margin:8px 0 4px}
+.dz p{font-size:11px;color:#888}
+
+/* STATS CHIPS */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:#f5f5f5;border-left:3px solid #ff8c00;padding:6px 10px;border-radius:4px;font-size:11px;display:flex;flex-direction:column}
+.chip .cv{font-size:14px;font-weight:800;color:#1a1a1a}
+.chip .cl{font-size:9px;color:#888;text-transform:uppercase;margin-top:1px}
+
+/* EQUIPO CARDS */
+.eq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.eq-card{background:#f9f9f9;border:1px solid #eee;border-radius:8px;padding:14px}
+.eq-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.eq-pill{background:#ff8c00;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:4px}
+.eq-kpi{font-size:11px;color:#555;display:flex;gap:12px}
+.eq-kpi span{font-weight:700;color:#1a1a1a}
+
+/* SUMMARY */
+.sbox{background:#1a1a1a;border-radius:8px;padding:16px;margin-bottom:14px}
+.sbox-t{font-size:10px;font-weight:800;text-transform:uppercase;color:#ff8c00;letter-spacing:.8px;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px}
+.sr{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:12px}
+.sr:last-child{border:none}
+.sl{color:#aaa}.sv{font-weight:700;color:#ff8c00}
+.sr.tot-row{padding-top:10px;border-top:1px solid #ff8c00!important}
+.sl-t{color:#fff;font-size:13px;font-weight:700}
+.sv-t{font-size:16px;font-weight:800;color:#ff8c00}
+.rpill{text-align:center;padding:12px;border-radius:7px;margin-top:12px;transition:background .4s}
+.rpill .rv{font-size:30px;font-weight:800;color:#fff}
+.rpill .rl{font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;margin-top:2px}
+
+/* PPTO OK */
+.ppto-ok{background:#f0faf0;border:2px solid #43a047;border-radius:7px;padding:12px 14px;font-size:11px}
+.dz-sm{padding:14px;font-size:12px}
+.dz-sm h3{font-size:12px}
+
+/* SCROLL TABLE */
+.tbl-wrap{max-height:440px;overflow-y:auto;border:1px solid #eee;border-radius:6px}
+
+/* REPORT OVERLAY */
+#rep-ov{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);z-index:2000;overflow-y:auto;padding:24px 16px}
+#rep-wrap{background:#fff;max-width:960px;margin:0 auto;border-radius:10px;padding:28px}
+.rep-acts{display:flex;gap:10px;justify-content:flex-end;margin-bottom:18px}
+.rhdr{background:#1a1a1a;color:#ff8c00;padding:16px 20px;border-radius:7px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start}
+.rh2{font-size:11px;font-weight:800;text-transform:uppercase;color:#fff;background:#1a1a1a;padding:6px 12px;margin:14px 0 8px;border-left:4px solid #ff8c00;border-radius:3px;letter-spacing:.6px}
+.rtbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}
+.rtbl th{background:#1a1a1a;color:#ff8c00;padding:6px 10px;text-align:left;font-size:10px}
+.rtbl th.r{text-align:right}
+.rtbl td{padding:5px 10px;border-bottom:1px solid #eee}
+.rtbl td.r{text-align:right}
+.rtbl tr.tot td{background:#1a1a1a;color:#ff8c00;font-weight:700;border:none;padding:8px 10px}
+.rtbl tr.hl{background:#fff8ee}
+#ant-tbl thead th{position:sticky;top:0;z-index:1}
+.kpi-g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.kpi{background:#f5f5f5;padding:12px;border-radius:6px;border-left:3px solid #ff8c00;text-align:center}
+.kpi .kv{font-size:14px;font-weight:800}
+.kpi .kl{font-size:9px;color:#888;text-transform:uppercase;margin-top:2px}
+.kpi.acc{background:#1a1a1a;border-color:#ff8c00}
+.kpi.acc .kv{color:#ff8c00}
+.kpi.acc .kl{color:#888}
+.neg{color:#c00!important;font-weight:700}
+.pos{color:#1b7f3a!important;font-weight:700}
+.note{font-size:10px;color:#888;text-align:center;margin-top:8px}
+
+/* FILTER BUTTONS */
+.filter-btn{padding:4px 10px;border-radius:12px;border:1px solid #ddd;background:#f5f5f5;color:#555;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.filter-btn:hover{border-color:#ff8c00;color:#ff8c00}
+.filter-btn.active{background:#1a1a1a;color:#ff8c00;border-color:#1a1a1a}
+@media print{.rep-acts,.btn{display:none!important}#rep-wrap{padding:10px}#rep-ov{position:static;background:none;padding:0;overflow:visible}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <small>BOOM LOGISTICS COLOMBIA S.A.S.</small>
+    <h1>🧮 Costeo por Servicio – Post-Ejecución</h1>
+  </div>
+  <div style="text-align:right;font-size:10px;color:#888" id="hdr-date"></div>
+</div>
+
+<!-- ⓪ CORREGIR INFORME YA DESCARGADO -->
+<div class="card">
+  <div class="ctitle">🛠️ Corregir un Informe ya Descargado</div>
+  <p style="font-size:11px;color:#888;margin-bottom:12px">
+    Si ya generaste y descargaste un informe pero necesitas corregir un valor (ej. Facturación), cárgalo aquí para recuperar toda la información (datos del servicio, equipos y anticipos) y poder editarla antes de volver a generar el informe.
+  </p>
+  <div id="corr-drop-area">
+    <div class="dz dz-sm" style="border-color:#3730a3" onclick="document.getElementById('inp-corr').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="onDropCorreccion(event)">
+      <div style="font-size:20px">🛠️</div>
+      <h3 style="color:#3730a3">Cargar Informe HTML ya Descargado</h3>
+      <p>Informe de Rentabilidad por Servicio generado por esta herramienta</p>
+    </div>
+    <input type="file" id="inp-corr" accept=".html,.htm" style="display:none" onchange="loadCorreccion(event)">
+  </div>
+  <div id="corr-ok" style="display:none">
+    <div style="background:#eef2ff;border:2px solid #6366f1;border-radius:7px;padding:12px 14px;font-size:11px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span>✅ <strong id="corr-name">—</strong></span>
+        <button class="btn-x" onclick="clearCorreccion()">✕ Quitar</button>
+      </div>
+      <div id="corr-info" style="margin-top:6px;font-size:11px;color:#444"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ① INFO DEL SERVICIO -->
+<div class="card">
+  <div class="ctitle">📋 Información del Servicio</div>
+  <div class="g4">
+    <div class="fg"><label># OSI</label><input id="osi" placeholder="Ej: 26133"></div>
+    <div class="fg"><label># Oferta</label><input id="oferta" placeholder="Ej: 26-0079"></div>
+    <div class="fg s2"><label>Cliente</label><input id="cliente" placeholder="Nombre del cliente"></div>
+    <div class="fg"><label>Fecha Inicio</label><input id="f_ini" type="date"></div>
+    <div class="fg"><label>Fecha Fin</label><input id="f_fin" type="date"></div>
+    <div class="fg s2"><label>Descripción de Carga</label><input id="carga" placeholder="Ej: Excavadora HITACHI ZX350LC-5B // SN72658"></div>
+    <div class="fg"><label>Origen</label><input id="origen" placeholder="Ciudad de origen"></div>
+    <div class="fg"><label>Destino</label><input id="destino" placeholder="Ciudad de destino"></div>
+    <div class="fg"><label>Responsable / Líder</label><input id="lider" placeholder="Nombre"></div>
+    <div class="fg"><label>💰 Facturación Real ($)</label>
+      <input id="facturacion" class="hi" type="number" min="0" value="0" oninput="recalcAll()"></div>
+  </div>
+</div>
+
+<!-- ③ EQUIPOS -->
+<div class="card">
+  <div class="ctitle">
+    <span>🚛 Equipos del Proyecto (1–10)</span>
+    <button class="btn bo bs" onclick="addEq()">+ Agregar Equipo</button>
+  </div>
+  <p style="font-size:11px;color:#888;margin-bottom:12px">
+    La <strong>Placa Ref.</strong> debe coincidir exactamente con el código que aparece en los comentarios de los anticipos (Ej: LGL727, EXV242). Esto permite la asignación automática.
+  </p>
+  <div class="eq-grid" id="eq-grid">
+    <div id="eq-empty" style="text-align:center;padding:20px;color:#aaa;font-size:12px;grid-column:1/-1">
+      Los equipos detectados en el archivo se crean automáticamente. También puedes agregarlos manualmente.
+    </div>
+  </div>
+  <datalist id="pers-datalist"></datalist>
+</div>
+
+<!-- ② CARGAR ANTICIPOS -->
+<div class="card">
+  <div class="ctitle">
+    <span>📂 Cargar Anticipos (Exportación BOOM)</span>
+    <span id="ant-count-lbl" style="font-size:10px;font-weight:400;opacity:.8"></span>
+  </div>
+
+  <!-- DROP ZONE -->
+  <div id="dz-area">
+    <div class="dz" id="dz"
+         onclick="document.getElementById('inp-xlsx').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="onDrop(event)">
+      <div class="dz-ico">📊</div>
+      <h3>Haz clic o arrastra el Excel de anticipos</h3>
+      <p>Descarga la "Consulta Anticipos" desde BOOM y cárgala aquí (.xlsx)</p>
+    </div>
+    <input type="file" id="inp-xlsx" accept=".xlsx,.xls" style="display:none" onchange="onFile(event)">
+  </div>
+
+  <!-- ANTICIPOS: chips + toggle + tabla -->
+  <div id="ant-section" style="display:none">
+
+    <!-- Chips resumen + acciones -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="chips" id="ant-chips"></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn bg bs" onclick="addManual()">+ Agregar Manual</button>
+        <button class="btn bg bs" onclick="resetImport()">↺ Recargar Archivo</button>
+        <button class="btn bd bs" id="btn-toggle-ant" onclick="toggleAntTable()">▼ Ver Detalle</button>
+      </div>
+    </div>
+
+    <!-- Tabla colapsable -->
+    <div id="ant-table-wrap" style="display:none">
+      <!-- Barra de filtro -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase">Filtrar:</span>
+        <button class="filter-btn active" data-cat="TODOS" onclick="setFilter('TODOS',this)">Todos</button>
+        <button class="filter-btn" data-cat="Viáticos" onclick="setFilter('Viáticos',this)">Viáticos</button>
+        <button class="filter-btn" data-cat="Peajes" onclick="setFilter('Peajes',this)">Peajes</button>
+        <button class="filter-btn" data-cat="Combustible" onclick="setFilter('Combustible',this)">Combustible</button>
+        <button class="filter-btn" data-cat="Escoltas" onclick="setFilter('Escoltas',this)">Escoltas</button>
+        <button class="filter-btn" data-cat="Policías / Acomp. Vial" onclick="setFilter('Policías / Acomp. Vial',this)">Policías</button>
+        <button class="filter-btn" data-cat="Parqueaderos" onclick="setFilter('Parqueaderos',this)">Parqueaderos</button>
+        <button class="filter-btn" data-cat="Transporte" onclick="setFilter('Transporte',this)">Transporte</button>
+        <button class="filter-btn" data-cat="Hidratación" onclick="setFilter('Hidratación',this)">Hidratación</button>
+        <button class="filter-btn" data-cat="Imprevistos" onclick="setFilter('Imprevistos',this)">Imprevistos</button>
+        <button class="filter-btn" data-cat="Daños / Mto" onclick="setFilter('Daños / Mto',this)">Daños/Mto</button>
+        <button class="filter-btn" data-cat="Equipos Propios" onclick="setFilter('Equipos Propios',this)">Equipos Propios</button>
+        <button class="filter-btn" data-cat="Otros" onclick="setFilter('Otros',this)">Otros</button>
+        <span id="filter-count" style="font-size:10px;color:#888;margin-left:4px"></span>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width:30px">☑</th>
+              <th style="min-width:75px">Fecha</th>
+              <th style="min-width:60px">Doc</th>
+              <th style="min-width:130px">Nombre</th>
+              <th class="r" style="min-width:90px">Monto ($)</th>
+              <th style="min-width:220px">Comentario</th>
+              <th style="min-width:100px">Equipo</th>
+              <th style="min-width:145px">Categoría</th>
+              <th style="width:28px"></th>
+            </tr>
+          </thead>
+          <tbody id="ant-body"></tbody>
+          <tfoot>
+            <tr class="tr-tot">
+              <td colspan="4">TOTAL INCLUIDOS (FILTRO ACTIVO)</td>
+              <td class="r" id="tot-ant">$0</td>
+              <td colspan="4"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="note">Ajusta la <strong>Categoría</strong> y el <strong>Equipo</strong> de cada registro. Las categorías se auto-detectan por palabras clave.</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSOLIDADO DE COSTOS (visible en pantalla) -->
+<div class="card" id="consolidado-card" style="display:none">
+  <div class="ctitle">📊 Consolidado de Costos</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- Costos Operativos por Categoría -->
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">Costos Operativos por Categoría</div>
+      <table class="tbl">
+        <thead><tr><th>Categoría</th><th class="r">Total</th><th class="r">%</th></tr></thead>
+        <tbody id="cons-cat-body"></tbody>
+        <tfoot><tr class="tr-tot"><td>TOTAL OPERATIVO</td><td class="r" id="cons-tot-op">$0</td><td class="r">100%</td></tr></tfoot>
+      </table>
+    </div>
+    <!-- Costos Ocultos por Concepto -->
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">Costos Ocultos por Concepto</div>
+      <table class="tbl">
+        <thead><tr><th>Concepto</th><th class="r">Total</th><th class="r">%</th></tr></thead>
+        <tbody id="cons-oc-body"></tbody>
+        <tfoot><tr class="tr-tot"><td>TOTAL OCULTOS</td><td class="r" id="cons-tot-oc">$0</td><td class="r">100%</td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ④ COSTOS OCULTOS -->
+<div class="card">
+  <div class="ctitle">🔍 Costos Ocultos (calculados automáticamente por equipo)</div>
+  <div class="tbl-wrap" style="max-height:none">
+    <table class="tbl" id="oc-tbl">
+      <thead>
+        <tr>
+          <th>Equipo</th>
+          <th class="r">Nómina</th>
+          <th class="r">Ll. Cabezote</th>
+          <th class="r">Ll. Trailer</th>
+          <th class="r">Dep. Cabezote</th>
+          <th class="r">Dep. Trailer</th>
+          <th class="r">Seguros</th>
+          <th class="r">Permisos</th>
+          <th class="r">Prov. Imp.</th>
+          <th class="r">Total Ocultos</th>
+          <!-- cols: nom, llCab, llTra, depCab, depTra, seg, perm, imp, total = 9 data + 1 label = 10 -->
+        </tr>
+      </thead>
+      <tbody id="oc-body">
+        <tr><td colspan="8" style="text-align:center;color:#aaa;padding:14px;font-size:11px">Agrega equipos para ver los costos ocultos calculados</td></tr>
+      </tbody>
+      <tfoot>
+        <tr class="tr-tot">
+          <td>TOTAL COSTOS OCULTOS</td>
+          <td class="r" id="oc-t-nom">$0</td>
+          <td class="r" id="oc-t-llcab">$0</td>
+          <td class="r" id="oc-t-lltra">$0</td>
+          <td class="r" id="oc-t-depcab">$0</td>
+          <td class="r" id="oc-t-deptra">$0</td>
+          <td class="r" id="oc-t-seg">$0</td>
+          <td class="r" id="oc-t-perm">$0</td>
+          <td class="r" id="oc-t-imp">$0</td>
+          <td class="r" id="oc-t-tot">$0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- ⑤ RESUMEN -->
+<div class="sbox">
+  <div class="sbox-t">📊 Resumen Financiero en Tiempo Real</div>
+  <div class="sr"><span class="sl">Facturación Real</span><span class="sv" id="sr-fact">$0</span></div>
+  <div class="sr"><span class="sl">(-) Costos Operativos</span><span class="sv" id="sr-op">$0</span></div>
+  <div class="sr" style="background:#1e2d1e;border-left:3px solid #43a047;padding-left:10px">
+    <span class="sl" style="color:#86efac;font-weight:700">= Utilidad Operativa</span>
+    <span style="display:flex;align-items:center;gap:8px">
+      <span class="sv" id="sr-uop" style="color:#86efac">$0</span>
+      <span id="sr-uop-pct" style="font-size:10px;font-weight:700;color:#4ade80;background:rgba(74,222,128,.15);padding:2px 7px;border-radius:10px">0.0%</span>
+    </span>
+  </div>
+  <div class="sr"><span class="sl">(-) Costos Ocultos</span><span class="sv" id="sr-oc">$0</span></div>
+  <div class="sr"><span class="sl">(-) Costos Administrativos (16%)</span><span class="sv" id="sr-adm">$0</span></div>
+  <div class="sr tot-row"><span class="sl-t">= UAI (Utilidad Antes de Impuestos)</span><span class="sv-t" id="sr-uai">$0</span></div>
+  <div class="rpill" id="rpill" style="background:#555">
+    <div class="rv" id="sr-rent">0.0%</div>
+    <div class="rl">Rentabilidad sobre Facturación</div>
+  </div>
+</div>
+
+<!-- ⑥ ARCHIVOS DE COMPARATIVO -->
+<div class="card">
+  <div class="ctitle">📎 Archivos para Informe Comparativo (Opcional)</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+    <!-- Presupuesto inicial -->
+    <div>
+      <div style="font-size:9px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">📊 Presupuesto Inicial</div>
+      <div id="ppto-drop-area">
+        <div class="dz dz-sm" onclick="document.getElementById('inp-ppto').click()"
+             ondragover="event.preventDefault()" ondrop="onDropPpto(event)">
+          <div style="font-size:20px">📂</div>
+          <h3>Cargar HTML del presupuesto</h3>
+          <p>Archivo generado por Boom (formato BOOM_v16)</p>
+        </div>
+        <input type="file" id="inp-ppto" accept=".html,.htm" style="display:none" onchange="loadPpto(event)">
+      </div>
+      <div id="ppto-ok" style="display:none">
+        <div class="ppto-ok">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>✅ <strong id="ppto-name">—</strong></span>
+            <button class="btn-x" onclick="clearPpto()">✕ Quitar</button>
+          </div>
+          <div id="ppto-info" style="margin-top:6px;font-size:11px;color:#444"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Costeo post-ejecución ya descargado -->
+    <div>
+      <div style="font-size:9px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🧮 Costeo Post-Ejecución (Ya realizado)</div>
+      <div id="postejec-drop-area">
+        <div class="dz dz-sm" style="border-color:#3730a3" onclick="document.getElementById('inp-postejec').click()"
+             ondragover="event.preventDefault()" ondrop="onDropPostEjec(event)">
+          <div style="font-size:20px">📋</div>
+          <h3 style="color:#3730a3">Cargar Informe descargado</h3>
+          <p>Informe HTML generado por esta herramienta</p>
+        </div>
+        <input type="file" id="inp-postejec" accept=".html,.htm" style="display:none" onchange="loadPostEjec(event)">
+      </div>
+      <div id="postejec-ok" style="display:none">
+        <div style="background:#eef2ff;border:2px solid #6366f1;border-radius:7px;padding:12px 14px;font-size:11px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>✅ <strong id="postejec-name">—</strong></span>
+            <button class="btn-x" onclick="clearPostEjec()">✕ Quitar</button>
+          </div>
+          <div id="postejec-info" style="margin-top:6px;font-size:11px;color:#444"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note" style="margin-top:10px">Si cargas ambos archivos, el comparativo usará los datos del Costeo Post-Ejecución. Si solo cargas el Presupuesto, el comparativo usa los datos ingresados en la herramienta.</div>
+</div>
+
+<!-- GENERAR -->
+<div style="text-align:center;margin:24px 0 10px;display:flex;flex-direction:column;align-items:center;gap:10px">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <button class="btn bo" style="font-size:14px;padding:12px 32px;border-radius:8px;letter-spacing:.5px;box-shadow:0 4px 16px rgba(255,140,0,.35)" onclick="genReport(false)">
+      📄 &nbsp; Informe del Servicio
+    </button>
+    <button class="btn bd" style="font-size:14px;padding:12px 32px;border-radius:8px;letter-spacing:.5px" onclick="genReport(true)">
+      📊 &nbsp; Informe Comparativo (con Presupuesto)
+    </button>
+  </div>
+  <div class="note">Revisa las categorías y equipos antes de generar el informe</div>
+</div>
+
+</div><!-- /app -->
+
+<!-- REPORT OVERLAY -->
+<div id="rep-ov">
+  <div id="rep-wrap">
+    <div class="rep-acts">
+      <button class="btn bd" onclick="downloadReport()">⬇️ Descargar HTML</button>
+      <button class="btn bd" onclick="window.print()">🖨️ Imprimir / PDF</button>
+      <button class="btn bo" onclick="closeRep()">✕ Cerrar</button>
+    </div>
+    <div id="rep-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ SCRIPT ═══════════════════════════════════════ -->
+<script>
+// ─── DATA TABLES ──────────────────────────────────────────
+const CAB_DATA = {
+  // KENWORTH
+  'EXV241-KENWO': {dep:96110,  seg:36400, perm:4591},
+  'EXV242-KENWO': {dep:96110,  seg:36400, perm:4591},
+  'EXV244-KENWO': {dep:96110,  seg:36400, perm:4591},
+  // INTERNATIONAL
+  'KUM425-INTER': {dep:58333,  seg:36400, perm:4591},
+  'KUM426-INTER': {dep:58333,  seg:36400, perm:4591},
+  'SZK178-INTER': {dep:66111,  seg:36400, perm:4591},
+  'SZK179-INTER': {dep:66111,  seg:36400, perm:4591},
+  'SZK180-INTER': {dep:66111,  seg:36400, perm:4591},
+  'TLU853-INTER': {dep:80556,  seg:36400, perm:4591},
+  'TLV285-INTER': {dep:80556,  seg:36400, perm:4591},
+  // VOLVO
+  'SSA096-VOLVO': {dep:96806,  seg:36400, perm:4591},
+  'SSA097-VOLVO': {dep:88700,  seg:36400, perm:4591},
+  'SZA432-VOLVO': {dep:94256,  seg:36400, perm:4591},
+  // FREIGHTLINER
+  'TVA233-FREIG': {dep:41667,  seg:36400, perm:4591},
+  'UYU921-FREIG': {dep:41667,  seg:36400, perm:4591},
+  // MACK
+  'NPR991-MACK':  {dep:262992, seg:36400, perm:4591},
+  // SCANIA
+  'LJO331-SKANIA':{dep:262992, seg:36400, perm:4591},
+  'LJO332-SKANIA':{dep:262992, seg:36400, perm:4591},
+  'LGL726-SKANIA':{dep:262992, seg:36400, perm:4591},
+  'LGL727-SKANIA':{dep:262992, seg:36400, perm:4591},
+};
+const TRA_DATA = {
+  // ── Modulares genéricos (por líneas) ──────────────────────
+  'Modular 2 Lineas':      {dep:58691,  llkm:520},
+  'Modular 4 Lineas':      {dep:79233,  llkm:1040},
+  'Modular 6 Lineas':      {dep:118850, llkm:1560},
+  'Modular 7 Lineas':      {dep:0,      llkm:1820},
+  'Modular 8 Lineas':      {dep:177541, llkm:2080},
+  'Modular 9 Lineas':      {dep:0,      llkm:2340},
+  'Modular 12 Lineas':     {dep:237699, llkm:3120},
+  'Modular 18 Lineas':     {dep:0,      llkm:4680},
+  // ── Trailers con placa ────────────────────────────────────
+  'R22067-CB3-ANGOSTA':    {dep:9722,   llkm:390},
+  'R33151-CA3':            {dep:8333,   llkm:390},
+  'R47562-CB3-ANCHA':      {dep:11111,  llkm:390},
+  'R52084-CA3':            {dep:8333,   llkm:390},
+  'R61685-CB4-VULCAN':     {dep:52889,  llkm:520},
+  'R62743-CB4-CHOICE':     {dep:50651,  llkm:520},
+  'R63096-CB3-RIGIDA':     {dep:19444,  llkm:390},
+  'R63101-SM4-COMETTO':    {dep:89358,  llkm:520},
+  'R63499-CA2-EXT':        {dep:20009,  llkm:260},
+  'R63501-CA2-EXT':        {dep:20009,  llkm:260},
+  'R68632-CB4-TECNIP':     {dep:51667,  llkm:520},
+  'R69106-CB4-TECNIP':     {dep:51667,  llkm:520},
+  'R69107-CB4-TECNIP':     {dep:51667,  llkm:520},
+  'R73872-M6-GOLDHOFER':   {dep:104167, llkm:780},
+  'R79235-SM5-FAYMON':     {dep:110477, llkm:650},
+  'R80344-CB3-CALLENGER':  {dep:17333,  llkm:390},
+  'R80460-CB3-CALLENGER':  {dep:17333,  llkm:390},
+  'R80471-SM5-FAYMON':     {dep:106816, llkm:650},
+  'R82773-M4-GOLDHOFER':   {dep:104167, llkm:520},
+  'R82774-M6-GOLDHOFER':   {dep:104167, llkm:780},
+  'R82776-M8-GOLDHOFER':   {dep:104167, llkm:520},
+  'S59563-CB4-TECNIP':     {dep:52889,  llkm:260},
+  'T3669-M2-TIANJIE':      {dep:58691,  llkm:130},
+  'T3670-M2-TIANJIE':      {dep:58691,  llkm:130},
+  'T3671-M5-TIANJIE':      {dep:0,      llkm:325},
+  'T3948-M3-FAYMONVILLE':  {dep:79233,  llkm:195},
+  'T3949-M3-FAYMONVILLE':  {dep:79233,  llkm:195},
+  'T5552-SM4-NOTEBOOM':    {dep:0,      llkm:260},
+  'T5553-SM4-NOTEBOOM':    {dep:0,      llkm:260},
+  'T5571-M6-GOLDHOFER':    {dep:118850, llkm:390},
+  'T5572-M4-GOLDHOFER':    {dep:79233,  llkm:260},
+  'T5573-M3-GOLDHOFER':    {dep:0,      llkm:195},
+  'T5574-M3-GOLDHOFER':    {dep:0,      llkm:195},
+  'T5575-M6-TIANJIE':      {dep:118850, llkm:390},
+  'T5576-M6-TIANJIE':      {dep:118850, llkm:390},
+};
+// Costo diario = (Salario + Aux_Transp + Prestaciones) / 30  [Excel: Datos Personal y Equipos]
+const PERS_DATA = {
+  'YESID DE LA HAYES LUNA':            375440,
+  'LIBARDO SILVA LUNA':                328510,
+  'ROBERTO CARLOS ROMERO LOPEZ':       211217,
+  'WILLYNTON WALTEROS LOPEZ':          189716,
+  'ALEXANDER EMIR AGUDELO RODRIGUEZ':  169513,
+  'JOSE ALFREDO DE LA OSSA CUELLO':    169513,
+  'JAVIER CABRERA MERCHAN':            161133,
+  'ALVARO JULIO MARQUEZ ALTAMIRANDA':  155065,
+  'KEVIN CHIQUILLO FUENMAYOR':         150560,
+  'CARLOS DARIO NAVARRO SOCHA':        127095,
+  'WILBER JOSE BROCHERO GUERRA':       126237,
+  'EDGARDO DE JESUS CORONADO TORRES':  126237,
+  'LAINEKER HERNANDEZ PINZON':         126237,
+  'LUIS ENRIQUE QUINTERO CORREA':      126237,
+  'GABRIEL ENRIQUE SANTIAGO MIRANDA':  124702,
+  'SERGIO ALFONSO PEREZ CAPACHO':      121730,
+  'IFAET AUGUSTO AGAMEZ MEJIA':        113849,
+  'HUGO ALBERTO JIMENEZ TORRES':       113849,
+  'CHARLES DARIO PION ARROYO':         113849,
+  'JHONATAN JOSE PABON GALAN':         108510,
+  'LUIS MIGUEL ESCORCIA ARAGON':       106480,
+  'JAVIER ALDAIR GARCIA ROJAS':        104471,
+  'YENNIFER LORENA BALZA CERA':        103995,
+  'JOHN JAIRO MADARIAGA GIMENEZ':      103630,
+  'JORGE FLOREZ LLERENA':              103630,
+  'WILFRIDO JOSE ZAMBRANO ESCORCIA':   101108,
+  'UWALDO CIRILO CORREA JIMENEZ':      96750,
+  'EDIABEL RUIZ LOPEZ':                96750,
+  'JOSE LUIS GARCIA RODRIGUEZ':        94244,
+  'JHON GUINDER GONZALEZ':             93422,
+  'JAN CARLOS MANJARREZ IGLESIAS':     93422,
+  'JESSIE ANTONIO MEOLA CABALLERO':    93422,
+  'EDGAR ENRIQUE LLINAS CAMACHO':      92796,
+  'CARLOS JAVIER PARDO MENDOZA':       92796,
+  'JHONYS ENRIQUE ZUÑIGA PORTO':       92796,
+  'DABINSON HERAS DOMINGUEZ':          92796,
+  'SANTIAGO GARCIA SILVA':             92796,
+  'JAIME ENRIQUE BERMUDEZ GRACIA':     91939,
+  'WILMER JAVIER RAMIREZ CARDENAS':    91939,
+  'JAIRO JOSE ESPAÑA ESPINOSA':        91939,
+  'BRAYAN ALBERTO QUERALES RAMBAO':    91939,
+  'JHON ALEXANDER BARRAZA ARRIETA':    91939,
+  'HERNANDO HERIBERTO GAVIRIA JIMENEZ':91939,
+  'JESUS DUVAN MEDINA DE LA OSSA':     91939,
+  'ESNEIDER MOLANO TORRES':            91939,
+  'ALBERTO MANUEL SALAS MONTES':       91398,
+  'OSCAR OCTAVIO GARCIA JULIO':        89000,
+  'LUIS EDGARDO CORONADO DIAZ':        89000,
+  'YILLIAM LORENA IBARRA OSPINA':      88182,
+};
+
+const CATS = [
+  'Peajes','Combustible','Viáticos','Escoltas',
+  'Policías / Acomp. Vial','Parqueaderos','Transporte',
+  'Hidratación','Imprevistos','Daños / Mto','Subcontratados','Proveedores','Equipos Propios','Otros'
+];
+const CAT_STYLE = {
+  'Peajes':          'background:#dbeafe;color:#1e40af',
+  'Combustible':     'background:#ffedd5;color:#c2410c',
+  'Viáticos':        'background:#f3e8ff;color:#7e22ce',
+  'Escoltas':        'background:#fce7f3;color:#be185d',
+  'Policías / Acomp. Vial': 'background:#f1f5f9;color:#475569',
+  'Parqueaderos':    'background:#ccfbf1;color:#065f46',
+  'Transporte':      'background:#dcfce7;color:#166534',
+  'Hidratación':     'background:#d1fae5;color:#065f46',
+  'Imprevistos':     'background:#fef9c3;color:#854d0e',
+  'Daños / Mto':     'background:#fee2e2;color:#991b1b',
+  'Subcontratados':  'background:#e0e7ff;color:#3730a3',
+  'Proveedores':     'background:#ecfdf5;color:#065f46',
+  'Equipos Propios': 'background:#e0f2fe;color:#075985',
+  'Otros':           'background:#f3f4f6;color:#4b5563',
+};
+
+// ─── STATE ────────────────────────────────────────────────
+let ants    = [];   // anticipos rows
+let equipos = [];   // equipment list
+let pptoData = null;
+let antSeq = 0, eqSeq = 0;
+let activeFilter = 'TODOS'; // category filter
+
+// ─── INIT ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('hdr-date').textContent =
+    new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const t = new Date().toISOString().split('T')[0];
+  document.getElementById('f_ini').value = t;
+  document.getElementById('f_fin').value = t;
+  renderOcTable();
+  renderConsolidado();
+  recalcSummary();
+});
+
+// ─── XLSX IMPORT ──────────────────────────────────────────
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dz').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) readXLSX(f);
+}
+function onFile(e) { if (e.target.files[0]) readXLSX(e.target.files[0]); }
+
+function readXLSX(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'yyyy-mm-dd'});
+      parseRows(rows, file.name);
+    } catch(err) { alert('Error al leer el archivo:\n' + err.message); }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+// ─── HELPERS DE PARSEO ────────────────────────────────────
+// Normaliza texto: minúsculas + sin tildes para comparar encabezados
+function normalize(s) {
+  return String(s).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim();
+}
+
+// Parsea monto desde celda Excel (número o texto "$1.234.567" o "1,234,567")
+function parseMonto(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/[^0-9,.-]/g, '');
+  // Formato colombiano: punto = miles, coma = decimal  → "1.234.567,50"
+  // Formato en Excel exportado BOOM: "1234567" o "1.234.567"
+  const clean = s.replace(/\./g, '').replace(',', '.');
+  return parseFloat(clean) || 0;
+}
+
+// Formatea fecha de celda XLSX (string ISO o Date) a DD/MM/YYYY
+function fmtFecha(v) {
+  if (!v) return '';
+  if (v instanceof Date) {
+    const d = v.getDate().toString().padStart(2,'0');
+    const m = (v.getMonth()+1).toString().padStart(2,'0');
+    return `${d}/${m}/${v.getFullYear()}`;
+  }
+  // String ISO "2025-04-15" o "15/04/2025"
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const [y,mo,d] = s.split('T')[0].split('-');
+    return `${d}/${mo}/${y}`;
+  }
+  return s;
+}
+
+// Parsea número en formato colombiano desde texto DOM ("$1.234.567" → 1234567)
+function cleanNum(s) {
+  if (typeof s === 'number') return s;
+  const t = String(s).replace(/[^0-9,.-]/g, '');
+  // Si tiene coma decimal al final: "1.234.567,50"
+  if (/,\d{1,2}$/.test(t)) return parseFloat(t.replace(/\./g,'').replace(',','.')) || 0;
+  // Solo puntos de miles: "1.234.567"
+  return parseInt(t.replace(/\./g,'').replace(',','')) || 0;
+}
+
+function parseRows(rows, fname) {
+  if (!rows.length) { alert('El archivo está vacío.'); return; }
+  const hdrs = rows[0].map(h => normalize(String(h || '')));
+  // DEBUG TEMPORAL — borrar después
+  const iDoc  = hdrs.findIndex(h => h.includes('documento'));
+  const iFech = hdrs.findIndex(h => h.includes('fecha'));
+  const iNom  = hdrs.findIndex(h => h.includes('nombre'));
+  const iMon  = hdrs.findIndex(h => h.includes('monto'));
+  const iCom  = hdrs.findIndex(h => h.includes('comentario'));
+
+  ants = [];
+  const platSet = new Set();
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c)) continue;
+    const monto = parseMonto(r[iMon]);
+    if (!monto) continue;
+    const com = String(r[iCom] || '');
+    const plat = detectPlate(com);
+    if (plat) platSet.add(plat);
+    ants.push({
+      id: antSeq++,
+      doc:   String(r[iDoc]  || ''),
+      fecha: fmtFecha(r[iFech]),
+      nombre:String(r[iNom]  || ''),
+      monto,
+      com,
+      plat_det: plat,
+      eq_id: null,
+      cat: autoCat(com),
+      inc: true,
+    });
+  }
+
+  // Auto-create one equipo entry per detected plate (if not already there)
+  platSet.forEach(p => {
+    if (!equipos.find(e => e.plat === p)) {
+      equipos.push(makeEq(p));
+    }
+  });
+
+  // Auto-assign each antecipo to its equipo
+  autoAssign();
+
+  // Show table
+  document.getElementById('dz-area').style.display = 'none';
+  document.getElementById('ant-section').style.display = 'block';
+  document.getElementById('ant-count-lbl').textContent =
+    `${ants.length} registros · ${platSet.size} equipos detectados · ${fname}`;
+
+  renderAll();
+}
+
+// Extract plate reference from comment: "26133 - LGL727 ," → "LGL727"
+function detectPlate(com) {
+  const m = String(com).match(/\d{3,6}\s*[-–]\s*([A-Z]{2,4}\d{3,4})\b/);
+  return m ? m[1] : null;
+}
+
+// Auto-classify by keyword
+function autoCat(c) {
+  const s = normalize(c);
+  if (/viatico/.test(s))                                   return 'Viáticos';
+  if (/peaje/.test(s))                                     return 'Peajes';
+  if (/acpm|motorin|combustible|gasoil|diesel|gasolina|galones/.test(s)) return 'Combustible';
+  if (/escolta|piloteadora/.test(s))                       return 'Escoltas';
+  if (/policia|acompanamiento vial/.test(s))               return 'Policías / Acomp. Vial';
+  if (/parqueadero/.test(s))                               return 'Parqueaderos';
+  if (/transporte/.test(s))                                return 'Transporte';
+  if (/hidratac/.test(s))                                  return 'Hidratación';
+  if (/impresion|imprevisto/.test(s))                      return 'Imprevistos';
+  if (/dano|mantenimiento|reparaci/.test(s))               return 'Daños / Mto';
+  if (/subcontrat/.test(s))                                return 'Subcontratados';
+  if (/proveedor/.test(s))                                 return 'Proveedores';
+  if (/equipo\s*propio/.test(s))                           return 'Equipos Propios';
+  return 'Otros';
+}
+
+function autoAssign() {
+  ants.forEach(a => {
+    if (a.plat_det) {
+      const eq = equipos.find(e => e.plat === a.plat_det);
+      a.eq_id = eq ? eq.id : null;
+    }
+  });
+}
+
+function resetImport() {
+  ants = [];
+  document.getElementById('dz-area').style.display = 'block';
+  document.getElementById('ant-section').style.display = 'none';
+  document.getElementById('ant-count-lbl').textContent = '';
+  document.getElementById('inp-xlsx').value = '';
+  renderAll();
+}
+
+// ─── RENDER ANTICIPOS TABLE ───────────────────────────────
+function renderAnts() {
+  const body = document.getElementById('ant-body');
+
+  // Apply category filter
+  const visible = activeFilter === 'TODOS' ? ants : ants.filter(a => a.cat === activeFilter);
+  const filterCount = document.getElementById('filter-count');
+  if (filterCount) filterCount.textContent = activeFilter !== 'TODOS'
+    ? `${visible.length} registro${visible.length!==1?'s':''} · ${fmt(visible.filter(a=>a.inc).reduce((s,a)=>s+a.monto,0))}`
+    : '';
+
+  // Build eq options
+  const eqOpts = equipos.map(e =>
+    `<option value="${e.id}">Eq.${e.num} · ${e.plat||'Sin ref.'}</option>`
+  ).join('');
+  const catOpts = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  body.innerHTML = visible.map((a, idx) => {
+    const realIdx = ants.indexOf(a); // use real index for mutations
+    const eqSel = `<select style="width:100%;font-size:10px" onchange="antEq(${realIdx},this.value)">
+      <option value="">Sin equipo</option>${eqOpts}</select>`;
+    const catSel = `<select style="width:100%;font-size:10px" onchange="antCat(${realIdx},this.value)">
+      ${CATS.map(c=>`<option value="${c}"${c===a.cat?' selected':''}>${c}</option>`).join('')}
+    </select>`;
+    const st = CAT_STYLE[a.cat] || CAT_STYLE['Otros'];
+    const comTr = a.com.length > 50 ? a.com.substring(0,50)+'…' : a.com;
+    const nomTr = a.nombre.length > 24 ? a.nombre.substring(0,24)+'…' : a.nombre;
+    const selEqHtml = eqSel.replace(`value="${a.eq_id}"`,`value="${a.eq_id}" selected`);
+    return `<tr class="${a.inc?'':'excl'}" id="ar-${a.id}">
+      <td style="text-align:center"><input type="checkbox" ${a.inc?'checked':''} style="width:auto" onchange="antInc(${realIdx},this.checked)"></td>
+      <td style="font-size:10px;white-space:nowrap">${a.fecha}</td>
+      <td style="font-size:10px">${a.manual
+        ? `<input type="text" value="${esc(a.doc)}" placeholder="N° doc"
+             style="width:70px;border:1px solid #fca;border-radius:3px;padding:2px 4px;font-size:10px"
+             onchange="ants[${realIdx}].doc=this.value">`
+        : esc(a.doc)}</td>
+      <td title="${esc(a.nombre)}" style="font-size:10px">${a.manual
+        ? `<input type="text" value="${esc(a.nombre)}" placeholder="Descripción"
+             style="width:110px;border:1px solid #fca;border-radius:3px;padding:2px 4px;font-size:10px"
+             onchange="ants[${realIdx}].nombre=this.value">`
+        : esc(nomTr)}</td>
+      <td class="r" style="font-weight:700">${a.manual
+        ? `<input type="number" min="0" step="1000" value="${a.monto}"
+             style="width:110px;text-align:right;border:1px solid #fca;border-radius:3px;padding:3px 5px;font-weight:700;font-size:12px"
+             onchange="antMonto(${realIdx},this.value)">`
+        : fmt(a.monto)}</td>
+      <td title="${esc(a.com)}" style="font-size:10px;color:#555">${a.manual
+        ? `<input type="text" value="${esc(a.com)}" placeholder="Comentario / detalle"
+             style="width:140px;border:1px solid #fca;border-radius:3px;padding:2px 4px;font-size:10px"
+             onchange="ants[${realIdx}].com=this.value">`
+        : `${a.plat_det ? `<span class="cb" style="background:#fef3c7;color:#92400e;margin-right:4px">${a.plat_det}</span>` : ''}${esc(comTr)}`}
+      </td>
+      <td>${selEqHtml}</td>
+      <td>
+        <span class="cb" style="${st}">${a.cat}</span>
+        <div style="margin-top:3px">${catSel}</div>
+      </td>
+      <td><button class="btn-x" onclick="antDel(${realIdx})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  // Set eq select values post-render
+  visible.forEach((a, i) => {
+    const sel = body.querySelectorAll('select')[i * 2]; // first select per row = equipo
+    if (sel) sel.value = a.eq_id !== null ? String(a.eq_id) : '';
+  });
+
+  // Chips / stats
+  const inc = ants.filter(a => a.inc);
+  const totInc = inc.reduce((s,a) => s + a.monto, 0);
+
+  // Per-equipo totals
+  const eqMap = {};
+  equipos.forEach(e => eqMap[e.id] = {label:`Eq.${e.num} ${e.plat}`, tot:0});
+  let sinEqTot = 0;
+  inc.forEach(a => {
+    if (a.eq_id !== null && eqMap[a.eq_id]) eqMap[a.eq_id].tot += a.monto;
+    else sinEqTot += a.monto;
+  });
+
+  let chipsHtml = `<div class="chip"><span class="cv">${inc.length}</span><span class="cl">Registros</span></div>
+    <div class="chip"><span class="cv">${fmt(totInc)}</span><span class="cl">Total Incluido</span></div>`;
+  Object.values(eqMap).forEach(e => {
+    if (e.tot > 0) chipsHtml += `<div class="chip"><span class="cv">${fmt(e.tot)}</span><span class="cl">${e.label}</span></div>`;
+  });
+  if (sinEqTot > 0) chipsHtml += `<div class="chip"><span class="cv">${fmt(sinEqTot)}</span><span class="cl">Sin Equipo</span></div>`;
+
+  document.getElementById('ant-chips').innerHTML = chipsHtml;
+  document.getElementById('tot-ant').textContent = fmt(totInc);
+  recalcSummary();
+}
+
+function antInc(idx, v)  { ants[idx].inc = v; renderAnts(); renderConsolidado(); recalcSummary(); }
+function antCat(idx, v)  { ants[idx].cat = v; renderAnts(); renderConsolidado(); }
+function antDel(idx)     { ants.splice(idx, 1); renderAnts(); renderConsolidado(); recalcSummary(); }
+function antEq(idx, v)   { ants[idx].eq_id = v === '' ? null : parseInt(v); renderAnts(); renderConsolidado(); }
+
+// Toggle detalle de anticipos
+function toggleAntTable() {
+  const wrap = document.getElementById('ant-table-wrap');
+  const btn  = document.getElementById('btn-toggle-ant');
+  const open = wrap.style.display === 'none';
+  wrap.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '▲ Ocultar Detalle' : '▼ Ver Detalle';
+}
+
+// Category filter
+function setFilter(cat, el) {
+  activeFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderAnts();
+}
+
+function addManual() {
+  ants.push({
+    id: antSeq++, doc:'', fecha: new Date().toISOString().split('T')[0],
+    nombre:'Manual', monto:0, com:'', plat_det:null,
+    eq_id: equipos[0]?.id ?? null, cat:'Otros', inc:true, manual:true,
+  });
+  renderAnts();
+}
+function antMonto(idx, val) { ants[idx].monto = parseFloat(val) || 0; renderAnts(); renderConsolidado(); recalcSummary(); }
+
+// ─── EQUIPOS ──────────────────────────────────────────────
+function makeEq(platRef) {
+  return {
+    id: eqSeq++,
+    num: equipos.length + 1,
+    plat: platRef || '',
+    cab: '', tra: '', op: '', aux: [],
+    dias: 0, km: 0, galones: 0,
+    fIni: '', fFin: '',
+  };
+}
+
+function addEq() {
+  if (equipos.length >= 10) { alert('Máximo 10 equipos por proyecto'); return; }
+  equipos.push(makeEq(''));
+  renderAll();
+}
+
+function delEq(id) {
+  equipos = equipos.filter(e => e.id !== id);
+  equipos.forEach((e,i) => e.num = i + 1);
+  ants.forEach(a => { if (a.eq_id === id) a.eq_id = null; });
+  renderAll();
+}
+
+function updEq(id, field, val) {
+  const eq = equipos.find(e => e.id === id);
+  if (!eq) return;
+  if (field === 'dias' || field === 'km' || field === 'galones') val = parseFloat(val) || 0;
+  eq[field] = val;
+  if (field === 'plat') {
+    const autoCab = detectCab(val);
+    if (autoCab) eq.cab = autoCab;
+    autoAssign();
+    renderAnts();
+  }
+  // Actualizar rata en tiempo real sin re-renderizar toda la card
+  if (field === 'km' || field === 'galones') {
+    const rataEl = document.getElementById('rata-' + id);
+    if (rataEl) {
+      const r = (eq.km > 0 && eq.galones > 0) ? (eq.km / eq.galones).toFixed(1) : '—';
+      rataEl.textContent = r;
+    }
+  }
+  renderOcTable();
+  renderConsolidado();
+  recalcSummary();
+}
+
+// Auto-detect cabezote key from placa reference
+function detectCab(plat) {
+  if (!plat) return '';
+  const upper = plat.toUpperCase().trim();
+  if (CAB_DATA[upper]) return upper;
+  return Object.keys(CAB_DATA).find(k => k.startsWith(upper + '-')) || '';
+}
+
+function addAux(eqId) {
+  const eq = equipos.find(e => e.id === eqId);
+  if (!eq) return;
+  if (!Array.isArray(eq.aux)) eq.aux = [];
+  eq.aux.push('');
+  renderEquipos(); renderOcTable(); recalcSummary();
+}
+function setAux(eqId, idx, name) {
+  const eq = equipos.find(e => e.id === eqId);
+  if (!eq || !Array.isArray(eq.aux)) return;
+  eq.aux[idx] = name;
+  renderOcTable(); recalcSummary(); renderConsolidado();
+}
+
+// Marca en rojo el input de operador/auxiliar si el nombre escrito no coincide
+// exactamente con ningún registro de nómina (evita que la nómina quede en $0 sin avisar)
+function checkPers(input) {
+  const v = input.value.trim();
+  input.style.borderColor = (v && !PERS_DATA[v]) ? '#f5a3a3' : '#ddd';
+}
+function delAux(eqId, idx) {
+  const eq = equipos.find(e => e.id === eqId);
+  if (!eq || !Array.isArray(eq.aux)) return;
+  eq.aux.splice(idx, 1);
+  renderEquipos(); renderOcTable(); recalcSummary(); renderConsolidado();
+}
+
+function renderEquipos() {
+  const grid = document.getElementById('eq-grid');
+  document.getElementById('eq-empty').style.display = equipos.length ? 'none' : 'block';
+
+  grid.querySelectorAll('.eq-card').forEach(c => c.remove());
+
+  const cabOpts = `<option value="">-- Cabezote --</option>` +
+    Object.keys(CAB_DATA).map(k => `<option value="${k}">${k}</option>`).join('') +
+    `<option value="OTRO">Otro (manual)</option>`;
+  const traOpts = `<option value="">-- Trailer / Plataforma --</option>` +
+    Object.keys(TRA_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+  // Datalist compartido para búsqueda de operarios/auxiliares por nombre o apellido
+  const dl = document.getElementById('pers-datalist');
+  if (dl) dl.innerHTML = Object.keys(PERS_DATA).map(n => `<option value="${n}">`).join('');
+
+  equipos.forEach(eq => {
+    const eqOp = ants.filter(a => a.inc && a.eq_id === eq.id).reduce((s,a) => s + a.monto, 0);
+    const eqOc = calcOc(eq).total;
+    const card = document.createElement('div');
+    card.className = 'eq-card';
+    card.id = `eq-${eq.id}`;
+    const auxArr = Array.isArray(eq.aux) ? eq.aux : [];
+    const auxHtml = auxArr.length === 0
+      ? `<div style="font-size:11px;color:#bbb;font-style:italic;padding:4px 0">Ninguno</div>`
+      : auxArr.map((a, ai) => `
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+            <input type="text" list="pers-datalist" value="${esc(a||'')}" placeholder="Escribe nombre o apellido…"
+              style="flex:1;border:1px solid ${a && !PERS_DATA[a] ? '#f5a3a3' : '#ddd'};border-radius:4px;padding:4px 6px;font-size:11px;background:#fafafa"
+              oninput="checkPers(this)"
+              onchange="setAux(${eq.id},${ai},this.value); checkPers(this)">
+            <button class="btn-x" onclick="delAux(${eq.id},${ai})">✕</button>
+          </div>`).join('');
+
+    // Cabezote auto-detectado desde la placa
+    const autoCabKey = detectCab(eq.plat) || eq.cab;
+    const cabData    = CAB_DATA[autoCabKey];
+    const cabBadge   = autoCabKey
+      ? `<span style="font-weight:700;color:#1a1a1a">${autoCabKey}</span>
+         ${cabData ? `<span style="color:#777;font-size:10px;margin-left:8px">Dep: ${fmt(cabData.dep)}/día · Seg: ${fmt(cabData.seg)}/día · Perm: ${fmt(cabData.perm)}/día</span>` : ''}
+         <span style="background:#d1fae5;color:#065f46;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:6px">AUTO</span>`
+      : `<span style="color:#c00;font-size:11px">No encontrado — selecciona manualmente:</span>
+         <select style="margin-left:6px;border:1px solid #fca;border-radius:3px;padding:3px 6px;font-size:11px"
+           onchange="updEq(${eq.id},'cab',this.value)">${mkOpts(cabOpts, eq.cab)}</select>`;
+
+    // Rata: rendimiento km/galón
+    const rata = (eq.km > 0 && eq.galones > 0) ? (eq.km / eq.galones).toFixed(1) : '—';
+
+    card.innerHTML = `
+      <div class="eq-hdr">
+        <span class="eq-pill">Equipo ${eq.num}</span>
+        <div class="eq-kpi">
+          Op: <span>${fmt(eqOp)}</span> &nbsp; Oc: <span>${fmt(eqOc)}</span>
+          &nbsp;<button class="btn-x" onclick="delEq(${eq.id})">✕</button>
+        </div>
+      </div>
+
+      <!-- Placa + días -->
+      <div class="g3">
+        <div class="fg s2">
+          <label>⚡ Placa Ref. (en comentarios)</label>
+          <input value="${esc(eq.plat)}" placeholder="Ej: LGL727" style="font-weight:700;border-color:#ff8c00;font-size:13px"
+            oninput="updEq(${eq.id},'plat',this.value)">
+        </div>
+        <div class="fg">
+          <label>Días Ejecutados</label>
+          <input type="number" value="${eq.dias}" min="0" oninput="updEq(${eq.id},'dias',this.value)">
+        </div>
+      </div>
+
+      <!-- Cabezote auto-detectado -->
+      <div class="mt10" style="background:#f8fffe;border:1px solid #b2dfdb;border-radius:5px;padding:7px 10px;font-size:11px;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-right:4px">🚛 Cabezote:</span>
+        ${cabBadge}
+      </div>
+
+      <!-- Km · Galones · Rata · Trailer -->
+      <div class="g4 mt10">
+        <div class="fg">
+          <label>Km Recorridos</label>
+          <input type="number" value="${eq.km}" min="0" oninput="updEq(${eq.id},'km',this.value)">
+        </div>
+        <div class="fg">
+          <label>🔥 Galones Consumidos</label>
+          <input type="number" value="${eq.galones||0}" min="0" step="0.1" placeholder="0"
+            oninput="updEq(${eq.id},'galones',this.value)">
+        </div>
+        <div class="fg">
+          <label>📊 Rata (km/gal)</label>
+          <div id="rata-${eq.id}" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:4px;padding:7px 9px;font-size:15px;font-weight:800;color:#3730a3;text-align:center;letter-spacing:.5px">
+            ${rata}
+          </div>
+        </div>
+        <div class="fg">
+          <label>Trailer / Plataforma</label>
+          <select onchange="updEq(${eq.id},'tra',this.value)">${mkOpts(traOpts, eq.tra)}</select>
+        </div>
+      </div>
+
+      <!-- Operador + Auxiliares -->
+      <div class="g2 mt10">
+        <div class="fg">
+          <label>Operador</label>
+          <input type="text" list="pers-datalist" value="${esc(eq.op||'')}" placeholder="Escribe nombre o apellido…"
+            style="border:1px solid ${eq.op && !PERS_DATA[eq.op] ? '#f5a3a3' : '#ddd'}"
+            oninput="checkPers(this)"
+            onchange="updEq(${eq.id},'op',this.value); checkPers(this)">
+        </div>
+        <div class="fg">
+          <label style="display:flex;justify-content:space-between;align-items:center">
+            <span>Auxiliares / Acompañantes</span>
+            <button class="btn bg bs" style="padding:1px 8px;font-size:10px;font-weight:700" onclick="addAux(${eq.id})">+ Agregar</button>
+          </label>
+          ${auxHtml}
+        </div>
+      </div>
+
+      <!-- Fechas de Operación (opcional) -->
+      <div style="margin-top:10px;padding:8px 10px;background:#fafafa;border:1px dashed #ddd;border-radius:5px">
+        <label style="font-size:10px;font-weight:700;color:#888;display:block;margin-bottom:6px">📅 FECHAS DE OPERACIÓN (OPCIONAL)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="fg">
+            <label>Fecha Inicio</label>
+            <input type="date" value="${eq.fIni||''}" oninput="updEq(${eq.id},'fIni',this.value)" style="font-size:11px">
+          </div>
+          <div class="fg">
+            <label>Fecha Fin</label>
+            <input type="date" value="${eq.fFin||''}" oninput="updEq(${eq.id},'fFin',this.value)" style="font-size:11px">
+          </div>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// Build select options with correct "selected" attribute
+function mkOpts(baseHtml, selectedVal) {
+  if (!selectedVal) return baseHtml;
+  return baseHtml.replace(
+    new RegExp(`value="${selectedVal.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"`, 'g'),
+    `value="${selectedVal}" selected`
+  );
+}
+
+// ─── HIDDEN COSTS ─────────────────────────────────────────
+function calcOc(eq) {
+  const cabKey = detectCab(eq.plat) || eq.cab;
+  const cd = CAB_DATA[cabKey] || {dep:0, seg:0, perm:0};
+  const td = TRA_DATA[eq.tra] || {dep:0, llkm:0};
+  const opR    = PERS_DATA[eq.op] || 0;
+  const auxArr = Array.isArray(eq.aux) ? eq.aux : [];
+  const auxSum = auxArr.reduce((s, n) => s + (PERS_DATA[n] || 0), 0);
+  const dias = eq.dias    || 0;
+  const km   = eq.km      || 0;
+  const gal  = eq.galones || 0;
+  const fact = parseFloat(document.getElementById('facturacion').value) || 0;
+  const nEq  = equipos.length || 1;
+
+  const nom    = dias * (opR + auxSum);
+  const llCab  = km   * 225;          // cabezote: $225/km fijo
+  const llTra  = km   * td.llkm;      // trailer: según TRA_DATA
+  const depCab = dias * cd.dep;        // depreciación cabezote
+  const depTra = dias * td.dep;        // depreciación trailer
+  const seg    = dias * cd.seg;
+  const perm   = dias * cd.perm;
+  const imp    = (fact * 0.008) / nEq;
+  return { nom, llCab, llTra, depCab, depTra, seg, perm, imp,
+           total: nom+llCab+llTra+depCab+depTra+seg+perm+imp };
+}
+
+// Consolida Costos Ocultos del servicio. La Provisión de Impuestos se calcula
+// sobre la Facturación Real y SIEMPRE aplica, incluso si el servicio no tiene
+// equipos asignados (ej. subcontratados / logística sin vehículo propio).
+function computeOcultos(fact) {
+  if (!equipos.length) {
+    const imp = fact * 0.008;
+    return {
+      perEq: [],
+      totals: {nom:0, llCab:0, llTra:0, depCab:0, depTra:0, seg:0, perm:0, imp},
+      total: imp,
+    };
+  }
+  const perEq = equipos.map(eq => ({ eq, oc: calcOc(eq) }));
+  const totals = {nom:0, llCab:0, llTra:0, depCab:0, depTra:0, seg:0, perm:0, imp:0};
+  perEq.forEach(({oc}) => Object.keys(totals).forEach(k => totals[k] += oc[k]));
+  const total = Object.values(totals).reduce((s,v) => s+v, 0);
+  return { perEq, totals, total };
+}
+
+function renderOcTable() {
+  const body = document.getElementById('oc-body');
+  const fact = parseFloat(document.getElementById('facturacion').value) || 0;
+  const { perEq, totals, total } = computeOcultos(fact);
+
+  if (!equipos.length) {
+    body.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#aaa;padding:14px;font-size:11px">
+      Servicio sin equipos asignados. Solo aplica la Provisión de Impuestos (0.8% sobre Facturación) → ${fmt(totals.imp)}
+    </td></tr>`;
+  } else {
+    body.innerHTML = perEq.map(({eq, oc}) => `<tr>
+      <td><strong>Eq.${eq.num}</strong> ${eq.plat ? `<span style="font-size:10px;color:#888">(${esc(eq.plat)})</span>` : ''}</td>
+      <td class="r">${fmt(oc.nom)}</td>
+      <td class="r">${fmt(oc.llCab)}</td>
+      <td class="r">${fmt(oc.llTra)}</td>
+      <td class="r">${fmt(oc.depCab)}</td>
+      <td class="r">${fmt(oc.depTra)}</td>
+      <td class="r">${fmt(oc.seg)}</td>
+      <td class="r">${fmt(oc.perm)}</td><td class="r">${fmt(oc.imp)}</td>
+      <td class="r" style="font-weight:700">${fmt(oc.total)}</td>
+    </tr>`).join('');
+  }
+  setText('oc-t-nom',   fmt(totals.nom));
+  setText('oc-t-llcab', fmt(totals.llCab));
+  setText('oc-t-lltra', fmt(totals.llTra));
+  setText('oc-t-depcab',fmt(totals.depCab));
+  setText('oc-t-deptra',fmt(totals.depTra));
+  setText('oc-t-seg',  fmt(totals.seg));
+  setText('oc-t-perm', fmt(totals.perm));
+  setText('oc-t-imp',  fmt(totals.imp));
+  setText('oc-t-tot',  fmt(total));
+  recalcSummary();
+}
+
+// ─── SUMMARY ──────────────────────────────────────────────
+function recalcSummary() {
+  const fact      = parseFloat(document.getElementById('facturacion').value) || 0;
+  const antOp     = ants.filter(a => a.inc).reduce((s,a) => s + a.monto, 0);
+  const combTotal = equipos.reduce((s, eq) => s + (eq.galones || 0) * 11000, 0);
+  const totOp     = antOp + combTotal;
+  const totOc     = computeOcultos(fact).total;
+  const adm       = (totOp + totOc) * 0.16;
+  const uai   = fact - totOp - totOc - adm;
+  const rent  = fact > 0 ? uai / fact * 100 : 0;
+
+  const uop     = fact - totOp;
+  const uopPct  = fact > 0 ? uop / fact * 100 : 0;
+
+  setText('sr-fact',    fmt(fact));
+  setText('sr-op',      fmt(totOp));
+  setText('sr-uop',     fmt(uop));
+  setText('sr-uop-pct', uopPct.toFixed(1) + '%');
+  setText('sr-oc',      fmt(totOc));
+  setText('sr-adm',     fmt(adm));
+  setText('sr-uai',     fmt(uai));
+  setText('sr-rent',    rent.toFixed(1) + '%');
+
+  const pill = document.getElementById('rpill');
+  pill.style.background = rent >= 25 ? '#15803d' : rent >= 15 ? '#ff8c00' : rent >= 5 ? '#c2410c' : '#991b1b';
+}
+
+function recalcAll() { renderOcTable(); renderConsolidado(); recalcSummary(); }
+
+// ─── CONSOLIDADO ──────────────────────────────────────────
+function renderConsolidado() {
+  const fact = parseFloat(document.getElementById('facturacion').value) || 0;
+  const inc = ants.filter(a => a.inc);
+  if (!inc.length && !equipos.length) {
+    document.getElementById('consolidado-card').style.display = 'none';
+    return;
+  }
+  document.getElementById('consolidado-card').style.display = 'block';
+
+  // By category (anticipos + combustible de galones en equipos)
+  const catTot = {};
+  CATS.forEach(c => catTot[c] = 0);
+  inc.forEach(a => catTot[a.cat] = (catTot[a.cat]||0) + a.monto);
+  const combTotal = equipos.reduce((s, eq) => s + (eq.galones || 0) * 11000, 0);
+  if (combTotal > 0) catTot['Combustible'] = (catTot['Combustible'] || 0) + combTotal;
+  const totOp = inc.reduce((s,a) => s+a.monto, 0) + combTotal;
+
+  const catBody = document.getElementById('cons-cat-body');
+  catBody.innerHTML = CATS.filter(c => catTot[c] > 0).map(c => {
+    const st = CAT_STYLE[c] || CAT_STYLE['Otros'];
+    return `<tr>
+      <td><span class="cb" style="${st}">${c}</span></td>
+      <td class="r" style="font-weight:600">${fmt(catTot[c])}</td>
+      <td class="r" style="color:#888">${totOp>0?(catTot[c]/totOp*100).toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+  setText('cons-tot-op', fmt(totOp));
+
+  // Costos ocultos por concepto (la Provisión de Impuestos aplica sobre
+  // Facturación incluso sin equipos asignados; el resto sí depende del equipo)
+  const { totals: ocTotals, total: totOc } = computeOcultos(fact);
+  const ocConceptos = [
+    ['Nómina (Operador + Auxiliares)', ocTotals.nom],
+    ['Llantas Cabezote',              ocTotals.llCab],
+    ['Llantas Trailer',               ocTotals.llTra],
+    ['Depreciación Cabezote',         ocTotals.depCab],
+    ['Depreciación Trailer',          ocTotals.depTra],
+    ['Seguros', ocTotals.seg],
+    ['Permisos / Resolución', ocTotals.perm],
+    ['Provisión Impuestos (0.8%)', ocTotals.imp],
+  ];
+  const ocBody = document.getElementById('cons-oc-body');
+  ocBody.innerHTML = ocConceptos.filter(([,v])=>v>0).map(([lbl,v])=>`
+    <tr>
+      <td style="font-size:11px">${lbl}</td>
+      <td class="r" style="font-weight:600">${fmt(v)}</td>
+      <td class="r" style="color:#888">${totOc>0?(v/totOc*100).toFixed(1)+'%':'—'}</td>
+    </tr>`).join('');
+  if (!ocConceptos.some(([,v])=>v>0)) ocBody.innerHTML = `<tr><td colspan="3" style="color:#aaa;font-size:11px;padding:10px;text-align:center">Agrega equipos o Facturación para ver costos ocultos</td></tr>`;
+  setText('cons-tot-oc', fmt(totOc));
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────
+function renderAll() {
+  renderEquipos();
+  if (ants.length) renderAnts();
+  renderOcTable();
+  renderConsolidado();
+  recalcSummary();
+}
+
+// ─── PRESUPUESTO ──────────────────────────────────────────
+function onDropPpto(e) { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f) loadPptoFile(f); }
+function loadPpto(e)   { if(e.target.files[0]) loadPptoFile(e.target.files[0]); }
+
+function loadPptoFile(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const doc = new DOMParser().parseFromString(e.target.result, 'text/html');
+      let b = {};
+
+      // ── FORMATO NUEVO: BOOM_v16 con JSON embebido ──────────────
+      const jsonScript = doc.getElementById('boom-datos');
+      if (jsonScript) {
+        const raw = JSON.parse(jsonScript.textContent);
+        b.raw     = raw;
+        b.version = raw.version || 'BOOM_v16';
+
+        // Info básica
+        b.info = {
+          'Cliente':   raw.cliente || '—',
+          '# Oferta':  raw.num_oferta || '—',
+          '# OSI':     raw.num_osi || '—',
+        };
+
+        b.ppto_fact = raw.facturacion_esperada || 0;
+
+        // Calcular costos operativos por concepto
+        const n = v => parseFloat(v) || 0;
+        const costos = { Combustible:0, Viáticos:0, Hidratación:0, Imprevistos:0, Peajes:0,
+                         Escoltas:0, Transporte:0, Parqueaderos:0, Otros:0 };
+
+        (raw.equipos || []).forEach(eq => {
+          const dias = n(eq.dias);
+          const ops  = n(eq.operarios);
+          const aux  = n(eq.auxiliares);
+          const gal  = n(eq.galones);
+
+          costos.Combustible  += gal * 11000 + n(eq.combustibleAdi);
+          costos.Viáticos     += dias * (ops + aux) * n(eq.valorViatico)
+                                + n(eq.numSupervisores) * n(eq.viaticosSuper);
+          costos.Hidratación  += n(eq.hidratacion);
+          costos.Imprevistos  += n(eq.imprevistos);
+          costos.Peajes       += n(eq.peajes);
+          costos.Escoltas     += eq.escolta ? n(eq.escValor) * n(eq.escKits || 1) : 0;
+          costos.Transporte   += n(eq.transporte);
+          costos.Parqueaderos += n(eq.parqueaderos);
+        });
+
+        // Costos proveedores y subcontratados
+        let totProveedores = 0, totSubcon = 0;
+        (raw.proveedores || []).forEach(p => { totProveedores += n(p.costo); });
+        (raw.subcontratados || []).forEach(s => { totSubcon += n(s.costo); });
+        if (totProveedores) costos.Proveedores = totProveedores;
+        if (totSubcon)      costos.Subcontratados = totSubcon;
+
+        // Eliminar ceros
+        b.costos = Object.fromEntries(Object.entries(costos).filter(([,v]) => v > 0));
+
+        const totalOp  = Object.values(b.costos).reduce((s,v)=>s+v,0);
+        b.ppto_total   = totalOp;
+        b.ppto_util    = b.ppto_fact - totalOp;
+
+        // Costos por equipo desde tabla #r-costos (columnas Eq1…EqN)
+        b.costosPorEquipo = [];
+        const costosTbl = doc.getElementById('r-costos');
+        if (costosTbl) {
+          const tblEl = costosTbl.closest('table');
+          const hdrs  = tblEl ? tblEl.querySelectorAll('thead th') : [];
+          // Cols: Concepto | Detalle | Eq1 | Eq2 | … | TOTAL  → nEq = hdrs.length - 3
+          const nEq = Math.max(0, hdrs.length - 3);
+          for (let i = 0; i < nEq; i++) b.costosPorEquipo.push({});
+          costosTbl.querySelectorAll('tr:not(.subhdr):not(.tot-row):not(.mul-row)').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length < 3) return;
+            const con = tds[0].textContent.trim();
+            if (!con) return;
+            for (let i = 0; i < nEq && (2 + i) < tds.length - 1; i++) {
+              const v = cleanNum(tds[2 + i].textContent);
+              if (v) b.costosPorEquipo[i][con] = (b.costosPorEquipo[i][con] || 0) + v;
+            }
+          });
+        }
+
+        // Parsear tabla r-rata (rendimiento combustible por equipo y tipo)
+        // Nota: km y gal usan punto como separador de miles (ej: "1.398" = 1398)
+        // La fila Total es global (no hay Total por equipo); se calcula desde Vacío+Cargado
+        b.ratas = [];
+        const rataBody = doc.getElementById('r-rata');
+        if (rataBody) {
+          let cur = null;
+          const parseCO = s => parseInt(String(s).replace(/\./g,'').trim()) || 0; // km/gal enteros
+          const parseRata = s => parseFloat(String(s).trim()) || 0;              // rata decimal
+          const finalizarCur = () => {
+            if (cur && cur.vacio && cur.cargado && !cur.total) {
+              const km  = cur.vacio.km  + cur.cargado.km;
+              const gal = cur.vacio.gal + cur.cargado.gal;
+              cur.total = { km, gal, rata: gal > 0 ? parseFloat((km/gal).toFixed(2)) : 0 };
+            }
+          };
+          rataBody.querySelectorAll('tr').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            // Fila encabezado de equipo (una sola celda con colspan)
+            if (tds.length === 1 && tds[0].getAttribute('colspan')) {
+              finalizarCur();
+              cur = { desc: tds[0].textContent.trim(), vacio: null, cargado: null, total: null };
+              b.ratas.push(cur);
+              return;
+            }
+            if (!cur || tds.length < 4) return;
+            const tipo  = tds[0].textContent.trim().toLowerCase();
+            const entry = { km: parseCO(tds[1].textContent), gal: parseCO(tds[2].textContent), rata: parseRata(tds[3].textContent) };
+            if      (/vac/i.test(tipo))  cur.vacio   = entry;
+            else if (/car/i.test(tipo))  cur.cargado = entry;
+            else if (/tot/i.test(tipo))  { b.combTotal = entry; } // Total global de la flota
+          });
+          finalizarCur(); // cerrar último equipo
+        }
+
+      } else {
+        // ── FORMATO ANTIGUO: raspar DOM ───────────────────────────
+        const tel = doc.getElementById('r-total');
+        b.total = tel ? cleanNum(tel.textContent) : 0;
+        b.info  = {};
+        (doc.querySelectorAll('#r-info .info-item') || []).forEach(it => {
+          const lbl = it.querySelector('.ilabel')?.textContent?.trim();
+          const val = it.querySelector('.ivalue')?.textContent?.trim();
+          if (lbl && val) b.info[lbl] = val;
+        });
+        b.costos = {};
+        b.costosPorEquipo = [];
+        const tbody = doc.getElementById('r-costos');
+        if (tbody) {
+          // Detectar número de equipos desde encabezados de la tabla
+          const tblOld = tbody.closest('table');
+          const hdrsOld = tblOld ? tblOld.querySelectorAll('thead th') : [];
+          // Cols: Concepto | Detalle | Eq1 | … | TOTAL  → nEq = hdrs - 3
+          const nEqOld = Math.max(0, hdrsOld.length - 3);
+          for (let i = 0; i < nEqOld; i++) b.costosPorEquipo.push({});
+
+          tbody.querySelectorAll('tr:not(.subhdr):not(.tot-row):not(.mul-row)').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length < 2) return;
+            const con = tds[0].textContent.trim();
+            if (!con) return;
+            // Total (última columna)
+            const tot = cleanNum(tds[tds.length-1].textContent);
+            if (tot !== 0) {
+              // Normalizar al vocabulario estándar de categorías (evita duplicados en comparativo)
+              let catKey = con;
+              if (/viático.*super/i.test(con))      catKey = 'Viáticos';      // Viáticos Supervisores
+              else if (/combustible.*adi/i.test(con)) catKey = 'Combustible';  // Combustible Adicional
+              else if (/^proveedor$/i.test(con))    catKey = 'Proveedores';   // Proveedor → Proveedores
+              else if (/^escolta$/i.test(con))      catKey = 'Escoltas';      // Escolta → Escoltas
+              b.costos[catKey] = (b.costos[catKey] || 0) + tot;
+            }
+            // Por equipo (columnas 2..N-1) — se guarda el nombre original para detalle
+            for (let i = 0; i < nEqOld && (2 + i) < tds.length - 1; i++) {
+              const v = cleanNum(tds[2 + i].textContent);
+              if (v) b.costosPorEquipo[i][con] = (b.costosPorEquipo[i][con] || 0) + v;
+            }
+          });
+          const tr = tbody.querySelector('.tot-row');
+          if (tr) { const tds=tr.querySelectorAll('td'); b.ppto_total=cleanNum(tds[tds.length-1].textContent); }
+        }
+        const ub = doc.getElementById('r-utilidad-est-body');
+        if (ub) {
+          ub.querySelectorAll('tr').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length >= 2) {
+              const lbl=tds[0].textContent.trim(), v=cleanNum(tds[1].textContent);
+              if (/facturac/i.test(lbl))  b.ppto_fact = v;
+              if (/utilidad/i.test(lbl))  b.ppto_util = v;
+            }
+          });
+        }
+
+        // Parsear #r-rata — combustible total de la flota (formato antiguo)
+        b.ratas = [];
+        b.combTotal = null;
+        const rataBodyOld = doc.getElementById('r-rata');
+        if (rataBodyOld) {
+          let curOld = null;
+          const parseCOOld   = s => parseInt(String(s).replace(/\./g,'').trim()) || 0;
+          const parseRataOld = s => parseFloat(String(s).trim()) || 0;
+          rataBodyOld.querySelectorAll('tr').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length === 1 && tds[0].getAttribute('colspan')) {
+              curOld = { desc: tds[0].textContent.trim(), vacio: null, cargado: null };
+              b.ratas.push(curOld);
+              return;
+            }
+            if (tds.length < 3) return;
+            const tipo  = tds[0].textContent.trim().toLowerCase();
+            const entry = { km: parseCOOld(tds[1].textContent), gal: parseCOOld(tds[2].textContent), rata: tds[3] ? parseRataOld(tds[3].textContent) : 0 };
+            if      (/vac/i.test(tipo) && curOld)  curOld.vacio   = entry;
+            else if (/car/i.test(tipo) && curOld)  curOld.cargado = entry;
+            else if (/tot/i.test(tipo))             b.combTotal    = entry; // Total global
+          });
+        }
+      }
+
+      pptoData = b;
+      document.getElementById('ppto-drop-area').style.display = 'none';
+      document.getElementById('ppto-ok').style.display = 'block';
+      document.getElementById('ppto-name').textContent = file.name;
+      const inf = b.info || {};
+      document.getElementById('ppto-info').innerHTML =
+        `${b.version ? `<span style="font-size:9px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;margin-right:6px">${b.version}</span>` : ''}` +
+        `OSI: <strong>${inf['# OSI']||'—'}</strong> &nbsp;|&nbsp; ` +
+        `Oferta: <strong>${inf['# Oferta']||inf['# oferta']||'—'}</strong> &nbsp;|&nbsp; ` +
+        `Cliente: <strong>${inf['Cliente']||'—'}</strong> &nbsp;|&nbsp; ` +
+        `Ppto: <strong>${fmt(b.ppto_total||b.total||0)}</strong> &nbsp;|&nbsp; ` +
+        `Fac. Esp.: <strong>${fmt(b.ppto_fact||0)}</strong>`;
+    } catch(err) { alert('Error al leer el presupuesto:\n' + err.message); }
+  };
+  r.readAsText(file, 'UTF-8');
+}
+
+function clearPpto() {
+  pptoData = null;
+  document.getElementById('ppto-drop-area').style.display = 'block';
+  document.getElementById('ppto-ok').style.display = 'none';
+  document.getElementById('inp-ppto').value = '';
+}
+
+// ─── CARGA POST-EJECUCIÓN ──────────────────────────────────────────────────────
+let postEjecData = null;
+
+function onDropPostEjec(e) { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f) loadPostEjecFile(f); }
+function loadPostEjec(e)   { if(e.target.files[0]) loadPostEjecFile(e.target.files[0]); }
+
+function loadPostEjecFile(file) {
+  const r = new FileReader();
+  r.onload = function(e2) {
+    try {
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(e2.target.result, 'text/html');
+      let data;
+
+      // ── Caso 1: JSON embebido (informes generados con versión nueva) ──
+      const tag = doc.getElementById('costeo-datos');
+      if (tag) {
+        data = JSON.parse(tag.textContent);
+      } else {
+        // ── Caso 2: Raspar DOM del informe de buildServicio() ─────────
+        const parseMon = s => {
+          // "$67.500.000" → 67500000  (punto = miles en colombiano)
+          return parseFloat(String(s||'').replace(/\$|\s/g,'').replace(/\./g,'').replace(',','.')) || 0;
+        };
+        const parsePct = s => parseFloat(String(s||'').replace('%','').trim()) || 0;
+        const parseCOI = s => parseInt(String(s||'').replace(/\./g,'').trim()) || 0;
+
+        // KPIs (.kpi .kv / .kl)
+        const kpis = {};
+        doc.querySelectorAll('.kpi').forEach(card => {
+          const lbl = card.querySelector('.kl')?.textContent?.trim() || '';
+          const val = card.querySelector('.kv')?.textContent?.trim() || '';
+          if (/Facturac/i.test(lbl))  kpis.fact  = parseMon(val);
+          if (/Costos Op/i.test(lbl)) kpis.totOp = parseMon(val);
+          if (/Costos Oc/i.test(lbl)) kpis.totOc = parseMon(val);
+          if (/Admin/i.test(lbl))     kpis.adm   = parseMon(val);
+          if (/UAI/i.test(lbl))       kpis.uai   = parseMon(val);
+          if (/Rentab/i.test(lbl))    kpis.rent  = parsePct(val);
+        });
+
+        // OSI, Cliente, Oferta desde cabecera e info-table
+        const flds = {};
+        doc.querySelectorAll('.rhdr div').forEach(d => {
+          if (/^#\s*\d/.test(d.textContent.trim())) flds.osi = d.textContent.replace('#','').trim();
+        });
+        doc.querySelectorAll('.rtbl tbody tr').forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length < 2) return;
+          const lbl = tds[0].textContent.trim();
+          const val = tds[1].textContent.trim();
+          if (/^Cliente$/i.test(lbl))     flds.cliente  = val;
+          if (/Responsable/i.test(lbl))   flds.lider    = val;
+          if (/^Carga$/i.test(lbl))       flds.carga    = val;
+          if (/OSI.*Oferta|Oferta.*OSI/i.test(lbl)) {
+            const parts = val.split('/');
+            if (!flds.osi && parts[0]) flds.osi = parts[0].trim();
+            if (parts[1]) flds.oferta = parts[1].trim();
+          }
+        });
+
+        // Equipos: filas con "Eq.N" en primera celda
+        // Columnas: #(0), Ref(1), Cab(2), Trailer(3), Op(4), Aux(5), Período(6), Días(7), Km(8), Galones(9), Rata(10)
+        const equiposList = [];
+        doc.querySelectorAll('.rtbl tbody tr').forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length >= 10 && /^Eq\.\d+$/.test(tds[0].textContent.trim())) {
+            equiposList.push({
+              num:     parseInt(tds[0].textContent.replace('Eq.','').trim()) || 0,
+              plat:    tds[1].textContent.trim(),
+              dias:    parseCOI(tds[7].textContent),
+              km:      parseCOI(tds[8].textContent),
+              galones: parseCOI(tds[9].textContent),
+            });
+          }
+        });
+
+        // Costos por Categoría
+        const catTot = {};
+        let nextIsCat = false;
+        doc.querySelectorAll('.rh2, .rtbl').forEach(el => {
+          if (el.classList.contains('rh2') && /Costos Operativos por Categ/i.test(el.textContent)) {
+            nextIsCat = true; return;
+          }
+          if (nextIsCat && el.classList.contains('rtbl')) {
+            el.querySelectorAll('tbody tr:not(.tot)').forEach(tr => {
+              const tds = tr.querySelectorAll('td');
+              if (tds.length >= 2) {
+                const cat = tds[0].textContent.trim();
+                const val = parseMon(tds[1].textContent);
+                if (cat && val) catTot[cat] = val;
+              }
+            });
+            nextIsCat = false;
+          }
+        });
+
+        data = {
+          version: 'COSTEO_v1_scraped',
+          fact:  kpis.fact  || 0,
+          totOp: kpis.totOp || 0,
+          totOc: kpis.totOc || 0,
+          adm:   kpis.adm   || 0,
+          totC:  (kpis.totOp||0) + (kpis.totOc||0) + (kpis.adm||0),
+          uai:   kpis.uai   || 0,
+          rent:  kpis.rent  || 0,
+          catTot, flds,
+          catTotPorEquipo: [], // no disponible en versiones antiguas
+          equipos: equiposList,
+        };
+      }
+
+      if (!data.fact && !data.totOp) {
+        alert('No se encontraron datos en este archivo.\nVerifica que sea un Informe de Rentabilidad generado por esta herramienta.');
+        return;
+      }
+
+      postEjecData = data;
+      document.getElementById('postejec-drop-area').style.display = 'none';
+      document.getElementById('postejec-ok').style.display = 'block';
+      document.getElementById('postejec-name').textContent = file.name;
+      document.getElementById('postejec-info').innerHTML =
+        `OSI: <strong>${data.flds?.osi||'—'}</strong> &nbsp;|&nbsp; ` +
+        `Cliente: <strong>${data.flds?.cliente||'—'}</strong> &nbsp;|&nbsp; ` +
+        `Facturación: <strong>${fmt(data.fact||0)}</strong> &nbsp;|&nbsp; ` +
+        `Equipos: <strong>${(data.equipos||[]).length}</strong>`;
+    } catch(err) { alert('Error al leer el archivo:\n' + err.message); }
+  };
+  r.readAsText(file, 'UTF-8');
+}
+
+function clearPostEjec() {
+  postEjecData = null;
+  document.getElementById('postejec-drop-area').style.display = 'block';
+  document.getElementById('postejec-ok').style.display = 'none';
+  document.getElementById('inp-postejec').value = '';
+}
+
+// ─── CORREGIR INFORME YA DESCARGADO ────────────────────────
+// Permite volver a cargar un informe ya generado por esta herramienta para
+// recuperar Información del Servicio + Equipos + Anticipos y poder corregir
+// cualquier valor (ej. Facturación) antes de regenerar el informe.
+function onDropCorreccion(e) { e.preventDefault(); document.querySelector('#corr-drop-area .dz')?.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) loadCorreccionFile(f); }
+function loadCorreccion(e) { if (e.target.files[0]) loadCorreccionFile(e.target.files[0]); }
+
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
+
+function loadCorreccionFile(file) {
+  const r = new FileReader();
+  r.onload = function(e2) {
+    try {
+      const doc = new DOMParser().parseFromString(e2.target.result, 'text/html');
+      const tag = doc.getElementById('costeo-datos');
+      if (!tag) {
+        alert('Este archivo no parece ser un informe generado por esta herramienta (no se encontró el bloque de datos "costeo-datos").');
+        return;
+      }
+      const data = JSON.parse(tag.textContent);
+      const f = data.flds || {};
+
+      // 1. Reiniciar estado actual
+      ants = []; equipos = []; antSeq = 0; eqSeq = 0;
+
+      // 2. Información del Servicio
+      setVal('osi', f.osi); setVal('oferta', f.oferta); setVal('cliente', f.cliente);
+      setVal('carga', f.carga); setVal('origen', f.origen); setVal('destino', f.destino);
+      setVal('f_ini', f.fIni); setVal('f_fin', f.fFin); setVal('lider', f.lider);
+      setVal('facturacion', data.fact || 0);
+
+      // 3. Equipos (vienen serializados en el JSON del informe)
+      (data.equipos || []).forEach(eqData => {
+        equipos.push({
+          id: eqSeq++, num: eqData.num || (equipos.length + 1),
+          plat: eqData.plat || '', cab: eqData.cab || '', tra: eqData.tra || '',
+          op: '', aux: [],
+          dias: eqData.dias || 0, km: eqData.km || 0, galones: eqData.galones || 0,
+          fIni: eqData.fIni || '', fFin: eqData.fFin || '',
+        });
+      });
+      const numToId = {};
+      equipos.forEach(eq => numToId[eq.num] = eq.id);
+
+      // 4. Detalle de Anticipos: el JSON solo trae totales por categoría, así
+      // que se recupera cada registro individual directamente de la tabla del
+      // informe (fecha, doc, nombre, monto, categoría, equipo y comentario).
+      doc.querySelectorAll('#ant-tbl tbody tr[data-cat]').forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const fecha  = tds[0]?.textContent?.trim() || '';
+        const docNum = tds[1]?.textContent?.trim() || '';
+        const nombre = tds[2]?.textContent?.trim() || '';
+        const cat    = tr.getAttribute('data-cat') || 'Otros';
+        const monto  = parseFloat(tr.getAttribute('data-monto') || '0') || 0;
+        const eqTxt  = tds[4]?.textContent?.trim() || '';
+        const eqNum  = parseInt((eqTxt.match(/Eq\.(\d+)/) || [])[1] || '', 10);
+        const eq_id  = numToId.hasOwnProperty(eqNum) ? numToId[eqNum] : null;
+        const noteDiv = tds[6]?.querySelector('div');
+        const com    = noteDiv ? (noteDiv.textContent || '').trim() : '';
+        ants.push({
+          id: antSeq++, doc: docNum, fecha, nombre, monto, com,
+          plat_det: detectPlate(com), eq_id, cat, inc: true,
+        });
+      });
+
+      // 5. Refrescar toda la UI con los datos recuperados
+      document.getElementById('dz-area').style.display = 'none';
+      document.getElementById('ant-section').style.display = ants.length ? 'block' : 'none';
+      document.getElementById('ant-count-lbl').textContent =
+        `${ants.length} registros recuperados · ${equipos.length} equipos · ${file.name}`;
+      renderAll();
+
+      document.getElementById('corr-drop-area').style.display = 'none';
+      document.getElementById('corr-ok').style.display = 'block';
+      document.getElementById('corr-name').textContent = file.name;
+      document.getElementById('corr-info').innerHTML =
+        `OSI: <strong>${esc(f.osi||'—')}</strong> &nbsp;|&nbsp; ` +
+        `Cliente: <strong>${esc(f.cliente||'—')}</strong> &nbsp;|&nbsp; ` +
+        `Facturación: <strong>${fmt(data.fact||0)}</strong> &nbsp;|&nbsp; ` +
+        `Equipos: <strong>${equipos.length}</strong> &nbsp;|&nbsp; ` +
+        `Anticipos: <strong>${ants.length}</strong>`;
+    } catch (err) {
+      alert('Error al leer el informe:\n' + err.message);
+    }
+  };
+  r.readAsText(file, 'UTF-8');
+}
+
+function clearCorreccion() {
+  document.getElementById('corr-drop-area').style.display = 'block';
+  document.getElementById('corr-ok').style.display = 'none';
+  document.getElementById('inp-corr').value = '';
+}
+
+// ─── REPORT ───────────────────────────────────────────────
+// Datos comunes calculados una vez y usados por ambos informes
+function calcReportData() {
+  const fact      = parseFloat(document.getElementById('facturacion').value) || 0;
+  const incA      = ants.filter(a => a.inc);
+  const antOp     = incA.reduce((s,a) => s + a.monto, 0);
+  const combTotal = equipos.reduce((s, eq) => s + (eq.galones || 0) * 11000, 0);
+  const totOp     = antOp + combTotal;
+  const { perEq: eqOcs, totals: ocTotals, total: totOc } = computeOcultos(fact);
+  const adm       = (totOp + totOc) * 0.16;
+  const totC      = totOp + totOc + adm;
+  const uai       = fact - totC;
+  const rent      = fact > 0 ? uai / fact * 100 : 0;
+  const rCol      = rent >= 25 ? '#15803d' : rent >= 15 ? '#ff8c00' : rent >= 5 ? '#c2410c' : '#991b1b';
+  const catTot = {};
+  CATS.forEach(c => catTot[c] = 0);
+  incA.forEach(a => catTot[a.cat] = (catTot[a.cat]||0) + a.monto);
+  if (combTotal > 0) catTot['Combustible'] = (catTot['Combustible'] || 0) + combTotal;
+  const eqOpTot = {};
+  equipos.forEach(eq => { eqOpTot[eq.id] = incA.filter(a => a.eq_id === eq.id).reduce((s,a)=>s+a.monto,0); });
+  const sinEqTot = incA.filter(a => a.eq_id === null).reduce((s,a) => s + a.monto, 0);
+  // Costos operativos por equipo y por categoría
+  const catTotPorEquipo = equipos.map(eq => {
+    const cats = {};
+    CATS.forEach(c => cats[c] = 0);
+    incA.filter(a => a.eq_id === eq.id).forEach(a => { cats[a.cat] = (cats[a.cat]||0) + a.monto; });
+    const combEq = (eq.galones||0) * 11000;
+    if (combEq > 0) cats['Combustible'] = (cats['Combustible']||0) + combEq;
+    const total = Object.values(cats).reduce((s,v)=>s+v, 0);
+    return { num: eq.num, plat: eq.plat, cats, total };
+  });
+  const flds = {
+    osi: val('osi'), oferta: val('oferta'), cliente: val('cliente'),
+    carga: val('carga'), origen: val('origen'), destino: val('destino'),
+    fIni: val('f_ini'), fFin: val('f_fin'), lider: val('lider'),
+  };
+  return { fact, incA, antOp, combTotal, totOp, eqOcs, ocTotals, totOc, adm, totC, uai, rent, rCol, catTot, catTotPorEquipo, eqOpTot, sinEqTot, flds };
+}
+
+function genReport(modo) {
+  // modo: false / 'servicio' → Informe del Servicio
+  // modo: true / 'comparativo' → Comparativo Presupuesto vs Ejecutado
+  const isComp = modo === true || modo === 'comparativo';
+  if (isComp && !pptoData) { alert('Primero carga el archivo de presupuesto.'); return; }
+
+  const D = calcReportData();
+  const pie = `<div style="text-align:center;font-size:10px;color:#aaa;margin-top:24px;padding-top:12px;border-top:1px solid #eee">
+    Documento generado · Boom Logistics Colombia S.A.S. · ${new Date().toLocaleDateString('es-CO')}
+  </div>`;
+
+  // Si hay post-ejecución cargado, úsalo como datos ejecutados en el comparativo
+  const Dcomp = (isComp && postEjecData) ? postEjecData : D;
+  const html = isComp ? buildComparativo(Dcomp) + pie : buildServicio(D) + pie;
+  document.getElementById('rep-body').innerHTML = html;
+  document.getElementById('rep-ov').style.display = 'block';
+}
+
+// ── INFORME DE RENTABILIDAD POR SERVICIO ─────────────────────────────────────
+// ── Helpers para tabla de anticipos (filtro + popover comentario) ──────
+function antFilter(btn, cat) {
+  let subtotal = 0;
+  document.querySelectorAll('#ant-tbl tr[data-cat]').forEach(r => {
+    const visible = !cat || r.getAttribute('data-cat') === cat;
+    r.style.display = visible ? '' : 'none';
+    if (visible) subtotal += parseFloat(r.getAttribute('data-monto') || 0);
+  });
+  document.querySelectorAll('.ant-f').forEach(b => {
+    b.style.background = '#e5e7eb'; b.style.color = '#374151';
+  });
+  btn.style.background = '#1a1a1a'; btn.style.color = '#ff8c00';
+  // Actualizar celda total y etiqueta de filtro
+  const totEl = document.getElementById('ant-tot');
+  const lblEl = document.getElementById('ant-tot-lbl');
+  if (totEl) totEl.textContent = subtotal.toLocaleString('es-CO', {style:'currency',currency:'COP',minimumFractionDigits:0,maximumFractionDigits:0}).replace('COP','$').replace(/\s/g,'');
+  if (lblEl) lblEl.textContent = cat ? 'SUBTOTAL – ' + cat.toUpperCase() : 'TOTAL';
+}
+function antPop(id) {
+  const p = document.getElementById(id);
+  if (p) p.style.display = p.style.display === 'block' ? 'none' : 'block';
+}
+
+function buildServicio(D) {
+  const { fact, incA, totOp, eqOcs, ocTotals, totOc, adm, totC, uai, rent, rCol, catTot, catTotPorEquipo, eqOpTot, sinEqTot, flds } = D;
+
+  // Costos ocultos consolidados por concepto (incluye Provisión de Impuestos
+  // aunque el servicio no tenga equipos asignados)
+  const ocTot = ocTotals;
+
+  // ── Anticipos: chips de filtro + ícono de comentario ──────────────────
+  const antCats = [...new Set(incA.map(a => a.cat))].sort();
+  const antFilterHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+    <span style="font-size:10px;color:#666;font-weight:700;margin-right:4px">Filtrar:</span>
+    <button class="ant-f" onclick="antFilter(this,'')" style="background:#1a1a1a;color:#ff8c00;border:none;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer">Todas</button>
+    ${antCats.map(c => `<button class="ant-f" onclick="antFilter(this,'${c.replace(/'/g, "\\'")}')" style="background:#e5e7eb;color:#374151;border:none;padding:4px 12px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer">${esc(c)}</button>`).join('')}
+  </div>`;
+  const antRowsHtml = incA.map((a, ai) => {
+    const eqLbl = a.eq_id !== null ? `Eq.${equipos.find(e=>e.id===a.eq_id)?.num||'?'}` : '—';
+    const com = (a.com || '').trim();
+    const pid = 'ap' + ai;
+    const icon = com ? `<span style="position:relative;display:inline-block">
+      <span onclick="antPop('${pid}')" style="cursor:pointer;font-size:13px;line-height:1" title="${com.replace(/"/g,'&quot;').substring(0,80)}">💬</span>
+      <div id="${pid}" style="display:none;position:absolute;right:0;bottom:22px;width:220px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:8px 10px;font-size:11px;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:99;white-space:pre-wrap;line-height:1.5">${esc(com)}</div>
+    </span>` : '';
+    return `<tr data-cat="${a.cat}" data-monto="${a.monto}">
+      <td style="font-size:10px;white-space:nowrap">${a.fecha}</td>
+      <td style="font-size:10px">${esc(a.doc)}</td>
+      <td style="font-size:10px">${esc(a.nombre)}</td>
+      <td style="font-size:10px">${a.cat}</td>
+      <td style="font-size:10px;text-align:center">${eqLbl}</td>
+      <td class="r">${fmt(a.monto)}</td>
+      <td style="text-align:center;width:28px">${icon}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="rhdr">
+    <div>
+      <div style="font-size:10px;opacity:.65">BOOM LOGISTICS COLOMBIA S.A.S.</div>
+      <div style="font-size:20px;font-weight:800;margin:4px 0">Informe de Rentabilidad por Servicio</div>
+      <div style="font-size:11px;opacity:.75">${new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:26px;font-weight:800"># ${flds.osi||'—'}</div>
+      <div style="font-size:11px;opacity:.7">Oferta: ${flds.oferta||'—'}</div>
+      ${flds.carga ? `<div style="font-size:11px;opacity:.7;margin-top:2px">Carga: <strong>${esc(flds.carga)}</strong></div>` : ''}
+    </div>
+  </div>
+
+  <div class="rh2">📋 Información del Servicio</div>
+  <table class="rtbl">
+    <tr><td style="color:#666;width:18%">Cliente</td><td style="font-weight:600">${esc(flds.cliente)||'—'}</td>
+        <td style="color:#666;width:18%">OSI / Oferta</td><td>${flds.osi||'—'} / ${flds.oferta||'—'}</td></tr>
+    <tr><td style="color:#666">Carga</td><td colspan="3">${esc(flds.carga)||'—'}</td></tr>
+    <tr><td style="color:#666">Ruta</td><td colspan="3"><strong>${esc(flds.origen)||'—'}</strong> → <strong>${esc(flds.destino)||'—'}</strong></td></tr>
+    <tr><td style="color:#666">Período</td><td colspan="3">${flds.fIni} → ${flds.fFin}</td></tr>
+    <tr><td style="color:#666">Responsable</td><td colspan="3">${esc(flds.lider)||'—'}</td></tr>
+  </table>
+
+  <!-- KPIs: 6 tarjetas -->
+  <div class="kpi-g" style="grid-template-columns:repeat(6,1fr)">
+    <div class="kpi"><div class="kv">${fmt(fact)}</div><div class="kl">Facturación</div></div>
+    <div class="kpi"><div class="kv">${fmt(totOp)}</div><div class="kl">Costos Operativos</div></div>
+    <div class="kpi"><div class="kv">${fmt(totOc)}</div><div class="kl">Costos Ocultos</div></div>
+    <div class="kpi"><div class="kv">${fmt(adm)}</div><div class="kl">Costos Admin (16%)</div></div>
+    <div class="kpi"><div class="kv">${fmt(uai)}</div><div class="kl">UAI</div></div>
+    <div class="kpi acc"><div class="kv">${rent.toFixed(1)}%</div><div class="kl">Rentabilidad</div></div>
+  </div>
+
+  <div class="rh2">🚛 Equipos del Proyecto</div>
+  <table class="rtbl">
+    <thead><tr><th>#</th><th>Ref.</th><th>Cabezote</th><th>Trailer</th><th>Operador</th><th>Auxiliares</th><th class="r">Período</th><th class="r">Días</th><th class="r">Km</th><th class="r">Galones</th><th class="r">Rata</th><th class="r">Costos Op.</th><th class="r">Costos Oc.</th></tr></thead>
+    <tbody>
+    ${eqOcs.map(({eq,oc}) => {
+      const op = eqOpTot[eq.id]||0;
+      const cabKey  = detectCab(eq.plat) || eq.cab || '—';
+      const auxList = Array.isArray(eq.aux) && eq.aux.length ? eq.aux.map(n=>esc(n||'—')).join('<br>') : 'N/A';
+      const rata    = (eq.km > 0 && eq.galones > 0) ? (eq.km / eq.galones).toFixed(1) : '—';
+      const periodo = (eq.fIni || eq.fFin) ? `${eq.fIni||'?'} → ${eq.fFin||'?'}` : '—';
+      return `<tr>
+        <td>Eq.${eq.num}</td><td><strong>${esc(eq.plat)||'—'}</strong></td>
+        <td style="font-size:10px">${esc(cabKey)}</td><td style="font-size:10px">${esc(eq.tra)||'—'}</td>
+        <td style="font-size:10px">${esc(eq.op)||'—'}</td><td style="font-size:10px">${auxList}</td>
+        <td style="font-size:10px;white-space:nowrap">${periodo}</td>
+        <td class="r">${eq.dias}</td>
+        <td class="r">${(eq.km||0).toLocaleString('es-CO')}</td>
+        <td class="r">${(eq.galones||0).toLocaleString('es-CO')}</td>
+        <td class="r" style="font-weight:700;color:#3730a3">${rata}</td>
+        <td class="r">${fmt(op)}</td><td class="r">${fmt(oc.total)}</td>
+      </tr>`;
+    }).join('')}
+    ${sinEqTot > 0 ? `<tr><td colspan="11" style="color:#555;font-style:italic;font-weight:600">Otros Costos (Proveedores, Subcontratados, Escoltas)</td><td class="r" style="font-weight:700">${fmt(sinEqTot)}</td><td class="r">—</td></tr>` : ''}
+    </tbody>
+    <tr class="tot"><td colspan="11">TOTALES</td><td class="r">${fmt(totOp)}</td><td class="r">${fmt(totOc)}</td></tr>
+  </table>
+
+  <!-- BLOQUE 1: COSTOS OPERATIVOS -->
+  <div class="rh2">💵 Costos Operativos por Categoría</div>
+  <table class="rtbl">
+    <thead><tr><th>Categoría</th><th class="r">Total ($)</th><th class="r">% sobre Op.</th><th class="r">% sobre Facturación</th></tr></thead>
+    <tbody>
+    ${CATS.filter(c => D.catTot[c] > 0).map(c => `
+      <tr><td>${c}</td><td class="r">${fmt(D.catTot[c])}</td>
+          <td class="r">${totOp > 0 ? (D.catTot[c]/totOp*100).toFixed(1)+'%' : '—'}</td>
+          <td class="r">${pct(D.catTot[c],fact)}</td></tr>`).join('')}
+    </tbody>
+    <tr class="tot"><td>TOTAL COSTOS OPERATIVOS</td><td class="r">${fmt(totOp)}</td><td class="r">100.0%</td><td class="r">${pct(totOp,fact)}</td></tr>
+  </table>
+
+  ${(catTotPorEquipo && catTotPorEquipo.length > 1) ? `
+  <div class="rh2" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="(function(){var d=document.getElementById('cat-eq-detail');var b=document.getElementById('cat-eq-btn');if(d.style.display==='none'){d.style.display='block';b.textContent='▲ Ocultar';}else{d.style.display='none';b.textContent='▼ Ver por equipo';}})()">
+    <span>📊 Detalle de Costos por Equipo</span>
+    <span id="cat-eq-btn" style="font-size:10px;font-weight:600;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:4px;letter-spacing:.5px">▼ Ver por equipo</span>
+  </div>
+  <div id="cat-eq-detail" style="display:none;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap">
+      ${catTotPorEquipo.map((ep, i) => `<button id="eq-cat-btn-${i}" class="eq-cat-btn" onclick="(function(){document.querySelectorAll('.eq-cat-panel').forEach(function(p){p.style.display='none';});document.querySelectorAll('.eq-cat-btn').forEach(function(b){b.style.background='#e5e7eb';b.style.color='#374151';});var p=document.getElementById('eq-cat-panel-${i}');var b=document.getElementById('eq-cat-btn-${i}');if(p)p.style.display='block';if(b){b.style.background='#1a1a1a';b.style.color='#ff8c00';}})()" style="background:${i===0?'#1a1a1a':'#e5e7eb'};color:${i===0?'#ff8c00':'#374151'};border:none;padding:7px 16px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">⚡ Equipo ${ep.num} · ${ep.plat||'—'}</button>`).join('')}
+    </div>
+    ${catTotPorEquipo.map((ep, i) => `
+    <div id="eq-cat-panel-${i}" class="eq-cat-panel" style="display:${i===0?'block':'none'}">
+      <table class="rtbl">
+        <thead><tr><th>Categoría</th><th class="r">Total ($)</th><th class="r">% del Equipo</th><th class="r">% de Facturación</th></tr></thead>
+        <tbody>
+          ${CATS.filter(c => ep.cats[c] > 0).map(c => `<tr><td>${c}</td><td class="r">${fmt(ep.cats[c])}</td><td class="r">${ep.total>0?(ep.cats[c]/ep.total*100).toFixed(1)+'%':'—'}</td><td class="r">${fact>0?(ep.cats[c]/fact*100).toFixed(1)+'%':'—'}</td></tr>`).join('')}
+        </tbody>
+        <tr class="tot"><td>TOTAL Eq.${ep.num} ${esc(ep.plat||'')}</td><td class="r">${fmt(ep.total)}</td><td class="r">100.0%</td><td class="r">${fact>0?(ep.total/fact*100).toFixed(1)+'%':'—'}</td></tr>
+      </table>
+    </div>`).join('')}
+  </div>` : ''}
+
+  <div class="rh2" style="display:flex;justify-content:space-between;align-items:center">
+    <span>📋 Detalle de Anticipos (${incA.length} registros)</span>
+    <button id="ant-toggle-btn" onclick="(function(){var w=document.getElementById('ant-detail-wrap');var b=document.getElementById('ant-toggle-btn');var open=w.style.display==='none';w.style.display=open?'block':'none';b.textContent=open?'▲ Ocultar Detalle':'▼ Ver Detalle';})()" style="font-size:10px;font-weight:600;background:rgba(255,255,255,.15);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px">▲ Ocultar Detalle</button>
+  </div>
+  <div id="ant-detail-wrap">
+    ${antFilterHtml}
+    <div class="tbl-wrap">
+      <table class="rtbl" id="ant-tbl" style="margin-bottom:0">
+        <thead><tr><th>Fecha</th><th>Doc</th><th>Nombre</th><th>Categoría</th><th>Equipo</th><th class="r">Monto</th><th style="width:28px"></th></tr></thead>
+        <tbody>${antRowsHtml}</tbody>
+      </table>
+    </div>
+    <table class="rtbl" style="margin-top:0">
+      <tr class="tot"><td colspan="5" id="ant-tot-lbl">TOTAL</td><td class="r" id="ant-tot">${fmt(totOp)}</td><td></td></tr>
+    </table>
+  </div>
+
+  <!-- BLOQUE 2: COSTOS OCULTOS -->
+  <div class="rh2">🔍 Costos Ocultos por Concepto</div>
+  <table class="rtbl">
+    <thead><tr><th>Concepto</th><th class="r">Total ($)</th><th class="r">% sobre Oc.</th><th class="r">% sobre Facturación</th></tr></thead>
+    <tbody>
+      <tr><td>Nómina (Operador + Auxiliares)</td><td class="r">${fmt(ocTot.nom)}</td><td class="r">${pct(ocTot.nom,totOc)}</td><td class="r">${pct(ocTot.nom,fact)}</td></tr>
+      <tr><td>Llantas Cabezote</td><td class="r">${fmt(ocTot.llCab)}</td><td class="r">${pct(ocTot.llCab,totOc)}</td><td class="r">${pct(ocTot.llCab,fact)}</td></tr>
+      <tr><td>Llantas Trailer</td><td class="r">${fmt(ocTot.llTra)}</td><td class="r">${pct(ocTot.llTra,totOc)}</td><td class="r">${pct(ocTot.llTra,fact)}</td></tr>
+      <tr><td>Depreciación Cabezote</td><td class="r">${fmt(ocTot.depCab)}</td><td class="r">${pct(ocTot.depCab,totOc)}</td><td class="r">${pct(ocTot.depCab,fact)}</td></tr>
+      <tr><td>Depreciación Trailer</td><td class="r">${fmt(ocTot.depTra)}</td><td class="r">${pct(ocTot.depTra,totOc)}</td><td class="r">${pct(ocTot.depTra,fact)}</td></tr>
+      <tr><td>Seguros</td><td class="r">${fmt(ocTot.seg)}</td><td class="r">${pct(ocTot.seg,totOc)}</td><td class="r">${pct(ocTot.seg,fact)}</td></tr>
+      <tr><td>Permisos / Resolución</td><td class="r">${fmt(ocTot.perm)}</td><td class="r">${pct(ocTot.perm,totOc)}</td><td class="r">${pct(ocTot.perm,fact)}</td></tr>
+      <tr><td>Provisión Impuestos (0.7%)</td><td class="r">${fmt(ocTot.imp)}</td><td class="r">${pct(ocTot.imp,totOc)}</td><td class="r">${pct(ocTot.imp,fact)}</td></tr>
+    </tbody>
+    <tr class="tot"><td>TOTAL COSTOS OCULTOS</td><td class="r">${fmt(totOc)}</td><td class="r">100.0%</td><td class="r">${pct(totOc,fact)}</td></tr>
+  </table>
+
+  <div class="rh2" style="margin-top:6px">🔍 Costos Ocultos por Equipo</div>
+  <table class="rtbl">
+    <thead><tr><th>Equipo</th><th class="r">Nómina</th><th class="r">Ll.Cab</th><th class="r">Ll.Trl</th><th class="r">Dep.Cab</th><th class="r">Dep.Trl</th><th class="r">Seguros</th><th class="r">Permisos</th><th class="r">Prov.Imp.</th><th class="r">Total</th></tr></thead>
+    <tbody>
+    ${eqOcs.length ? eqOcs.map(({eq,oc}) => `<tr>
+      <td>Eq.${eq.num} <strong>${esc(eq.plat)||''}</strong></td>
+      <td class="r">${fmt(oc.nom)}</td><td class="r">${fmt(oc.llCab)}</td><td class="r">${fmt(oc.llTra)}</td>
+      <td class="r">${fmt(oc.depCab)}</td><td class="r">${fmt(oc.depTra)}</td>
+      <td class="r">${fmt(oc.seg)}</td><td class="r">${fmt(oc.perm)}</td><td class="r">${fmt(oc.imp)}</td>
+      <td class="r" style="font-weight:700">${fmt(oc.total)}</td>
+    </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:#888;font-style:italic">Servicio sin equipos asignados</td></tr>`}
+    </tbody>
+    <tr class="tot"><td>TOTAL</td><td class="r">${fmt(ocTot.nom)}</td><td class="r">${fmt(ocTot.llCab)}</td><td class="r">${fmt(ocTot.llTra)}</td><td class="r">${fmt(ocTot.depCab)}</td><td class="r">${fmt(ocTot.depTra)}</td><td class="r">${fmt(ocTot.seg)}</td><td class="r">${fmt(ocTot.perm)}</td><td class="r">${fmt(ocTot.imp)}</td><td class="r">${fmt(totOc)}</td></tr>
+  </table>
+
+  <!-- ANÁLISIS FINAL -->
+  <div class="rh2">💰 Análisis de Rentabilidad</div>
+  <table class="rtbl">
+    <thead><tr><th>Descripción</th><th class="r">Valor ($)</th><th class="r">% Facturación</th></tr></thead>
+    <tbody>
+      <tr class="hl"><td><strong>Facturación Real</strong></td><td class="r"><strong>${fmt(fact)}</strong></td><td class="r">100.0%</td></tr>
+      <tr><td>(-) Costos Operativos</td><td class="r">${fmt(totOp)}</td><td class="r">${pct(totOp,fact)}</td></tr>
+      <tr style="background:#1a2e1a;color:#86efac;font-weight:700">
+        <td style="padding:8px 10px">= Utilidad Operativa</td>
+        <td class="r" style="padding:8px 10px">${fmt(fact - totOp)}</td>
+        <td class="r" style="padding:8px 10px">${pct(fact - totOp, fact)}</td>
+      </tr>
+      <tr><td>(-) Costos Ocultos</td><td class="r">${fmt(totOc)}</td><td class="r">${pct(totOc,fact)}</td></tr>
+      <tr><td>(-) Costos Administrativos (16%)</td><td class="r">${fmt(adm)}</td><td class="r">${pct(adm,fact)}</td></tr>
+      <tr class="tot"><td>COSTO TOTAL</td><td class="r">${fmt(totC)}</td><td class="r">${pct(totC,fact)}</td></tr>
+    </tbody>
+    <tfoot>
+      <tr style="background:${rCol};color:#fff;font-weight:800">
+        <td style="padding:10px">UTILIDAD ANTES DE IMPUESTOS (UAI)</td>
+        <td class="r" style="padding:10px;font-size:16px">${fmt(uai)}</td>
+        <td class="r" style="padding:10px;font-size:16px">${rent.toFixed(1)}%</td>
+      </tr>
+    </tfoot>
+  </table>`;
+}
+
+// ── INFORME COMPARATIVO PRESUPUESTO VS EJECUTADO ──────────────────────────────
+function buildComparativo(D) {
+  const { fact, totOp, totOc, adm, totC, uai, rent, catTot } = D;
+  const ppto      = pptoData;
+  const pptoFact  = ppto.ppto_fact  || 0;
+  const pptoTotal = ppto.ppto_total || ppto.total || 0;
+  const pptoUtil  = ppto.ppto_util  || (pptoFact - pptoTotal);
+  const pptoRent  = pptoFact > 0 ? pptoUtil / pptoFact * 100 : 0;
+  const inf       = ppto.info || {};
+  const flds      = D.flds;
+
+  // Rentabilidad operativa ejecutada (comparable con presupuesto — solo costos op)
+  const uaiOp  = fact - totOp;
+  const rentOp = fact > 0 ? uaiOp / fact * 100 : 0;
+
+  const uaiDiff    = uaiOp - pptoUtil;         // variación operativa (manzanas con manzanas)
+  const rentOpDiff = rentOp - pptoRent;        // variación rentabilidad operativa
+  // Colores basados en comparación operativa (mejor=verde, peor=rojo)
+  const opCol      = rentOpDiff >= 0 ? '#15803d' : '#991b1b';
+  const opVarCol   = rentOpDiff >= 0 ? '#14532d' : '#7f1d1d';
+  const uaiCol     = opCol; // compatibilidad
+  const rentFinalCol = '#1e3a5f'; // azul oscuro fijo — visualmente distinto del comparativo
+  const varColor = (diff, dir=1) => diff === 0 ? '#555' : diff * dir > 0 ? '#15803d' : '#991b1b';
+  const sign = v => v > 0 ? '+' : '';
+
+  // Formato abreviado para millones (evita desbordamiento en tarjetas)
+  const fmtM = v => {
+    const a = Math.abs(v), s = v < 0 ? '-' : '';
+    if (a >= 1e6) return s + '$' + (a/1e6).toFixed(1).replace('.',',') + 'M';
+    if (a >= 1e3) return s + '$' + Math.round(a/1e3) + 'K';
+    return fmt(v);
+  };
+
+  // ── ① KPIs → tabla comparativa completa con valores enteros ────
+  const pptoCTot = pptoTotal; // solo operativos — admin y ocultos no aplican en ppto
+  const kpiDefs = [
+    { lbl:'Facturación',             pp: pptoFact,  ex: fact,  dir:1,  isPct:false, sep:false },
+    { lbl:'(-) Costos Operativos',   pp: pptoTotal, ex: totOp, dir:-1, isPct:false, sep:false },
+    { lbl:'(-) Costos Ocultos',      pp: null,      ex: totOc, dir:-1, isPct:false, sep:false },
+    { lbl:'(-) Admin (16%)',          pp: null,      ex: adm,   dir:-1, isPct:false, sep:false },
+    { lbl:'Costo Total',             pp: pptoCTot,  ex: totC,  dir:-1, isPct:false, sep:true  },
+    { lbl:'UAI',                     pp: pptoUtil,  ex: uai,   dir:1,  isPct:false, sep:false },
+    { lbl:'Rentabilidad',            pp: pptoRent,  ex: rent,  dir:1,  isPct:true,  sep:false },
+  ];
+
+  const kpiTableRows = kpiDefs.map(({lbl, pp, ex, dir, isPct, sep}) => {
+    const hasComp = pp !== null && pp !== undefined;
+    const diff    = hasComp ? ex - pp : null;
+    const col     = (hasComp && diff !== null) ? varColor(diff, dir) : '#bbb';
+    const arrow   = !hasComp ? '' : diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
+    const ppFmt   = !hasComp ? '<span style="color:#ccc">N/P</span>'
+                  : isPct ? pp.toFixed(1)+'%' : fmt(pp);
+    const exFmt   = isPct ? ex.toFixed(1)+'%' : fmt(ex);
+    const dAbs    = !hasComp ? '' : isPct ? Math.abs(diff).toFixed(1)+'%' : fmt(Math.abs(diff));
+    const diffFmt = !hasComp ? '<span style="color:#ccc">—</span>'
+                  : `${arrow} ${sign(diff)}${dAbs}`;
+    const varPct  = (!isPct && hasComp && pp !== 0)
+                  ? sign(diff)+(Math.abs(diff/pp)*100).toFixed(1)+'%' : '';
+    const isBold  = /^(Costo Total|UAI)$/i.test(lbl);
+    const indent  = lbl.startsWith('(-)') ? 'padding-left:22px;' : '';
+    const rowStyle = sep ? 'border-top:2px solid #ddd;' : '';
+    return `<tr ${isBold ? 'class="tot"' : ''} style="${rowStyle}">
+      <td style="font-weight:${isBold?'700':'500'};${indent}">${lbl}</td>
+      <td class="r">${ppFmt}</td>
+      <td class="r" style="font-weight:700">${exFmt}</td>
+      <td class="r" style="font-weight:800;color:${col}">${diffFmt}</td>
+      <td class="r" style="color:${col}">${varPct}</td>
+    </tr>`;
+  }).join('');
+
+  // ── ② Rendimiento combustible — resumen total de la flota ──────
+  const pptoRatas = ppto.ratas || [];
+  const eqsComp   = D.equipos || equipos;
+
+  // Totales ejecutados
+  const kmEjecTot  = eqsComp.reduce((s,eq) => s + (eq.km||0), 0);
+  const galEjecTot = eqsComp.reduce((s,eq) => s + (eq.galones||0), 0);
+  const rataEjecTot = (kmEjecTot > 0 && galEjecTot > 0) ? (kmEjecTot/galEjecTot).toFixed(2) : '—';
+
+  // Totales presupuesto: priorizar fila Total global de #r-rata (combTotal)
+  // fallback: sumar totales por equipo si combTotal no está disponible
+  const pptoTotEntry = ppto.combTotal
+    || pptoRatas.reduce((s,r) => ({ km:(s.km||0)+(r.total?.km||0), gal:(s.gal||0)+(r.total?.gal||0) }), {km:0,gal:0});
+  const hasPptoComb = (pptoTotEntry.km > 0 || pptoTotEntry.gal > 0);
+  const rataPptoTot = (pptoTotEntry.km > 0 && pptoTotEntry.gal > 0)
+    ? (pptoTotEntry.km/pptoTotEntry.gal).toFixed(2)
+    : (ppto.combTotal?.rata ? ppto.combTotal.rata.toFixed(2) : '—');
+  const rataTotDiff = (rataEjecTot !== '—' && rataPptoTot !== '—')
+    ? (parseFloat(rataEjecTot)-parseFloat(rataPptoTot)).toFixed(2) : '—';
+  const rataTotCol  = rataTotDiff !== '—' ? varColor(parseFloat(rataTotDiff)) : '#555';
+  // Color de fondo del bloque variación: evitar rojo (confunde con UAI)
+  const rataTotBg   = rataTotDiff === '—' ? '#374151'
+                    : parseFloat(rataTotDiff) >= 0 ? '#14532d' : '#312e81';
+
+  const varRataLbl = rataTotDiff !== '—' ? `${sign(parseFloat(rataTotDiff))}${rataTotDiff}` : '—';
+  const varRataSub = rataTotDiff !== '—'
+    ? (parseFloat(rataTotDiff) >= 0 ? '▲ Mejor rendimiento' : '▼ Menor rendimiento') : '';
+  const kmDiff  = kmEjecTot  - (pptoTotEntry.km||0);
+  const galDiff = galEjecTot - (pptoTotEntry.gal||0);
+
+  const combCard = `
+  <div style="display:grid;grid-template-columns:1fr auto;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:16px">
+    <!-- Tabla de métricas -->
+    <table style="border-collapse:collapse;width:100%">
+      <thead>
+        <tr>
+          <th style="background:#2a2a2a;color:#fff;padding:9px 14px;font-size:10px;font-weight:600;text-align:left;width:130px">Métrica</th>
+          <th style="background:#1e3a5f;color:#fff;padding:9px 14px;font-size:10px;font-weight:800;text-align:right;letter-spacing:.5px">📋 PRESUPUESTO</th>
+          <th style="background:#1a1a1a;color:#ff8c00;padding:9px 14px;font-size:10px;font-weight:800;text-align:right;letter-spacing:.5px">⚡ EJECUTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #eee">
+          <td style="padding:12px 14px;font-size:11px;font-weight:600;color:#555;background:#fafafa">Kilómetros</td>
+          <td style="padding:12px 14px;font-size:18px;font-weight:700;color:#1e3a5f;text-align:right;background:#f0f4fa">${hasPptoComb ? pptoTotEntry.km.toLocaleString('es-CO') : '—'}</td>
+          <td style="padding:12px 14px;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;background:#f5f5f5">${kmEjecTot.toLocaleString('es-CO')} <span style="font-size:11px;color:${kmDiff>=0?'#991b1b':'#15803d'}">(${sign(kmDiff)}${Math.abs(kmDiff).toLocaleString('es-CO')})</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee">
+          <td style="padding:12px 14px;font-size:11px;font-weight:600;color:#555;background:#fafafa">Galones</td>
+          <td style="padding:12px 14px;font-size:18px;font-weight:700;color:#1e3a5f;text-align:right;background:#f0f4fa">${hasPptoComb ? pptoTotEntry.gal.toLocaleString('es-CO') : '—'}</td>
+          <td style="padding:12px 14px;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;background:#f5f5f5">${galEjecTot.toLocaleString('es-CO')} <span style="font-size:11px;color:${galDiff>0?'#991b1b':'#15803d'}">(${sign(galDiff)}${Math.abs(galDiff).toLocaleString('es-CO')})</span></td>
+        </tr>
+        <tr>
+          <td style="padding:12px 14px;font-size:11px;font-weight:700;color:#1a1a1a;background:#fafafa">Rata (km/gal)</td>
+          <td style="padding:12px 14px;font-size:24px;font-weight:900;color:#ff8c00;text-align:right;background:#f0f4fa">${rataPptoTot}</td>
+          <td style="padding:12px 14px;font-size:24px;font-weight:900;color:#ff8c00;text-align:right;background:#f5f5f5">${rataEjecTot}</td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- Variación Rata destacada -->
+    <div style="background:${rataTotBg};color:#fff;padding:20px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:130px">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;opacity:.75;margin-bottom:8px">Variación Rata</div>
+      <div style="font-size:28px;font-weight:900;line-height:1.1">${varRataLbl}</div>
+      <div style="font-size:10px;margin-top:3px;line-height:1.1">km/gal</div>
+      <div style="font-size:10px;opacity:.85;margin-top:8px;font-weight:600">${varRataSub}</div>
+    </div>
+  </div>`;
+
+  // ── ③ Comparativo costos por concepto ───────────────────────
+  // Lookup tolerante: "Escolta" ↔ "Escoltas", "Proveedor" ↔ "Proveedores", etc.
+  const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const findCat = (name, map) => {
+    if (map[name] !== undefined) return map[name];
+    const n = norm(name);
+    // Solo match si la clave del mapa empieza con el nombre buscado (no al revés)
+    // Evita que "Viáticos Supervisores" coincida con la clave "Viáticos"
+    const key = Object.keys(map).find(k => norm(k).startsWith(n));
+    return key !== undefined ? map[key] : 0;
+  };
+
+  // Helper slug para IDs únicos por categoría
+  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,'_').substring(0,25);
+
+  // Categorías presupuestadas (con lookup tolerante al ejecutado)
+  const pptoCats = Object.keys(ppto.costos || {});
+  const costoRowsPpto = pptoCats.map(con => {
+    const ppV  = ppto.costos[con];
+    const exV  = findCat(con, catTot);
+    const diff = exV - ppV;
+    const col  = varColor(diff, -1);
+    const id   = slug(con);
+    return `<tr>
+      <td>${esc(con)}</td>
+      <td class="r">${fmt(ppV)}</td>
+      <td class="r">${fmt(exV)}</td>
+      <td class="r" style="color:${col};font-weight:700">${sign(diff)}${fmt(diff)}</td>
+      <td class="r" style="color:${col};font-weight:700">${ppV > 0 ? sign(diff)+(diff/ppV*100).toFixed(1)+'%' : '—'}</td>
+      <td style="width:28px;text-align:center;padding:3px 4px">
+        <button data-note-btn="${id}" onclick="(function(b){var r=document.getElementById('note-${id}');if(r.style.display==='none'){r.style.display='';b.textContent='✕';b.style.color='#dc2626';}else{r.style.display='none';b.textContent='+';b.style.color='';}})(this)" style="background:none;border:1px solid #d1d5db;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:13px;font-weight:700;color:#9ca3af;padding:0;line-height:1">+</button>
+      </td>
+    </tr>
+    <tr id="note-${id}" style="display:none;background:#fffef0">
+      <td colspan="6" style="padding:0;border-top:none">
+        <textarea data-note-slug="${id}" placeholder="Observación para ${esc(con)}..."
+          oninput="window.costoNotes=window.costoNotes||{};window.costoNotes['${id}']=this.value"
+          style="width:100%;box-sizing:border-box;padding:8px 12px;font-size:11px;border:none;border-bottom:1px solid #e5e7eb;background:#fffef0;resize:vertical;min-height:60px;font-family:inherit;outline:none"></textarea>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Categorías ejecutadas NO presupuestadas (aparecen solo en ejecución)
+  const costoRowsExtra = Object.entries(catTot)
+    .filter(([cat]) => !pptoCats.some(k => norm(k).startsWith(norm(cat)) || norm(cat).startsWith(norm(k))))
+    .map(([cat, exV]) => {
+      const col = '#991b1b';
+      const id  = slug(cat);
+      return `<tr>
+        <td>${esc(cat)} <span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;margin-left:4px">No presupuestado</span></td>
+        <td class="r" style="color:#bbb">—</td>
+        <td class="r">${fmt(exV)}</td>
+        <td class="r" style="color:${col};font-weight:700">+${fmt(exV)}</td>
+        <td class="r" style="color:${col};font-weight:700">N/P</td>
+        <td style="width:28px;text-align:center;padding:3px 4px">
+          <button data-note-btn="${id}" onclick="(function(b){var r=document.getElementById('note-${id}');if(r.style.display==='none'){r.style.display='';b.textContent='✕';b.style.color='#dc2626';}else{r.style.display='none';b.textContent='+';b.style.color='';}})(this)" style="background:none;border:1px solid #d1d5db;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:13px;font-weight:700;color:#9ca3af;padding:0;line-height:1">+</button>
+        </td>
+      </tr>
+      <tr id="note-${id}" style="display:none;background:#fffef0">
+        <td colspan="6" style="padding:0;border-top:none">
+          <textarea data-note-slug="${id}" placeholder="Observación para ${esc(cat)}..."
+            oninput="window.costoNotes=window.costoNotes||{};window.costoNotes['${id}']=this.value"
+            style="width:100%;box-sizing:border-box;padding:8px 12px;font-size:11px;border:none;border-bottom:1px solid #e5e7eb;background:#fffef0;resize:vertical;min-height:60px;font-family:inherit;outline:none"></textarea>
+        </td>
+      </tr>`;
+    }).join('');
+
+  const costoRows = costoRowsPpto + costoRowsExtra;
+  const costTotDiff = totOp - pptoTotal;
+  const costTotCol  = varColor(costTotDiff, -1);
+
+  return `
+  <div class="rhdr">
+    <div>
+      <div style="font-size:10px;opacity:.65">BOOM LOGISTICS COLOMBIA S.A.S.</div>
+      <div style="font-size:20px;font-weight:800;margin:4px 0">📊 Comparativo Presupuesto vs Ejecutado</div>
+      <div style="font-size:11px;opacity:.75">${new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'})}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:26px;font-weight:800"># ${flds.osi||'—'}</div>
+      <div style="font-size:11px;opacity:.7">Cliente: ${esc(flds.cliente||inf['Cliente']||'—')} &nbsp;|&nbsp; Oferta: ${flds.oferta||inf['# Oferta']||'—'}</div>
+      ${(flds.origen||flds.destino) ? `<div style="font-size:11px;opacity:.7;margin-top:2px">Origen: <strong>${esc(flds.origen||'—')}</strong> &nbsp;→&nbsp; Destino: <strong>${esc(flds.destino||'—')}</strong></div>` : ''}
+      ${flds.carga ? `<div style="font-size:11px;opacity:.7;margin-top:2px">Carga: <strong>${esc(flds.carga)}</strong></div>` : ''}
+    </div>
+  </div>
+
+  <!-- ① INDICADORES CLAVE → tabla comparativa -->
+  <div class="rh2">📌 Indicadores Clave</div>
+  <table class="rtbl">
+    <thead><tr><th>Indicador</th><th class="r">Presupuestado</th><th class="r">Ejecutado</th><th class="r">Variación</th><th class="r">Var. %</th></tr></thead>
+    <tbody>${kpiTableRows}</tbody>
+  </table>
+  <!-- Banner UAI: Presupuesto → Ejecutado Operativo → Rentabilidad Final -->
+  <div style="display:flex;gap:3px;margin-bottom:20px;border-radius:10px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.2)">
+
+    <!-- ① PRESUPUESTO -->
+    <div style="flex:1;background:#1a1a1a;color:#fff;padding:18px 20px">
+      <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#ff8c00;margin-bottom:8px">📋 Presupuesto</div>
+      <div style="font-size:22px;font-weight:800;color:#ff8c00">${fmt(pptoUtil)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:5px">${pptoRent.toFixed(1)}% rentabilidad operativa</div>
+    </div>
+
+    <!-- Flecha -->
+    <div style="background:#111;color:#ff8c00;display:flex;align-items:center;padding:0 8px;font-size:18px">→</div>
+
+    <!-- ② EJECUTADO OPERATIVO -->
+    <div style="flex:1;background:${uaiCol};color:#fff;padding:18px 20px">
+      <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;opacity:.8;margin-bottom:8px">⚡ Ejecutado Operativo</div>
+      <div style="font-size:22px;font-weight:800">${fmt(uaiOp)}</div>
+      <div style="font-size:11px;opacity:.75;margin-top:5px">${rentOp.toFixed(1)}% rentabilidad operativa</div>
+    </div>
+
+    <!-- VARIACIÓN (panel propio, bien visible) -->
+    <div style="background:${opVarCol};color:#fff;padding:18px 16px;display:flex;flex-direction:column;justify-content:center;min-width:160px">
+      <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;opacity:.7;margin-bottom:8px">Variación vs Ppto</div>
+      <div style="font-size:20px;font-weight:900;letter-spacing:-.5px">${sign(uaiDiff)}${fmt(Math.abs(uaiDiff))}</div>
+      <div style="font-size:14px;font-weight:700;margin-top:4px;opacity:.9">${sign(rentOpDiff)}${rentOpDiff.toFixed(1)} pp</div>
+    </div>
+
+    <!-- Separador -->
+    <div style="background:#111;color:rgba(255,255,255,.3);display:flex;align-items:center;padding:0 6px;font-size:16px">▶</div>
+
+    <!-- ③ RENTABILIDAD FINAL -->
+    <div style="flex:1;background:${rentFinalCol};color:#fff;padding:18px 20px">
+      <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;opacity:.75;margin-bottom:8px">🏁 Rentabilidad Final</div>
+      <div style="font-size:13px;font-weight:600;opacity:.75;margin-bottom:3px">${fmt(uai)}</div>
+      <div style="font-size:36px;font-weight:900;line-height:1;letter-spacing:-1.5px">${rent.toFixed(1)}%</div>
+      <div style="font-size:9px;opacity:.6;margin-top:6px">Después de admin (16%) e impuestos</div>
+    </div>
+
+  </div>
+
+  <!-- ② RENDIMIENTO COMBUSTIBLE (siempre visible si hay equipos) -->
+  ${eqsComp.length > 0 ? `
+  <div class="rh2" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="(function(){var d=document.getElementById('comb-detail');var b=document.getElementById('comb-btn');if(d.style.display==='none'){d.style.display='block';b.textContent='▲ Ocultar';}else{d.style.display='none';b.textContent='▼ Ver detalle';}})()">
+    <span>⛽ Rendimiento de Combustible (km/galón)</span>
+    <span id="comb-btn" style="font-size:10px;font-weight:600;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:4px;letter-spacing:.5px">▼ Ver detalle</span>
+  </div>
+  <div id="comb-detail" style="display:none">
+    ${(!ppto.combTotal && pptoRatas.length === 0) ? '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#fffbea;border-left:3px solid #f59e0b;border-radius:0 4px 4px 0">ℹ️ Datos de combustible no encontrados en el presupuesto — recárgalo para ver la comparación.</div>' : ''}
+    ${combCard}
+  </div>` : ''}
+
+  <!-- ③ COMPARATIVO COSTOS OPERATIVOS -->
+  <div class="rh2">💵 Comparativo Costos Operativos por Concepto</div>
+  <table class="rtbl">
+    <thead><tr><th>Concepto</th><th class="r">Presupuestado</th><th class="r">Ejecutado</th><th class="r">Variación $</th><th class="r">Variación %</th><th style="width:28px"></th></tr></thead>
+    <tbody>${costoRows}</tbody>
+    <tr class="tot">
+      <td>TOTAL COSTOS OPERATIVOS</td>
+      <td class="r">${fmt(pptoTotal)}</td><td class="r">${fmt(totOp)}</td>
+      <td class="r" style="color:${costTotCol};font-weight:700">${sign(costTotDiff)}${fmt(costTotDiff)}</td>
+      <td class="r" style="color:${costTotCol};font-weight:700">${pptoTotal > 0 ? sign(costTotDiff)+(costTotDiff/pptoTotal*100).toFixed(1)+'%' : '—'}</td>
+      <td></td>
+    </tr>
+  </table>
+
+  <!-- ④ COMPARATIVO POR EQUIPO (colapsado) -->
+  ${(() => {
+    const ejecEqs = D.catTotPorEquipo || [];
+    const pptoEqs = ppto.costosPorEquipo || [];
+    const nEq = Math.max(ejecEqs.length, pptoEqs.length);
+    if (nEq === 0) return '';
+    const allCats = Array.from(new Set([
+      ...pptoEqs.flatMap(e => Object.keys(e||{})),
+      ...ejecEqs.flatMap(e => Object.keys(e.cats||{}))
+    ])).filter(Boolean);
+
+    const panels = Array.from({length: nEq}, (_, i) => {
+      const pp     = pptoEqs[i] || {};
+      const ex     = ejecEqs[i] || {};
+      const exCats = ex.cats || {};
+      const exPlat = ex.plat ? ` · ${ex.plat}` : '';
+      const exNum  = ex.num || (i+1);
+      const ppCats = Object.keys(pp);
+
+      // Filas presupuestadas → lookup fuzzy en ejecutado
+      const rowsPpto = ppCats.map(c => {
+        const ppV  = pp[c] || 0;
+        const exV  = findCat(c, exCats);
+        if (!ppV && !exV) return '';
+        const diff = exV - ppV;
+        const col  = varColor(diff, -1);
+        return `<tr>
+          <td>${c}</td>
+          <td class="r">${fmt(ppV)}</td>
+          <td class="r">${fmt(exV)}</td>
+          <td class="r" style="color:${col};font-weight:700">${sign(diff)}${fmt(Math.abs(diff))}</td>
+          <td class="r" style="color:${col}">${ppV ? sign(diff)+(Math.abs(diff/ppV)*100).toFixed(1)+'%' : '—'}</td>
+        </tr>`;
+      }).join('');
+
+      // Categorías ejecutadas sin match en presupuesto
+      const rowsExtra = Object.entries(exCats)
+        .filter(([c, v]) => v > 0 && !ppCats.some(k => norm(k).startsWith(norm(c)) || norm(c).startsWith(norm(k))))
+        .map(([c, exV]) => {
+          const col = '#991b1b';
+          return `<tr>
+            <td>${c} <span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;margin-left:4px">No ppto</span></td>
+            <td class="r" style="color:#bbb">—</td>
+            <td class="r">${fmt(exV)}</td>
+            <td class="r" style="color:${col};font-weight:700">+${fmt(exV)}</td>
+            <td class="r" style="color:${col}">N/P</td>
+          </tr>`;
+        }).join('');
+
+      const rows = rowsPpto + rowsExtra;
+      const ppTot = Object.values(pp).reduce((s,v)=>s+v,0);
+      const exTot = ex.total || Object.values(exCats).reduce((s,v)=>s+v,0);
+      const totDiff = exTot - ppTot;
+      const totCol  = varColor(totDiff, -1);
+      return `<div id="ceq-panel-${i}" class="ceq-panel" style="display:${i===0?'block':'none'}">
+        <table class="rtbl">
+          <thead><tr><th>Concepto</th><th class="r">Presupuestado</th><th class="r">Ejecutado</th><th class="r">Variación $</th><th class="r">Variación %</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tr class="tot">
+            <td>TOTAL Eq.${exNum}${exPlat}</td>
+            <td class="r">${ppTot ? fmt(ppTot) : '—'}</td>
+            <td class="r">${fmt(exTot)}</td>
+            <td class="r" style="color:${totCol};font-weight:700">${sign(totDiff)}${fmt(Math.abs(totDiff))}</td>
+            <td class="r" style="color:${totCol}">${ppTot ? sign(totDiff)+(Math.abs(totDiff/ppTot)*100).toFixed(1)+'%' : '—'}</td>
+          </tr>
+        </table>
+      </div>`;
+    }).join('');
+
+    const btns = Array.from({length: nEq}, (_, i) => {
+      const ex = ejecEqs[i] || {};
+      const lbl = `Equipo ${ex.num||i+1}${ex.plat?' · '+ex.plat:''}`;
+      return `<button id="ceq-btn-${i}" class="ceq-btn" onclick="(function(){document.querySelectorAll('.ceq-panel').forEach(function(p){p.style.display='none';});document.querySelectorAll('.ceq-btn').forEach(function(b){b.style.background='#e5e7eb';b.style.color='#374151';});var p=document.getElementById('ceq-panel-${i}');var b=document.getElementById('ceq-btn-${i}');if(p)p.style.display='block';if(b){b.style.background='#1a1a1a';b.style.color='#ff8c00';}})()" style="background:${i===0?'#1a1a1a':'#e5e7eb'};color:${i===0?'#ff8c00':'#374151'};border:none;padding:7px 16px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">${lbl}</button>`;
+    }).join('');
+
+    return `
+  <div class="rh2" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-top:8px" onclick="(function(){var d=document.getElementById('ceq-detail');var b=document.getElementById('ceq-toggle-btn');if(d.style.display==='none'){d.style.display='block';b.textContent='▲ Ocultar';}else{d.style.display='none';b.textContent='▼ Ver por equipo';}})()">
+    <span>🔍 Comparativo por Equipo</span>
+    <span id="ceq-toggle-btn" style="font-size:10px;font-weight:600;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:4px;letter-spacing:.5px">▼ Ver por equipo</span>
+  </div>
+  <div id="ceq-detail" style="display:none;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap">${btns}</div>
+    ${panels}
+  </div>`;
+  })()}`;
+}
+
+function closeRep() { document.getElementById('rep-ov').style.display = 'none'; }
+
+function downloadReport() {
+  const notes  = window.costoNotes || {};
+  const rawBody = document.getElementById('rep-body').innerHTML;
+
+  // ── Post-proceso: convertir notas interactivas en versión estática con popover ──
+  const tmpDiv = document.createElement('div');
+  tmpDiv.innerHTML = rawBody;
+
+  // 1. Eliminar filas de textarea (ya no se usan como fila extra)
+  tmpDiv.querySelectorAll('[data-note-slug]').forEach(ta => {
+    const tr = ta.closest('tr');
+    if (tr) tr.remove();
+  });
+
+  // 2. Reemplazar botón "+" con ícono 📝 + popover inline sobre el ícono
+  tmpDiv.querySelectorAll('[data-note-btn]').forEach(btn => {
+    const sid  = btn.getAttribute('data-note-btn');
+    const text = (notes[sid] || '').trim();
+    const td   = btn.closest('td');
+    if (!td) return;
+    if (text) {
+      const uid = 'pop_' + sid;
+      const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      td.innerHTML = `<span style="position:relative;display:inline-block">
+        <span onclick="(function(el){var p=document.getElementById('${uid}');var v=p.style.display==='none'||p.style.display==='';p.style.display=v?'block':'none';})(this)"
+          style="cursor:pointer;font-size:14px;opacity:.7" title="Ver observación">📝</span>
+        <div id="${uid}" style="display:none;position:absolute;right:0;bottom:24px;width:240px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:8px 10px;font-size:11px;color:#374151;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:99;white-space:pre-wrap;line-height:1.5">${safe}</div>
+      </span>`;
+    } else {
+      td.innerHTML = '';
+    }
+  });
+
+  const body   = tmpDiv.innerHTML;
+  const osi    = document.getElementById('osi')?.value?.trim() || 'Informe';
+  const styles = Array.from(document.styleSheets)
+    .map(ss => { try { return Array.from(ss.cssRules).map(r=>r.cssText).join('\n'); } catch(e){ return ''; } })
+    .join('\n');
+  // Serializar datos de ejecución para re-importación posterior
+  const D = calcReportData();
+  const costeoJSON = JSON.stringify({
+    version: 'COSTEO_v2',
+    fact:    D.fact,   antOp:    D.antOp,  combTotal: D.combTotal,
+    totOp:  D.totOp,  totOc:    D.totOc,  adm:       D.adm,
+    totC:   D.totC,   uai:      D.uai,    rent:      D.rent,
+    catTot: D.catTot, flds:     D.flds,
+    catTotPorEquipo: D.catTotPorEquipo || [],
+    equipos: equipos.map(eq => ({
+      id:eq.id, num:eq.num, plat:eq.plat, cab:eq.cab, tra:eq.tra,
+      dias:eq.dias, km:eq.km, galones:eq.galones,
+      fIni:eq.fIni, fFin:eq.fFin,
+    })),
+  });
+  const full = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>Informe ${osi} - Boom Logistics</title>
+<style>${styles}</style>
+</head><body style="background:#f4f4f4;padding:20px;font-family:Arial,sans-serif">
+<div style="max-width:960px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,.1)">
+${body}
+</div>
+<script>
+function antFilter(btn,cat){
+  var subtotal=0;
+  document.querySelectorAll('#ant-tbl tr[data-cat]').forEach(function(r){
+    var visible=!cat||r.getAttribute('data-cat')===cat;
+    r.style.display=visible?'':'none';
+    if(visible) subtotal+=parseFloat(r.getAttribute('data-monto')||0);
+  });
+  document.querySelectorAll('.ant-f').forEach(function(b){b.style.background='#e5e7eb';b.style.color='#374151';});
+  btn.style.background='#1a1a1a';btn.style.color='#ff8c00';
+  var totEl=document.getElementById('ant-tot');
+  var lblEl=document.getElementById('ant-tot-lbl');
+  if(totEl) totEl.textContent='$'+Math.round(subtotal).toLocaleString('es-CO');
+  if(lblEl) lblEl.textContent=cat?'SUBTOTAL \u2013 '+cat.toUpperCase():'TOTAL';
+}
+function antPop(id){
+  var p=document.getElementById(id);
+  if(p) p.style.display=p.style.display==='block'?'none':'block';
+}
+<\/script>
+<script id="costeo-datos" type="application/json">${costeoJSON}<\/script>
+</body></html>`;
+  const blob = new Blob([full], {type:'text/html;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `Informe_${osi}_Boom.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function normalize(s) {
+  return String(s||'').toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
+    .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o')
+    .replace(/[úùü]/g,'u').replace(/ñ/g,'n');
+}
+function fmt(n)    { return '$' + Math.round(parseFloat(n)||0).toLocaleString('es-CO'); }
+function pct(v,t)  { return t ? (v/t*100).toFixed(1)+'%' : '—'; }
+function esc(s)    { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function val(id)   { return document.getElementById(id)?.value?.trim()||''; }
+function setText(id,t) { const e=document.getElementById(id); if(e) e.textContent=t; }
+function parseMonto(v) { return parseFloat(String(v||'').replace(/[^0-9.-]/g,''))||0; }
+function cleanNum(s)   { return parseFloat(String(s||'').replace(/\$|\s|\./g,'').replace(',','.').replace(/[^\d-]/g,''))||0; }
+function fmtFecha(v) {
+  if (!v) return '';
+  if (v instanceof Date) return v.toISOString().split('T')[0];
+  const s = String(v);
+  return s.match(/^\d{4}-\d{2}-\d{2}/) ? s.split('T')[0] : s;
+}
+</script>
+</body>
+</html>

@@ -9595,7 +9595,11 @@ async function loadRentabilidadOSI(){
         <td style="padding:8px 10px;text-align:right;font-weight:800;color:${utilColor};">${_rentMoney(util)}</td>
         <td style="padding:8px 10px;text-align:center;">${semaforo}</td>
         <td style="padding:8px 10px;text-align:center;">${r.n_anticipos ? `<button class="btn" style="font-size:11px;padding:3px 8px;" onclick="verAnticiposOSI('${r.osi}')">👁️ ${r.n_anticipos}</button>` : '—'}</td>
-        <td style="padding:8px 10px;text-align:center;"><button class="btn" style="font-size:11px;padding:3px 8px;" onclick="abrirCosteo('${r.osi}')">📊 Informe</button></td>
+        <td style="padding:8px 10px;text-align:center;white-space:nowrap;">
+          <button class="btn" style="font-size:11px;padding:3px 8px;background:#ff8c00;color:#1a1a1a;border-color:#ff8c00;font-weight:700;" onclick="abrirHerramientaCosteo('${r.osi}','${(r.cliente||'').replace(/'/g,'')}','${_rentOfFmt(r.oferta)}')" title="Abrir la herramienta de costeo (tu artefacto) para esta OSI">🧮 Herramienta</button>
+          <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="descargarInforme('${r.osi}')" title="Ver/descargar el informe guardado del artefacto">📄 Informe</button>
+          <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="abrirCosteo('${r.osi}')" title="Ver el presupuesto y comparación">📊 Presupuesto</button>
+        </td>
       </tr>`;
     }).join('');
   }
@@ -9903,6 +9907,99 @@ async function cargarPresuAprobados(){
 // Lo usa Boris (desde aprobados) y Jorge (desde rentabilidad).
 function descargarInforme(osi){
   window.open('/api/costeo/osi/'+encodeURIComponent(osi)+'/informe', '_blank');
+}
+
+// ── Herramienta de costeo INCRUSTADA (artefacto de Jorge) ────────────────────
+// Abre el artefacto tal cual (sin modificarlo) dentro de la plataforma. Cuando
+// Jorge genera y "descarga" el informe, lo capturamos same-origin y lo
+// guardamos pegado a la OSI, sin tocar la estructura de su artefacto.
+let _herrOsiActual = null;
+function abrirHerramientaCosteo(osi, cliente, oferta){
+  _herrOsiActual = osi;
+  let ov = document.getElementById('herrCosteoOverlay');
+  if (!ov){
+    ov = document.createElement('div');
+    ov.id = 'herrCosteoOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;flex-direction:column;';
+    ov.innerHTML = `
+      <div style="background:#1a1a1a;color:#fff;padding:8px 14px;display:flex;align-items:center;gap:12px;">
+        <span style="font-weight:800;color:#ff8c00;font-size:14px;">🧮 Herramienta de costeo</span>
+        <span id="herrCosteoTit" style="font-size:12.5px;opacity:.9;"></span>
+        <span id="herrCosteoSave" style="margin-left:auto;font-size:12px;color:#9aa3b0;"></span>
+        <button onclick="cerrarHerramientaCosteo()" style="background:#ff8c00;color:#1a1a1a;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;">✕ Cerrar</button>
+      </div>
+      <iframe id="herrCosteoFrame" style="flex:1;width:100%;border:none;background:#fff;"></iframe>`;
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+  document.getElementById('herrCosteoTit').textContent =
+    'OSI ' + (osi||'—') + (cliente ? ' · ' + cliente : '') + (oferta && oferta!=='—' ? ' · Oferta ' + oferta : '');
+  document.getElementById('herrCosteoSave').textContent = '';
+  const fr = document.getElementById('herrCosteoFrame');
+  fr.onload = ()=> _hookHerramienta(fr, osi, cliente, oferta);
+  fr.src = '/rentabilidad/herramienta?ts=' + Date.now();
+}
+
+function cerrarHerramientaCosteo(){
+  const ov = document.getElementById('herrCosteoOverlay');
+  if (ov) ov.style.display = 'none';
+  const fr = document.getElementById('herrCosteoFrame');
+  if (fr) fr.src = 'about:blank';
+  _herrOsiActual = null;
+  // Refresca la tabla para reflejar el informe recién guardado.
+  try { loadRentabilidadOSI(); } catch(e){}
+}
+
+// Intercepta same-origin la creación del Blob del informe cuando Jorge pulsa
+// "Descargar" en su artefacto, lo lee y lo guarda en la plataforma. NO altera
+// el artefacto: dejamos que su descarga siga funcionando igual.
+function _hookHerramienta(fr, osi, cliente, oferta){
+  let win;
+  try { win = fr.contentWindow; } catch(e){ return; }
+  if (!win) return;
+  // Prellenar OSI/Oferta/Cliente como comodidad (no cambia su forma de trabajar).
+  try {
+    const doc = win.document;
+    const set = (id, val)=>{ const el = doc.getElementById(id); if (el && !el.value && val) el.value = val; };
+    set('osi', osi||'');
+    set('oferta', (oferta && oferta!=='—') ? oferta : '');
+    set('cliente', cliente||'');
+  } catch(e){}
+  // Interceptar createObjectURL para capturar el informe HTML generado.
+  try {
+    if (win.__boomHooked) return;
+    win.__boomHooked = true;
+    const origCreate = win.URL.createObjectURL.bind(win.URL);
+    win.URL.createObjectURL = function(blob){
+      try {
+        if (blob && typeof blob.type === 'string' && blob.type.indexOf('text/html') !== -1){
+          blob.text().then(txt=>{
+            if (txt && txt.length > 500) _guardarInformeArtefacto(osi, oferta, cliente, txt);
+          }).catch(()=>{});
+        }
+      } catch(e){}
+      return origCreate(blob);
+    };
+  } catch(e){}
+}
+
+async function _guardarInformeArtefacto(osi, oferta, cliente, html){
+  const badge = document.getElementById('herrCosteoSave');
+  try {
+    if (badge) badge.textContent = '💾 Guardando informe…';
+    const res = await fetch('/api/costeo/osi/'+encodeURIComponent(osi)+'/informe-guardado', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ html: html, oferta_num: (oferta && oferta!=='—')?oferta:'', cliente: cliente||'' })
+    });
+    if (!res.ok){ const e = await res.json().catch(()=>({})); throw new Error(e.detail||'Error'); }
+    if (badge){
+      const h = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      badge.textContent = '✅ Informe guardado ('+h+')';
+      badge.style.color = '#22c55e';
+    }
+  } catch(e){
+    if (badge){ badge.textContent = '⚠️ No se pudo guardar: ' + (e.message||e); badge.style.color = '#f87171'; }
+  }
 }
 
 async function presuRechazar(osiId){
