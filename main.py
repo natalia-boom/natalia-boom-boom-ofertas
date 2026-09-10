@@ -2115,6 +2115,23 @@ def _ensure_db():
         """)
         cur.execute("INSERT INTO presupuesto_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING")
 
+        # Datos que Jorge digita para el informe de costeo (lo que no sale solo):
+        # km recorridos (GPS/odómetro), galones tanqueados, y overrides opcionales
+        # de días/equipos/personas. Una fila por OSI. Todo lo demás se calcula.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS costeo_inputs (
+                numero_osi     text primary key,
+                km_cabezote    bigint,
+                galones        numeric,
+                dias_override  int,
+                precio_galon   numeric,
+                equipos_json   text,
+                personas_json  text,
+                updated_by     text,
+                updated_at     timestamptz default now()
+            )
+        """)
+
         # Catálogo de equipos (módulo Operaciones) — propios + subcontratos
         cur.execute("""
             CREATE TABLE IF NOT EXISTS equipos (
@@ -2542,6 +2559,7 @@ _PRESUPUESTO_WRITE_PREFIX = "/api/presupuesto"
 # Gastos reales por OSI: Jorge (módulo 'rentabilidad', viewer) sube la relación
 # de anticipos de Vulcano. Se le habilita la escritura SOLO en esta ruta.
 _GASTOS_WRITE_PREFIX = "/api/gastos"
+_COSTEO_WRITE_PREFIX = "/api/costeo"
 
 
 # ── Nombre OFICIAL (largo) de cada cliente ────────────────────────────────────
@@ -2632,7 +2650,12 @@ async def auth_middleware(request: Request, call_next):
             "rentabilidad" in _mods
             and path.startswith(_GASTOS_WRITE_PREFIX)
         )
-        if not (puede_operaciones or puede_presupuesto or puede_gastos):
+        # Costeo: Jorge (rentabilidad) digita km/galones del informe.
+        puede_costeo = (
+            "rentabilidad" in _mods
+            and path.startswith(_COSTEO_WRITE_PREFIX)
+        )
+        if not (puede_operaciones or puede_presupuesto or puede_gastos or puede_costeo):
             return JSONResponse({"detail": "Acceso de solo lectura"}, status_code=403)
 
     if path.startswith("/api/usuarios") and request.method in _WRITE_METHODS and user["rol"] != "admin":
@@ -3385,6 +3408,282 @@ def get_rentabilidad(anio: Optional[str] = None, mes: Optional[str] = None):
 
 
 # ── Gasto REAL por OSI: relación de anticipos que Jorge exporta de Vulcano ────
+# ── Costeo / Rentabilidad (informe completo estilo artefacto) ─────────────────
+# Tarifas maestras extraídas del Excel "RENTABILIDAD - 26" de Natalia:
+#   personal    -> costo/día por persona
+#   depreciacion-> costo/día por placa (costo comercial / 3600)
+#   seguros     -> costo/día (seguro + permiso) por placa
+#   llantas_km  -> costo/km por trailer (cabezote fijo = 225/km)
+# Son FIJAS (decisión de Natalia). Se cargan una vez al iniciar.
+def _load_tarifas():
+    try:
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "costeo_tarifas.json")
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print("WARN: no se pudo cargar costeo_tarifas.json:", e)
+        return {"constants": {}, "personal": {}, "depreciacion": {},
+                "seguros": {}, "llantas_km": {}}
+
+
+_TARIFAS = _load_tarifas()
+
+
+def _norm_txt(s):
+    """Normaliza nombre/placa para cruzar con las tarifas maestras."""
+    return re.sub(r"\s+", " ", str(s or "")).strip().upper()
+
+
+def _tarifa_persona(nombre):
+    """Costo/día de una persona por nombre (match exacto o por apellidos)."""
+    per = _TARIFAS.get("personal", {})
+    k = _norm_txt(nombre)
+    if not k:
+        return 0.0
+    if k in per:
+        return float(per[k])
+    # match laxo: todas las palabras del nombre buscado están en una clave
+    toks = [t for t in k.split() if len(t) > 2]
+    for kk, v in per.items():
+        if toks and all(t in kk for t in toks):
+            return float(v)
+    return 0.0
+
+
+def _tarifa_equipo_placa(placa):
+    """Devuelve (depreciacion_dia, seguro_dia, permiso_dia) de una placa."""
+    k = _norm_txt(placa)
+    dep = _TARIFAS.get("depreciacion", {})
+    seg = _TARIFAS.get("seguros", {})
+    c = _TARIFAS.get("constants", {})
+    d = 0.0
+    for kk, v in dep.items():
+        if k and (k == kk or k in kk or kk.split("-")[0] == k):
+            d = float(v); break
+    s = c.get("seguro_dia_default", 0.0)
+    pm = c.get("permiso_dia_default", 0.0)
+    for kk, v in seg.items():
+        if k and (k == kk or k in kk or kk.split("-")[0] == k):
+            s = float(v.get("seguro_dia", s)); pm = float(v.get("permiso_dia", pm)); break
+    return d, s, pm
+
+
+def _es_cabezote(placa):
+    """Heurística: las placas de cabezote NO empiezan por 'R'/'S'/'T' (trailers)
+    ni son 'Modular …'. Cabezotes = EXV/KUM/SSA/SZA/SZK/TLU/TLV/TVA/UYU/NPR/LJO/LGL."""
+    k = _norm_txt(placa)
+    if not k:
+        return False
+    if k.startswith(("R", "T3", "T5", "S59")) or k.startswith("MODULAR"):
+        return False
+    return True
+
+
+def _tarifa_llanta_trailer(desc):
+    """Costo/km de llantas de trailer por descripción/id del equipo."""
+    k = _norm_txt(desc)
+    llk = _TARIFAS.get("llantas_km", {})
+    for kk, v in llk.items():
+        if k and (k == kk or k in kk or kk in k):
+            return float(v)
+    return float(_TARIFAS.get("constants", {}).get("llanta_modular_km", 65.0))
+
+
+# Palabras clave -> categoría de Costo Operativo (para clasificar anticipos Vulcano).
+_CAT_OPERATIVO = [
+    ("Peajes",                 ("peaje",)),
+    ("Combustible",            ("combustible", "acpm", "diesel", "gasolina", "tanqueo")),
+    ("Viáticos",               ("viatico", "viático", "alimentacion", "alimentación", "hospedaje", "hotel")),
+    ("Escoltas",               ("escolta",)),
+    ("Policías",               ("policia", "policía", "transito", "tránsito")),
+    ("Transporte y Parqueaderos", ("parqueadero", "transporte", "grua", "grúa", "montacarga")),
+    ("Mantenimiento",          ("manteni", "repuesto", "llanta", "taller", "mecanic")),
+    ("Hidratación",            ("hidrata", "agua")),
+    ("Subcontratados",         ("subcontrat", "proveedor", "alquiler")),
+]
+
+
+def _cat_operativo(texto):
+    t = _norm_txt(texto).lower()
+    for cat, kws in _CAT_OPERATIVO:
+        if any(kw in t for kw in kws):
+            return cat
+    return "Varios"
+
+
+def _costeo_calcular(cur, numero_osi):
+    """Arma el informe completo de costeo/rentabilidad de una OSI, estilo artefacto.
+    Cruza: presupuesto aprobado (días/operarios/equipos), anticipos Vulcano
+    (costos operativos reales), facturación, y las tarifas maestras (costos
+    ocultos). Jorge puede sobre-escribir km/galones/días vía costeo_inputs."""
+    C = _TARIFAS.get("constants", {})
+    ADMIN_PCT = float(C.get("admin_pct", 0.16))
+    IMPU_PCT = float(C.get("impuesto_prov_pct", 0.008))
+    LL_CAB = float(C.get("llanta_cabezote_km", 225.0))
+
+    # 1) Presupuesto aprobado de la OSI (base "esperada").
+    cur.execute("SELECT * FROM presupuesto_osi WHERE numero_osi=%s "
+                "ORDER BY (estado='APROBADO') DESC, updated_at DESC LIMIT 1", (numero_osi,))
+    presu = fetchone(cur)
+    datos = {}
+    if presu and presu.get("datos"):
+        try:
+            datos = json.loads(presu["datos"])
+        except Exception:
+            datos = {}
+    equipos_presu = datos.get("equipos") or []
+    tarifas_presu = datos.get("tarifas") or {}
+
+    # 2) Inputs manuales de Jorge (km, galones, días) si los guardó.
+    cur.execute("SELECT * FROM costeo_inputs WHERE numero_osi=%s", (numero_osi,))
+    inp = fetchone(cur) or {}
+
+    # 3) Anticipos reales de Vulcano de esta OSI -> Costos Operativos por categoría.
+    cur.execute("SELECT tipo, placa, nombre, monto, comentarios FROM gastos_vulcano "
+                "WHERE osi=%s AND NOT anulado", (numero_osi,))
+    anticipos = fetchall(cur)
+    operativos = {}
+    placas_vistas = {}
+    personas_vistas = {}
+    for a in anticipos:
+        cat = _cat_operativo((a.get("comentarios") or "") + " " + (a.get("tipo") or ""))
+        operativos[cat] = operativos.get(cat, 0) + int(a.get("monto") or 0)
+        pl = _norm_txt(a.get("placa"))
+        if pl:
+            placas_vistas[pl] = True
+        nm = _norm_txt(a.get("nombre"))
+        if nm:
+            personas_vistas[nm] = True
+
+    # 4) Días de operación: override de Jorge > suma del presupuesto > por defecto.
+    dias = 0
+    if inp.get("dias_override"):
+        dias = int(inp["dias_override"])
+    else:
+        for e in equipos_presu:
+            try:
+                dias = max(dias, int(float(e.get("dias") or 0)))
+            except Exception:
+                pass
+    if dias <= 0:
+        dias = 1
+
+    # 5) Km y galones: los pone Jorge (GPS/lectura). Si no, km del presupuesto.
+    km = 0
+    if inp.get("km_cabezote") is not None:
+        km = int(inp["km_cabezote"] or 0)
+    else:
+        for e in equipos_presu:
+            for tr in (e.get("tramos") or []):
+                try:
+                    km += int(float(tr.get("km") or 0))
+                except Exception:
+                    pass
+    galones = float(inp.get("galones") or 0)
+    precio_galon = float(inp.get("precio_galon") or tarifas_presu.get("precio_galon")
+                         or C.get("combustible_bombas_precio", 11000.0))
+
+    # 6) Equipos y personas a costear (ocultos). Preferimos lo que Jorge fijó;
+    # si no, lo que aparece en los anticipos reales; si no, el presupuesto.
+    placas = list((inp.get("equipos_json") and json.loads(inp["equipos_json"])) or
+                  list(placas_vistas.keys()))
+    personas = list((inp.get("personas_json") and json.loads(inp["personas_json"])) or
+                    list(personas_vistas.keys()))
+    # Si el presupuesto declara nº de operarios/auxiliares y no hay personas
+    # concretas, contamos con el costo/día promedio de la nómina.
+    n_personas_presu = 0
+    for e in equipos_presu:
+        try:
+            n_personas_presu += int(float(e.get("operarios") or 0)) + int(float(e.get("auxiliares") or 0))
+        except Exception:
+            pass
+
+    # 7) COSTOS OCULTOS.
+    nomina = 0.0
+    detalle_personas = []
+    for nm in personas:
+        d = _tarifa_persona(nm)
+        nomina += d * dias
+        detalle_personas.append({"nombre": nm, "dia": round(d), "dias": dias, "total": round(d * dias)})
+    if not personas and n_personas_presu > 0:
+        per = _TARIFAS.get("personal", {})
+        prom = (sum(per.values()) / len(per)) if per else 0
+        nomina = prom * n_personas_presu * dias
+        detalle_personas.append({"nombre": f"{n_personas_presu} persona(s) (promedio)",
+                                 "dia": round(prom), "dias": dias, "total": round(nomina)})
+
+    ll_cab = dep_cab = dep_tra = seg_tot = perm_tot = ll_tra = 0.0
+    detalle_equipos = []
+    for pl in placas:
+        depd, segd, permd = _tarifa_equipo_placa(pl)
+        cab = _es_cabezote(pl)
+        dcab = depd * dias if cab else 0.0
+        dtra = depd * dias if not cab else 0.0
+        lcab = km * LL_CAB if cab else 0.0
+        ltra = km * _tarifa_llanta_trailer(pl) if not cab else 0.0
+        dep_cab += dcab; dep_tra += dtra
+        ll_cab += lcab; ll_tra += ltra
+        seg_tot += segd * dias
+        perm_tot += permd * dias
+        detalle_equipos.append({
+            "placa": pl, "cabezote": cab, "dias": dias, "km": km,
+            "depreciacion": round(dcab + dtra),
+            "llantas": round(lcab + ltra),
+            "seguro": round(segd * dias), "permiso": round(permd * dias),
+        })
+
+    facturacion = 0
+    if presu:
+        of_digits = re.sub(r"\D", "", str(presu.get("oferta_num") or ""))
+        if of_digits:
+            cur.execute("SELECT COALESCE(SUM(valor),0) AS f FROM facturas "
+                        "WHERE regexp_replace(oferta_num,'\\D','','g')=%s "
+                        "AND UPPER(TRIM(COALESCE(estado_proyecto,''))) LIKE 'FACTURADO%%'",
+                        (of_digits,))
+            facturacion = int(fetchone(cur)["f"] or 0)
+    if not facturacion and presu:
+        facturacion = int(presu.get("facturacion_esperada") or 0)
+
+    prov_impuestos = round(facturacion * IMPU_PCT)
+    combustible_bombas = round(galones * precio_galon)
+    if combustible_bombas:
+        operativos["Combustible Bombas"] = operativos.get("Combustible Bombas", 0) + combustible_bombas
+
+    total_operativos = sum(operativos.values())
+    ocultos = {
+        "Nómina": round(nomina),
+        "Llantas Cabezote": round(ll_cab),
+        "Llantas Trailer": round(ll_tra),
+        "Depreciación Cabezote": round(dep_cab),
+        "Depreciación Trailer": round(dep_tra),
+        "Seguros": round(seg_tot),
+        "Permisos": round(perm_tot),
+        "Provisión Impuestos": prov_impuestos,
+    }
+    total_ocultos = sum(ocultos.values())
+    administrativos = round((total_operativos + total_ocultos) * ADMIN_PCT)
+    uai = facturacion - total_operativos - total_ocultos - administrativos
+    rent_pct = round(uai / facturacion * 100, 1) if facturacion > 0 else None
+    util_operativa = facturacion - total_operativos
+
+    return {
+        "numero_osi": numero_osi,
+        "oferta": presu.get("oferta_num") if presu else None,
+        "cliente": presu.get("cliente") if presu else None,
+        "tiene_presupuesto": bool(presu),
+        "estado_presupuesto": presu.get("estado") if presu else None,
+        "dias": dias, "km": km, "galones": galones, "precio_galon": precio_galon,
+        "facturacion": facturacion,
+        "operativos": operativos, "total_operativos": total_operativos,
+        "ocultos": ocultos, "total_ocultos": total_ocultos,
+        "administrativos": administrativos, "admin_pct": ADMIN_PCT,
+        "utilidad_operativa": util_operativa,
+        "uai": uai, "rentabilidad_pct": rent_pct,
+        "detalle_equipos": detalle_equipos, "detalle_personas": detalle_personas,
+        "n_anticipos": len(anticipos),
+    }
+
+
 _OSI_RE = re.compile(r"^2[0-9]{4}$")
 
 
@@ -3617,6 +3916,176 @@ def gastos_por_osi(osi: str = Query(...)):
                 "SELECT documento, tipo, fecha, placa, nombre, monto, comentarios, anulado "
                 "FROM gastos_vulcano WHERE osi=%s ORDER BY fecha, documento", (osi,))
             return {"osi": osi, "anticipos": fetchall(cur)}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/costeo/osi/{numero_osi}")
+def costeo_osi_get(numero_osi: str, request: Request):
+    """Informe de costeo/rentabilidad de una OSI (JSON). Lo ven Jorge
+    (rentabilidad), Boris (aprobar_presupuesto, solo lectura) y admin."""
+    _require_modulo(request, "rentabilidad", "aprobar_presupuesto")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            return _costeo_calcular(cur, numero_osi)
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/costeo/osi/{numero_osi}")
+def costeo_osi_set(numero_osi: str, body: dict, request: Request):
+    """Jorge (rentabilidad) guarda km/galones/días del informe. Recalcula y
+    devuelve el informe actualizado."""
+    _require_modulo(request, "rentabilidad")
+    u = getattr(request.state, "user", {}) or {}
+    try:
+        km = body.get("km_cabezote")
+        gal = body.get("galones")
+        dias = body.get("dias_override")
+        pgal = body.get("precio_galon")
+        km = int(km) if km not in (None, "") else None
+        gal = float(gal) if gal not in (None, "") else None
+        dias = int(dias) if dias not in (None, "") else None
+        pgal = float(pgal) if pgal not in (None, "") else None
+        eq = body.get("equipos") or None
+        pe = body.get("personas") or None
+        eq_j = json.dumps(eq) if eq else None
+        pe_j = json.dumps(pe) if pe else None
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO costeo_inputs
+                    (numero_osi, km_cabezote, galones, dias_override, precio_galon,
+                     equipos_json, personas_json, updated_by, updated_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s, now())
+                ON CONFLICT (numero_osi) DO UPDATE SET
+                    km_cabezote=EXCLUDED.km_cabezote, galones=EXCLUDED.galones,
+                    dias_override=EXCLUDED.dias_override, precio_galon=EXCLUDED.precio_galon,
+                    equipos_json=EXCLUDED.equipos_json, personas_json=EXCLUDED.personas_json,
+                    updated_by=EXCLUDED.updated_by, updated_at=now()
+            """, (numero_osi, km, gal, dias, pgal, eq_j, pe_j,
+                  (u.get("nombre") or u.get("username") or "—")))
+            return _costeo_calcular(cur, numero_osi)
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+def _pesos(n):
+    try:
+        return "$" + f"{int(round(n)):,}".replace(",", ".")
+    except Exception:
+        return "$0"
+
+
+def _costeo_informe_html(d: dict) -> str:
+    """Informe completo estilo artefacto (naranja/negro) listo para descargar."""
+    def fila(label, valor, pct=None, cls=""):
+        p = f'<td style="text-align:right;color:#666">{pct}</td>' if pct is not None else "<td></td>"
+        return (f'<tr class="{cls}"><td>{label}</td>'
+                f'<td style="text-align:right">{_pesos(valor)}</td>{p}</tr>')
+
+    op = d["operativos"]; oc = d["ocultos"]
+    fact = d["facturacion"] or 0
+    def pc(v):
+        return f"{round(v/fact*100,1)}%" if fact > 0 else "—"
+    op_rows = "".join(fila(k, v, pc(v)) for k, v in sorted(op.items(), key=lambda x: -x[1]) if v)
+    oc_rows = "".join(fila(k, v, pc(v)) for k, v in oc.items() if v)
+    eq_rows = "".join(
+        f'<tr><td>{e["placa"]}</td><td style="text-align:center">{"Cabezote" if e["cabezote"] else "Trailer"}</td>'
+        f'<td style="text-align:center">{e["dias"]}</td><td style="text-align:center">{e["km"]:,}</td>'
+        f'<td style="text-align:right">{_pesos(e["depreciacion"])}</td>'
+        f'<td style="text-align:right">{_pesos(e["llantas"])}</td>'
+        f'<td style="text-align:right">{_pesos(e["seguro"]+e["permiso"])}</td></tr>'
+        for e in d["detalle_equipos"]) or '<tr><td colspan="7" style="color:#999;text-align:center">Sin equipos costeados</td></tr>'
+    rent = d["rentabilidad_pct"]
+    rent_txt = f"{rent}%" if rent is not None else "—"
+    rent_color = "#16a34a" if (rent is not None and rent >= 0) else "#dc2626"
+    return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Informe Rentabilidad OSI {d['numero_osi']}</title>
+<style>
+ *{{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}}
+ body{{margin:0;background:#f4f4f5;color:#18181b;padding:24px}}
+ .wrap{{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;
+   box-shadow:0 4px 24px rgba(0,0,0,.08)}}
+ .head{{background:linear-gradient(135deg,#111 0%,#1f2937 100%);color:#fff;padding:26px 30px}}
+ .head h1{{margin:0;font-size:22px}} .head .orange{{color:#f97316}}
+ .head p{{margin:4px 0 0;color:#d1d5db;font-size:13px}}
+ .kpis{{display:flex;flex-wrap:wrap;gap:12px;padding:20px 30px;background:#fafafa}}
+ .kpi{{flex:1;min-width:150px;background:#fff;border:1px solid #eee;border-radius:10px;padding:14px}}
+ .kpi .l{{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.4px}}
+ .kpi .v{{font-size:19px;font-weight:700;margin-top:4px}}
+ .sec{{padding:8px 30px 20px}} h2{{font-size:15px;border-left:4px solid #f97316;padding-left:10px;margin:22px 0 10px}}
+ table{{width:100%;border-collapse:collapse;font-size:13px}}
+ th,td{{padding:8px 10px;border-bottom:1px solid #f0f0f0}}
+ th{{text-align:left;color:#666;font-size:11px;text-transform:uppercase;background:#fafafa}}
+ tr.total td{{font-weight:700;border-top:2px solid #111;background:#fff8f2}}
+ .foot{{padding:16px 30px;color:#999;font-size:11px;border-top:1px solid #eee}}
+</style></head><body><div class="wrap">
+ <div class="head">
+   <h1>Informe de <span class="orange">Rentabilidad</span></h1>
+   <p>OSI <b>{d['numero_osi']}</b> · Oferta {d['oferta'] or '—'} · {d['cliente'] or '—'}</p>
+   <p>Días operación: {d['dias']} · Km: {d['km']:,} · Galones: {d['galones']:g}</p>
+ </div>
+ <div class="kpis">
+   <div class="kpi"><div class="l">Facturación</div><div class="v">{_pesos(fact)}</div></div>
+   <div class="kpi"><div class="l">Costos Operativos</div><div class="v">{_pesos(d['total_operativos'])}</div></div>
+   <div class="kpi"><div class="l">Costos Ocultos</div><div class="v">{_pesos(d['total_ocultos'])}</div></div>
+   <div class="kpi"><div class="l">Administrativos {round(d['admin_pct']*100,2)}%</div><div class="v">{_pesos(d['administrativos'])}</div></div>
+   <div class="kpi"><div class="l">Utilidad antes de imp.</div><div class="v">{_pesos(d['uai'])}</div></div>
+   <div class="kpi"><div class="l">Rentabilidad</div><div class="v" style="color:{rent_color}">{rent_txt}</div></div>
+ </div>
+ <div class="sec">
+   <h2>Costos Operativos (anticipos Vulcano + bombas)</h2>
+   <table><thead><tr><th>Detalle</th><th style="text-align:right">Valor</th><th style="text-align:right">% Fact.</th></tr></thead>
+   <tbody>{op_rows}{fila("Total Operativos", d['total_operativos'], pc(d['total_operativos']), 'total')}</tbody></table>
+
+   <h2>Costos Ocultos (días × tarifa + km × tarifa)</h2>
+   <table><thead><tr><th>Detalle</th><th style="text-align:right">Valor</th><th style="text-align:right">% Fact.</th></tr></thead>
+   <tbody>{oc_rows}{fila("Total Ocultos", d['total_ocultos'], pc(d['total_ocultos']), 'total')}</tbody></table>
+
+   <h2>Equipos costeados</h2>
+   <table><thead><tr><th>Placa</th><th style="text-align:center">Tipo</th><th style="text-align:center">Días</th>
+   <th style="text-align:center">Km</th><th style="text-align:right">Depreciación</th>
+   <th style="text-align:right">Llantas</th><th style="text-align:right">Seguros+Permisos</th></tr></thead>
+   <tbody>{eq_rows}</tbody></table>
+
+   <h2>Resultado</h2>
+   <table><tbody>
+   {fila("Facturación", fact)}
+   {fila("(−) Costos Operativos", -d['total_operativos'])}
+   {fila("(−) Costos Ocultos", -d['total_ocultos'])}
+   {fila("(−) Administrativos", -d['administrativos'])}
+   {fila("Utilidad Antes de Impuestos", d['uai'], rent_txt, 'total')}
+   </tbody></table>
+ </div>
+ <div class="foot">Generado automáticamente por Control de Ofertas · Tarifas maestras del Excel de rentabilidad ·
+   Costos operativos = {d['n_anticipos']} anticipo(s) de Vulcano. Este informe es informativo.</div>
+</div></body></html>"""
+
+
+@app.get("/api/costeo/osi/{numero_osi}/informe")
+def costeo_osi_informe(numero_osi: str, request: Request):
+    """Descarga el informe de costeo en HTML (lo puede abrir/imprimir a PDF).
+    Accesible por Jorge, Boris y admin."""
+    _require_modulo(request, "rentabilidad", "aprobar_presupuesto")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            d = _costeo_calcular(cur, numero_osi)
+        html = _costeo_informe_html(d)
+        fn = f"Informe_Rentabilidad_{numero_osi}.html"
+        return HTMLResponse(html, headers={
+            "Content-Disposition": f'attachment; filename="{fn}"'})
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
