@@ -3453,12 +3453,12 @@ function enterModulo(modulo) {
   document.getElementById('tabUsuariosBtn').style.display      = 'none'; // Usuarios está dentro del módulo TI
   document.getElementById('tabTiBtn').style.display            = modulo === 'ti'            ? '' : 'none';
   // Aprobación (Boris) y Rentabilidad (Jorge) son DOS módulos independientes,
-  // cada uno con su propia pestaña. El admin ve ambas.
-  const _adm = (currentUser && currentUser.rol === 'admin');
+  // cada uno con su propia pestaña. Solo aparecen DENTRO de su propio módulo
+  // (nunca en el módulo Comercial). El admin entra a cada uno desde su tarjeta.
   const esRent = (modulo === 'rentabilidad');
   const esAprob = (modulo === 'aprobar_presupuesto');
-  document.getElementById('tabAprobacionesBtn').style.display  = (esAprob || _adm) ? '' : 'none';
-  document.getElementById('tabRentabilidadBtn').style.display  = (esRent  || _adm) ? '' : 'none';
+  document.getElementById('tabAprobacionesBtn').style.display  = esAprob ? '' : 'none';
+  document.getElementById('tabRentabilidadBtn').style.display  = esRent  ? '' : 'none';
   document.getElementById('btnCambiarModulo').style.display    = (currentUser && (currentUser.rol === 'admin' || (currentUser.modulos||[]).length > 1)) ? '' : 'none';
   document.getElementById('appHeader').querySelector('.header-subtitle').textContent = info.subtitulo;
   document.body.classList.remove('rol-admin','rol-comercial','rol-operaciones','rol-viewer');
