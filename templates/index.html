@@ -9651,6 +9651,74 @@ async function verAnticiposOSI(osi){
 // ── Informe de costeo/rentabilidad (Jorge) ─────────────────────────────────
 const _cMoney = (n)=> '$ ' + (Math.round(n)||0).toLocaleString('es-CO');
 
+// Desglose del líder: reconstruye equipo por equipo (combustible, viáticos,
+// peajes, escolta, transporte, parqueo, imprevistos) tal como lo armó en el
+// presupuesto. Lo usan Boris (verificar antes de aprobar) y Jorge (completo).
+function _desglosePresuHtml(equipos, tarifas){
+  equipos = equipos || []; tarifas = tarifas || {};
+  const _dn = (v)=>{ const n = parseFloat(String(v==null?'':v).replace(/[^\d.-]/g,'')); return isNaN(n)?0:n; };
+  const pg = _dn(tarifas.precio_galon) || 11000;
+  const vv = _dn(tarifas.valor_viatico) || 100000;
+  const rc = _dn(tarifas.rend_cargado) || 5.5;
+  const rv = _dn(tarifas.rend_vacio) || 8.0;
+  if (!equipos.length) return '<div style="padding:14px;color:#9aa3b0;text-align:center;">Este presupuesto no tiene equipos cargados.</div>';
+  let gTot = 0;
+  const cards = equipos.map((eq, i)=>{
+    let kc=0, kv=0;
+    (eq.tramos||[]).forEach(t=>{ const km=_dn(t.km); if((t.tipo||'')==='vacio') kv+=km; else kc+=km; });
+    const gc = kc>0 ? Math.ceil(kc/rc) : 0;
+    const gv = kv>0 ? Math.ceil(kv/rv) : 0;
+    const gal = gc+gv;
+    const comb = gal*pg;
+    const nper = _dn(eq.operarios)+_dn(eq.auxiliares);
+    const viat = _dn(eq.dias)*nper*vv;
+    const peajes=_dn(eq.peajes), escolta=_dn(eq.escolta), transporte=_dn(eq.transporte), parq=_dn(eq.parqueaderos), imp=_dn(eq.imprevistos);
+    const otros = peajes+escolta+transporte+parq+imp;
+    const sub = comb+viat+otros;
+    gTot += sub;
+    const sub_es = eq.subcontratado;
+    const fila = (l,v)=> v ? `<tr><td style="padding:3px 8px;color:#556;">${l}</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${_cMoney(v)}</td></tr>` : '';
+    const tramosTxt = (eq.tramos||[]).map(t=>`${(t.orig||'?')}→${(t.dest||'?')} ${_dn(t.km)}km${(t.tipo||'')==='vacio'?' (vacío)':''}`).join(' · ') || '—';
+    return `<div style="background:#fff;border:1px solid ${sub_es?'#d8b4fe':'#e5e7eb'};border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="font-weight:800;color:#111827;font-size:13.5px;">${(eq.desc||('Equipo '+(i+1)))}${sub_es?' <span style="font-size:10px;color:#7c3aed;font-weight:800;">🔗 SUBCONTRATADO'+(eq.empresa?': '+eq.empresa:'')+'</span>':''}</div>
+        <div style="font-weight:800;color:#0f766e;">${_cMoney(sub)}</div>
+      </div>
+      <div style="font-size:11px;color:#8a94a3;margin:4px 0 8px;">${_dn(eq.dias)} día(s) · ${_dn(eq.operarios)} oper. · ${_dn(eq.auxiliares)} aux. · ${gal} gal · ${tramosTxt}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        ${fila('Combustible ('+gal+' gal × '+_cMoney(pg)+')', comb)}
+        ${fila('Viáticos ('+_dn(eq.dias)+' × '+nper+' pers × '+_cMoney(vv)+')', viat)}
+        ${fila('Peajes', peajes)}${fila('Escolta', escolta)}${fila('Transporte', transporte)}${fila('Parqueaderos', parq)}${fila('Imprevistos', imp)}
+      </table>
+    </div>`;
+  }).join('');
+  return cards + `<div style="display:flex;justify-content:space-between;align-items:center;background:#0f766e;color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;">
+    <span>Costo estimado total (líder)</span><span>${_cMoney(gTot)}</span></div>`;
+}
+
+// Boris: ver el desglose del líder de un presupuesto por aprobar (solo lectura).
+async function verDesglosePresu(osiId, cliente){
+  let d;
+  try { d = await fetch('/api/presupuesto/'+osiId).then(r=>r.json()); }
+  catch(e){ alert('No se pudo cargar el detalle.'); return; }
+  if (!d || !d.existe){ alert('Este presupuesto no tiene detalle guardado.'); return; }
+  const datos = d.datos || {};
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+   <div style="background:#f8fafc;border-radius:14px;max-width:720px;width:94%;max-height:90vh;overflow:auto;padding:22px;">
+     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+       <div style="font-weight:800;font-size:16px;color:var(--petrol);">🔍 Desglose del presupuesto — ${cliente||d.cliente||''}</div>
+       <button class="btn" onclick="this.closest('div[style*=fixed]').remove()" style="font-size:12px;">✖ Cerrar</button>
+     </div>
+     <div style="font-size:12px;color:#667;margin-bottom:12px;">${d.numero_osi||''} · Facturación esperada ${_cMoney(d.facturacion_esperada)}</div>
+     ${_desglosePresuHtml(datos.equipos, datos.tarifas)}
+     <div style="font-size:11px;color:#9aa3b0;margin-top:10px;">Este es el detalle que armó el líder. Los costos ocultos (nómina, depreciación, seguros) y el informe completo los verás en el módulo de Rentabilidad.</div>
+   </div>`;
+  document.body.appendChild(overlay);
+}
+
 function _costeoKpis(d){
   const rent = (d.rentabilidad_pct==null) ? '—' : d.rentabilidad_pct+'%';
   const rc = (d.rentabilidad_pct!=null && d.rentabilidad_pct>=0) ? '#16a34a' : '#dc2626';
@@ -9691,7 +9759,13 @@ async function abrirCosteo(osi){
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   const render = (dd)=>{
-    overlay.querySelector('#costeoBody').innerHTML = _costeoKpis(dd);
+    const desglose = (dd.equipos_presupuesto && dd.equipos_presupuesto.length)
+      ? `<details style="margin-bottom:12px;" open>
+           <summary style="cursor:pointer;font-weight:800;font-size:12.5px;color:var(--petrol);">🔍 Desglose del líder (presupuesto)</summary>
+           <div style="margin-top:8px;">${_desglosePresuHtml(dd.equipos_presupuesto, dd.tarifas_presupuesto)}</div>
+         </details>`
+      : '';
+    overlay.querySelector('#costeoBody').innerHTML = desglose + _costeoKpis(dd);
   };
   overlay.innerHTML = `
    <div style="background:#f8fafc;border-radius:14px;max-width:840px;width:94%;max-height:90vh;overflow:auto;padding:22px;">
@@ -9766,7 +9840,8 @@ async function cargarPresuPendientes(){
       </div>
       ${perdida ? `<div style="margin-top:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:11.5px;color:#991b1b;"><b>⚠️ En pérdida.</b> ${p.justificacion ? 'Justificación: “'+p.justificacion+'”' : 'Sin justificación.'}</div>` : ''}
       <div style="font-size:11px;color:#9aa3b0;margin-top:8px;">Enviado por ${p.enviado_por||'—'}</div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="verDesglosePresu(${p.osi_id}, '${(p.cliente||'').replace(/'/g,'')}')" style="width:100%;margin-top:10px;background:#eef2f7;color:#0f766e;border:1px solid #d7dee8;border-radius:8px;padding:8px;font-size:12.5px;font-weight:800;cursor:pointer;">🔍 Ver detalle del presupuesto</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
         <button onclick="presuAprobar(${p.osi_id})" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">✅ Aprobar</button>
         <button onclick="presuRechazar(${p.osi_id})" style="flex:1;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">❌ Rechazar</button>
       </div>

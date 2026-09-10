@@ -3681,6 +3681,11 @@ def _costeo_calcular(cur, numero_osi):
         "uai": uai, "rentabilidad_pct": rent_pct,
         "detalle_equipos": detalle_equipos, "detalle_personas": detalle_personas,
         "n_anticipos": len(anticipos),
+        # Desglose del líder (lo que armó en el presupuesto) para que Jorge vea
+        # el detalle completo junto a los costos ocultos.
+        "equipos_presupuesto": equipos_presu,
+        "tarifas_presupuesto": tarifas_presu,
+        "total_estimado_presupuesto": int(presu.get("total_estimado") or 0) if presu else 0,
     }
 
 
