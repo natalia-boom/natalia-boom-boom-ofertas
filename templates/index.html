@@ -2215,22 +2215,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <!-- ===== Clasificación para el Control (dashboard) ===== -->
         <div style="margin-top:14px;border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;background:#fafbfc;">
           <div style="font-size:12px;font-weight:700;color:var(--petrol);margin-bottom:8px;">🗂️ REGISTRO PARA EL CONTROL</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-            <div class="form-group">
-              <label>Tipo de Cliente</label>
-              <select id="iaSector" onchange="iaRenderResumen()">
-                <option value="">Seleccionar...</option>
-                <option>MINERO</option>
-                <option>INDUSTRIAL</option>
-                <option>ENERGÉTICO</option>
-                <option>AGENTES DE CARGA</option>
-                <option>CONSTRUCCIÓN</option>
-                <option>PUERTOS</option>
-                <option>EMP. TRANSP</option>
-                <option>NAVIERA</option>
-                <option>ADUANAS</option>
-              </select>
-            </div>
+          <!-- Esenciales SIEMPRE visibles: clasifican la oferta (Tipo es obligatorio) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div class="form-group">
               <label>Unidad de Negocio</label>
               <select id="iaUnidad" onchange="iaRenderResumen()">
@@ -2253,46 +2239,72 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
                 <option>PROYECTO MIXTO</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Estado</label>
-              <select id="iaEstado">
-                <option value="ENVIADO">ENVIADO</option>
-                <option value="EN PROCESO">EN PROCESO</option>
-                <option value="CERRADO">CERRADO</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Respuesta</label>
-              <select id="iaRespuesta">
-                <option value="">Seleccionar...</option>
-                <option>ACEPTADA</option>
-                <option>RECHAZADA</option>
-                <option>EN SEGUIMIENTO</option>
-                <option>PENDIENTE</option>
-                <option>RECIBIDO</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Forma de pago</label>
-              <select id="iaFormaPago" onchange="iaAplicarFormaPago()">
-                <option value="50% anticipo / 50% a 30 días tras radicación de factura">50% anticipo / 50% a 30 días tras radicación de factura</option>
-                <option value="A 30 días después de radicada la factura">A 30 días después de radicada la factura</option>
-              </select>
-            </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-            <div class="form-group">
-              <label>Origen <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
-              <input id="iaOrigen" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de cargue">
+          <!-- Plegable: el resto de campos que normalmente ya vienen llenos -->
+          <button type="button" id="iaMasDetBtn" onclick="iaToggleMasDet()"
+                  style="width:100%;display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12.5px;color:var(--petrol);">
+            <span id="iaMasDetChev">▸</span>
+            <span>Más detalles</span>
+            <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">tipo de cliente, estado, respuesta, pago, origen/destino, seguimiento</span>
+          </button>
+          <div id="iaMasDet" style="display:none;margin-top:10px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+              <div class="form-group">
+                <label>Tipo de Cliente</label>
+                <select id="iaSector" onchange="iaRenderResumen()">
+                  <option value="">Seleccionar...</option>
+                  <option>MINERO</option>
+                  <option>INDUSTRIAL</option>
+                  <option>ENERGÉTICO</option>
+                  <option>AGENTES DE CARGA</option>
+                  <option>CONSTRUCCIÓN</option>
+                  <option>PUERTOS</option>
+                  <option>EMP. TRANSP</option>
+                  <option>NAVIERA</option>
+                  <option>ADUANAS</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Estado</label>
+                <select id="iaEstado">
+                  <option value="ENVIADO">ENVIADO</option>
+                  <option value="EN PROCESO">EN PROCESO</option>
+                  <option value="CERRADO">CERRADO</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Respuesta</label>
+                <select id="iaRespuesta">
+                  <option value="">Seleccionar...</option>
+                  <option>ACEPTADA</option>
+                  <option>RECHAZADA</option>
+                  <option>EN SEGUIMIENTO</option>
+                  <option>PENDIENTE</option>
+                  <option>RECIBIDO</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Forma de pago</label>
+                <select id="iaFormaPago" onchange="iaAplicarFormaPago()">
+                  <option value="50% anticipo / 50% a 30 días tras radicación de factura">50% anticipo / 50% a 30 días tras radicación de factura</option>
+                  <option value="A 30 días después de radicada la factura">A 30 días después de radicada la factura</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Destino <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
-              <input id="iaDestino" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de descargue">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+              <div class="form-group">
+                <label>Origen <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
+                <input id="iaOrigen" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de cargue">
+              </div>
+              <div class="form-group">
+                <label>Destino <span style="font-weight:400;color:var(--text-muted);">(para la OSI)</span></label>
+                <input id="iaDestino" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Ciudad / lugar de descargue">
+              </div>
             </div>
-          </div>
-          <div class="form-group" style="margin-top:10px;">
-            <label>Seguimiento</label>
-            <textarea id="iaSeguimiento" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Notas de seguimiento"></textarea>
+            <div class="form-group" style="margin-top:10px;">
+              <label>Seguimiento</label>
+              <textarea id="iaSeguimiento" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-family:'Barlow',sans-serif;font-size:13px;" placeholder="Notas de seguimiento"></textarea>
+            </div>
           </div>
         </div>
 
@@ -6594,6 +6606,16 @@ function iaQuitarPacking() {
   const n = document.getElementById('iaPackingNombre'); if (n) n.textContent = '';
   const q = document.getElementById('iaPackingQuitar'); if (q) q.style.display = 'none';
   try { iaSyncPackingBox(); } catch (e) {}
+}
+
+// Pliega/despliega el bloque "Más detalles" del registro para el Control.
+function iaToggleMasDet(force) {
+  const box = document.getElementById('iaMasDet');
+  const chev = document.getElementById('iaMasDetChev');
+  if (!box) return;
+  const abrir = (typeof force === 'boolean') ? force : (box.style.display === 'none');
+  box.style.display = abrir ? 'block' : 'none';
+  if (chev) chev.textContent = abrir ? '▾' : '▸';
 }
 
 async function iaGenerarOferta() {
