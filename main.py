@@ -4743,11 +4743,25 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
             cur = conn.cursor()
             # Fetch current state before update — all tracked fields
             cur.execute("SELECT estado, respuesta, valor, facturacion, mes_aceptado, "
-                        "seguimiento, no_factura, valor_facturado, valor_aprobado, num FROM ofertas WHERE id = %s",
+                        "seguimiento, no_factura, valor_facturado, valor_aprobado, num, realizada FROM ofertas WHERE id = %s",
                         (oferta_id,))
             prev = fetchone(cur)
             if prev is None:
                 raise HTTPException(404, "Oferta no encontrada")
+
+        # SEGURIDAD (Natalia 2026-09-11): SOLO el administrador o el dueño de la
+        # oferta (quien la creó = 'realizada') puede editar los campos núcleo
+        # (cliente, valores, respuesta, mes aceptado). Así nadie sabotea ofertas
+        # ajenas. El seguimiento/facturación de otros roles NO se toca porque no
+        # incluyen estos campos.
+        _PROTEGIDOS = {"cliente", "valor", "valor_aprobado", "respuesta", "mes_aceptado"}
+        if any(k in fields for k in _PROTEGIDOS):
+            _u = getattr(request.state, "user", None) or {}
+            if _u.get("rol") != "admin":
+                _mi = re.sub(r"\s+", " ", str(_u.get("nombre") or "").strip()).upper()
+                _dueno = re.sub(r"\s+", " ", str(prev.get("realizada") or "").strip()).upper()
+                if not _dueno or _mi != _dueno:
+                    raise HTTPException(403, "Solo el administrador o quien creó la oferta puede editarla.")
 
         if "pdf_data" in fields and isinstance(fields["pdf_data"], dict):
             fields["pdf_data"] = json.dumps(fields["pdf_data"])
@@ -4881,12 +4895,19 @@ def anular_oferta(oferta_id: int, body: AnularBody, request: Request):
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT num, anulada FROM ofertas WHERE id = %s", (oferta_id,))
+            cur.execute("SELECT num, anulada, realizada FROM ofertas WHERE id = %s", (oferta_id,))
             prev = fetchone(cur)
             if prev is None:
                 raise HTTPException(404, "Oferta no encontrada")
             if prev.get("anulada"):
                 raise HTTPException(409, "La oferta ya está anulada")
+            # SEGURIDAD: solo admin o el dueño (realizada) puede anular su oferta.
+            _u = getattr(request.state, "user", None) or {}
+            if _u.get("rol") != "admin":
+                _mi = re.sub(r"\s+", " ", str(_u.get("nombre") or "").strip()).upper()
+                _dueno = re.sub(r"\s+", " ", str(prev.get("realizada") or "").strip()).upper()
+                if not _dueno or _mi != _dueno:
+                    raise HTTPException(403, "Solo el administrador o quien creó la oferta puede anularla.")
             cur.execute("""
                 UPDATE ofertas
                    SET anulada = true, estado = 'ANULADA',
