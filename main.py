@@ -2652,7 +2652,8 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     # Descarga PÚBLICA del packing list adjunto: el cliente lo abre desde el enlace
     # que va dentro del PDF de la cotización (igual que el Anexo Legal), sin login.
-    if request.method == "GET" and re.match(r"^/api/ofertas/\d+/packing-list$", path):
+    # Acepta por id (/api/ofertas/123/...) o por N° de oferta (/api/ofertas/by-num/261209/...).
+    if request.method == "GET" and re.match(r"^/api/ofertas/(\d+|by-num/[^/]+)/packing-list$", path):
         return await call_next(request)
 
     token = request.cookies.get("boom_session")
@@ -5080,6 +5081,34 @@ def descargar_packing_list(oferta_id: int):
     with get_conn() as conn:
         cur = conn.cursor()
         cur.execute("SELECT nombre, mime, contenido FROM oferta_packing WHERE oferta_id=%s", (oferta_id,))
+        r = fetchone(cur)
+    if r is None or not r.get("contenido"):
+        raise HTTPException(404, "Esta oferta no tiene packing list adjunto")
+    try:
+        data = base64.b64decode(r["contenido"])
+    except Exception:
+        raise HTTPException(500, "El adjunto está dañado")
+    nombre = (r.get("nombre") or "packing_list.xlsx").replace('"', "")
+    mime = r.get("mime") or "application/octet-stream"
+    return Response(content=data, media_type=mime,
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@app.get("/api/ofertas/by-num/{num}/packing-list")
+def descargar_packing_list_por_num(num: str):
+    """Descarga PÚBLICA por N° de oferta (para el enlace incrustado al generar el
+    HTML, cuando aún no se conoce el id). Toma el packing más reciente de ese número."""
+    num_norm = re.sub(r"\D", "", num or "")
+    if not num_norm:
+        raise HTTPException(404, "N° de oferta inválido")
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT p.nombre, p.mime, p.contenido
+            FROM oferta_packing p JOIN ofertas o ON o.id = p.oferta_id
+            WHERE regexp_replace(COALESCE(o.num,''), '\\D', '', 'g') = %s
+            ORDER BY p.updated_at DESC LIMIT 1
+        """, (num_norm,))
         r = fetchone(cur)
     if r is None or not r.get("contenido"):
         raise HTTPException(404, "Esta oferta no tiene packing list adjunto")
