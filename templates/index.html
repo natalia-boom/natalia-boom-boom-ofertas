@@ -4769,7 +4769,9 @@ function filterAprobadas() {
   const vencidas = todas.filter(o => esVencida(o)).length;
 
   const setKpi = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setKpi('aTotal', aprobadas.length);
+  // "TOTAL APROBADAS" = total real de aceptadas vivas (NO la lista filtrada),
+  // para que sea coherente con las otras tarjetas y no cambie con la búsqueda/filtro.
+  setKpi('aTotal', todas.length);
   setKpi('aValorEsperado', formatCOP(valEsp));
   setKpi('aValorFacturado', formatCOP(valFact));
   setKpi('aVencidas', vencidas);
