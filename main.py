@@ -1627,6 +1627,18 @@ def _ensure_db():
         # Moneda de la oferta (COP por defecto). Las ofertas en USD ya no se muestran
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
+        # Packing List adjunto por oferta (Excel u otro archivo). Para ofertas muy
+        # extensas se anexa el packing list en vez de listarlo dentro de la cotización.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS oferta_packing (
+                oferta_id  bigint PRIMARY KEY,
+                nombre     text,
+                mime       text,
+                contenido  text,
+                updated_by text,
+                updated_at timestamptz DEFAULT now()
+            )
+        """)
 
         # ── Corrección de cliente: SOE 360 → GECOLSA (SOLO lo facturado) ──────
         # La ÚNICA fuente válida para decir que una oferta es GECOLSA es la
@@ -2637,6 +2649,10 @@ _FACT_CLIENTE_GRUPO_SQL = """
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
     if path in _AUTH_PUBLIC:
+        return await call_next(request)
+    # Descarga PÚBLICA del packing list adjunto: el cliente lo abre desde el enlace
+    # que va dentro del PDF de la cotización (igual que el Anexo Legal), sin login.
+    if request.method == "GET" and re.match(r"^/api/ofertas/\d+/packing-list$", path):
         return await call_next(request)
 
     token = request.cookies.get("boom_session")
@@ -4973,12 +4989,23 @@ def download_oferta_pdf(oferta_id: int):
             payload = json.loads(stored)
         else:
             payload = stored
+        # ¿La oferta tiene Packing List adjunto? (para enlazarlo dentro del PDF)
+        with get_conn() as conn2:
+            cur2 = conn2.cursor()
+            cur2.execute("SELECT nombre FROM oferta_packing WHERE oferta_id=%s", (oferta_id,))
+            _pk = fetchone(cur2)
+        _pk_nombre = _pk.get("nombre") if _pk else None
         # Ofertas del modo IA avanzada guardan el HTML completo ya renderizado.
         if payload.get("ia_html"):
-            pdf_bytes = _html_to_pdf_bytes(_limpiar_oferta_html(payload["ia_html"]))
+            _html = _limpiar_oferta_html(payload["ia_html"])
+            if _pk:
+                _html = _inject_packing(_html, oferta_id, _pk_nombre or "")
+            pdf_bytes = _html_to_pdf_bytes(_html)
         else:
             payload["equipos"] = [e for e in (payload.get("equipos") or []) if e.get("equipo") or e.get("cant")]
             payload["cargo_items"] = [c for c in (payload.get("cargo_items") or []) if c.get("descripcion") or c.get("dimensiones")]
+            if _pk:
+                payload["_packing_url"] = f"https://web-production-73608.up.railway.app/api/ofertas/{oferta_id}/packing-list"
             pdf_bytes = generar_pdf_oferta(payload)
         ref_fmt = _fmt_ref(row.get("num") or oferta_id)
         cliente_slug = re.sub(r"[^a-zA-Z0-9]", "_", (row.get("cliente") or "BOOM"))[:20]
@@ -4993,6 +5020,102 @@ def download_oferta_pdf(oferta_id: int):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+# ── Packing List adjunto por oferta ──────────────────────────────────────────
+class PackingBody(BaseModel):
+    nombre: str = ""
+    mime: str = ""
+    b64: str = ""   # contenido en base64 (sin el prefijo data:)
+
+
+def _oferta_dueno_o_admin(cur, oferta_id: int, request: Request):
+    """Solo el admin o el dueño (realizada) de la oferta puede adjuntar/quitar."""
+    cur.execute("SELECT realizada FROM ofertas WHERE id=%s", (oferta_id,))
+    r = fetchone(cur)
+    if r is None:
+        raise HTTPException(404, "Oferta no encontrada")
+    u = getattr(request.state, "user", None) or {}
+    if u.get("rol") == "admin":
+        return
+    mi = re.sub(r"\s+", " ", str(u.get("nombre") or "").strip()).upper()
+    dueno = re.sub(r"\s+", " ", str(r.get("realizada") or "").strip()).upper()
+    if not dueno or mi != dueno:
+        raise HTTPException(403, "Solo el administrador o quien creó la oferta puede adjuntar el packing list.")
+
+
+@app.post("/api/ofertas/{oferta_id}/packing-list")
+def subir_packing_list(oferta_id: int, body: PackingBody, request: Request):
+    """Adjunta (o reemplaza) el Packing List de una oferta. Solo admin/dueño."""
+    b64 = (body.b64 or "").strip()
+    # Por si llega como data URI, nos quedamos con la parte base64.
+    if "," in b64 and b64.lower().startswith("data:"):
+        b64 = b64.split(",", 1)[1]
+    if not b64:
+        raise HTTPException(400, "Archivo vacío")
+    # Tope ~12 MB de archivo real (base64 ≈ 4/3 del tamaño).
+    if len(b64) > 16_000_000:
+        raise HTTPException(413, "El archivo es muy grande (máx. ~12 MB).")
+    with get_conn() as conn:
+        cur = conn.cursor()
+        _oferta_dueno_o_admin(cur, oferta_id, request)
+        u = getattr(request.state, "user", None) or {}
+        quien = (u.get("nombre") or "").strip()
+        cur.execute("""
+            INSERT INTO oferta_packing (oferta_id, nombre, mime, contenido, updated_by, updated_at)
+            VALUES (%s,%s,%s,%s,%s, now())
+            ON CONFLICT (oferta_id) DO UPDATE SET
+              nombre=EXCLUDED.nombre, mime=EXCLUDED.mime, contenido=EXCLUDED.contenido,
+              updated_by=EXCLUDED.updated_by, updated_at=now()
+        """, (oferta_id, (body.nombre or "packing_list.xlsx").strip(),
+              (body.mime or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+              b64, quien))
+        conn.commit()
+    return {"ok": True, "oferta_id": oferta_id}
+
+
+@app.get("/api/ofertas/{oferta_id}/packing-list")
+def descargar_packing_list(oferta_id: int):
+    """Descarga PÚBLICA del packing list adjunto (el cliente lo abre desde el PDF)."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT nombre, mime, contenido FROM oferta_packing WHERE oferta_id=%s", (oferta_id,))
+        r = fetchone(cur)
+    if r is None or not r.get("contenido"):
+        raise HTTPException(404, "Esta oferta no tiene packing list adjunto")
+    try:
+        data = base64.b64decode(r["contenido"])
+    except Exception:
+        raise HTTPException(500, "El adjunto está dañado")
+    nombre = (r.get("nombre") or "packing_list.xlsx").replace('"', "")
+    mime = r.get("mime") or "application/octet-stream"
+    return Response(content=data, media_type=mime,
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@app.get("/api/ofertas/{oferta_id}/packing-list/existe")
+def existe_packing_list(oferta_id: int, request: Request):
+    """¿La oferta tiene packing list? (para pintar el enlace en la pantalla)."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT nombre, updated_at FROM oferta_packing WHERE oferta_id=%s", (oferta_id,))
+        r = fetchone(cur)
+    if r is None:
+        return {"existe": False}
+    ua = r.get("updated_at")
+    return {"existe": True, "nombre": r.get("nombre"),
+            "updated_at": ua.isoformat() if isinstance(ua, (date, datetime)) else ua}
+
+
+@app.delete("/api/ofertas/{oferta_id}/packing-list")
+def borrar_packing_list(oferta_id: int, request: Request):
+    """Quita el packing list adjunto. Solo admin/dueño."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        _oferta_dueno_o_admin(cur, oferta_id, request)
+        cur.execute("DELETE FROM oferta_packing WHERE oferta_id=%s", (oferta_id,))
+        conn.commit()
+    return {"ok": True}
 
 
 @app.post("/api/extraer-info")
@@ -5183,6 +5306,49 @@ def _inject_anexo(html: str) -> str:
     if not html or "<!--ANEXO1-->" in html:
         return html
     bloque = _bloque_anexo_html()
+    if '<div class="footer">' in html:
+        return html.replace('<div class="footer">', bloque + '\n<div class="footer">', 1)
+    if "</body>" in html:
+        return html.replace("</body>", bloque + "\n</body>", 1)
+    return html + bloque
+
+
+def _bloque_packing_html(oferta_id: int, nombre: str = "") -> str:
+    """Recuadro con el enlace de descarga del Packing List adjunto de la oferta."""
+    url = f"https://web-production-73608.up.railway.app/api/ofertas/{oferta_id}/packing-list"
+    return (
+        '<!--PACKING-->'
+        '<div style="margin:14px 0 4px 0;padding:14px 16px;border:1px solid #d9e2e6;'
+        'border-left:5px solid #1B2A4A;border-radius:8px;background:#f4f7fb;'
+        'font-family:Arial,sans-serif;font-size:13px;color:#1B2A4A;line-height:1.5;">'
+        '📎 <strong>Packing List &ndash; detalle de la carga.</strong> '
+        'Por la extensi&oacute;n del listado, el detalle de la carga se adjunta como archivo '
+        'y hace parte integral de esta oferta.<br>'
+        f'<a href="{url}" target="_blank" '
+        'style="display:inline-block;margin-top:8px;color:#0e6b7d;font-weight:bold;'
+        'text-decoration:underline;">👉 Descargar el Packing List (Excel)</a>'
+        '</div>'
+    )
+
+
+def _inject_packing(html: str, oferta_id: int, nombre: str = "") -> str:
+    """Inserta el recuadro del Packing List JUSTO DEBAJO de la oferta económica.
+    Ancla: la tabla que sigue al título que contiene 'económic…'. Si no la
+    encuentra, cae por encima del Anexo/firma. Idempotente."""
+    if not html or "<!--PACKING-->" in html:
+        return html
+    bloque = _bloque_packing_html(oferta_id, nombre)
+    # Preferimos anclar al TÍTULO de la sección (Oferta/Propuesta/Resumen Económic…);
+    # si no aparece, a cualquier mención de 'económic'.
+    m = (re.search(r"(oferta|propuesta|resumen|detalle)[^<]{0,20}econ[oó]mic", html, re.IGNORECASE)
+         or re.search(r"econ[oó]mic", html, re.IGNORECASE))
+    if m:
+        cierre = html.find("</table>", m.end())
+        if cierre != -1:
+            pos = cierre + len("</table>")
+            return html[:pos] + "\n" + bloque + html[pos:]
+    if "<!--ANEXO1-->" in html:
+        return html.replace("<!--ANEXO1-->", bloque + "\n<!--ANEXO1-->", 1)
     if '<div class="footer">' in html:
         return html.replace('<div class="footer">', bloque + '\n<div class="footer">', 1)
     if "</body>" in html:

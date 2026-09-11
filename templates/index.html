@@ -2303,6 +2303,14 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <div id="iaCambiosAuto" style="display:none;margin-top:8px;font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;"></div>
         </div>
 
+        <div id="iaPackingWrap" style="margin-top:12px;border:1.5px dashed #9fb3c8;border-radius:8px;padding:10px 14px;background:#f4f7fb;">
+          <label style="font-size:12px;font-weight:600;color:#1B2A4A;">📎 Packing List (Excel) — opcional, para cargas muy extensas</label>
+          <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px 0;">Si la lista de carga es muy larga, adjunta aquí el Excel y saldrá como enlace de descarga debajo de la oferta económica.</div>
+          <input type="file" id="iaPackingInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;" onchange="iaOnPackingSelected(this)">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('iaPackingInput').click()" style="padding:6px 14px;font-size:12px;">📎 Elegir Excel</button>
+          <span id="iaPackingNombre" style="font-size:12px;color:#0e6b7d;font-weight:600;margin-left:8px;"></span>
+          <button type="button" id="iaPackingQuitar" onclick="iaQuitarPacking()" style="display:none;margin-left:8px;background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">Quitar</button>
+        </div>
         <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="iaBtnPDF" onclick="iaDescargarPDF()" disabled style="padding:10px 20px;">📄 Descargar PDF</button>
           <button class="btn btn-secondary" id="iaBtnHTML" onclick="iaDescargarHTML()" disabled style="padding:10px 20px;">📧 Descargar HTML (correo)</button>
@@ -6518,6 +6526,30 @@ function _iaComponerResumen() {
   return partes.join(' — ') || null;
 }
 
+// ── Packing List adjunto (Excel) para el generador IA ────────────────────────
+let iaPackingFile = null;   // {nombre, mime, b64}
+function iaOnPackingSelected(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  if (f.size > 12 * 1024 * 1024) { showToast('El Excel es muy grande (máx. 12 MB).', 'warning'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const res = String(reader.result || '');
+    const b64 = res.includes(',') ? res.split(',')[1] : res;
+    iaPackingFile = { nombre: f.name, mime: f.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', b64 };
+    document.getElementById('iaPackingNombre').textContent = '✅ ' + f.name;
+    document.getElementById('iaPackingQuitar').style.display = 'inline-block';
+  };
+  reader.onerror = () => showToast('No se pudo leer el archivo', 'error');
+  reader.readAsDataURL(f);
+}
+function iaQuitarPacking() {
+  iaPackingFile = null;
+  const inp = document.getElementById('iaPackingInput'); if (inp) inp.value = '';
+  document.getElementById('iaPackingNombre').textContent = '';
+  document.getElementById('iaPackingQuitar').style.display = 'none';
+}
+
 async function iaGenerarOferta() {
   if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
   // 🛡️ Malla de seguridad: no dejar guardar ofertas incompletas (ensucian el Control)
@@ -6587,6 +6619,17 @@ async function iaGenerarOferta() {
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Error guardando'); }
     const g = await res.json();
+    // Si adjuntaste un Packing List, lo subimos pegado a la oferta recién guardada.
+    if (iaPackingFile && g.oferta_id) {
+      try {
+        const rp = await fetch('/api/ofertas/' + g.oferta_id + '/packing-list', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(iaPackingFile)
+        });
+        if (rp.ok) showToast('📎 Packing List adjuntado a la oferta', 'success');
+        else { const e = await rp.json().catch(()=>({})); showToast('⚠️ Oferta guardada, pero el Packing List no: ' + (e.detail||''), 'warning'); }
+      } catch (e) { showToast('⚠️ Oferta guardada, pero falló el adjunto', 'warning'); }
+    }
     const msg = g.creada
       ? ('✅ Oferta ' + g.num_fmt + ' guardada (versión 1)')
       : ('✅ Oferta ' + g.num_fmt + ' actualizada — versión ' + g.version);
@@ -6607,6 +6650,7 @@ function iaResetChat(silent) {
   iaRefManual = false;
   iaImgMap = {};
   iaCambiosDirectos = [];
+  try { iaQuitarPacking(); } catch(e) {}
   { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }
   iaRenderCambiosAuto();
   document.getElementById('iaChatHistoria').innerHTML =
