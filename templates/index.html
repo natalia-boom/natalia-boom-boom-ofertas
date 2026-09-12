@@ -1090,13 +1090,19 @@ body.rol-viewer .write-only { display:none !important; }
 <section class="tab-panel" id="tab-aprobadas">
   <div class="approved-header">
     <div>
-      <h2>✅ Ofertas Aprobadas</h2>
+      <h2>Ofertas Aprobadas</h2>
       <p id="aprobSummary">Cargando resumen...</p>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <input type="file" id="aprobArchivo" accept=".xlsx,.xls" style="display:none;" onchange="importarAprobadas()">
-      <button class="btn btn-primary" id="btnImportAprob" onclick="document.getElementById('aprobArchivo').click()" style="display:none;" title="Sube tu Excel diario de Ofertas Aprobadas y la Proyección queda idéntica a tu hoja">📥 Importar Ofertas Aprobadas</button>
-      <button class="btn btn-success" onclick="exportExcel('aprobadas')">⬇ Exportar Excel</button>
+      <button id="btnImportAprob" onclick="document.getElementById('aprobArchivo').click()" title="Sube tu Excel diario de Ofertas Aprobadas y la Proyección queda idéntica a tu hoja"
+        style="display:none;background:#e8641a;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-family:'Barlow',sans-serif;font-weight:600;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 14px rgba(232,100,26,.35);transition:transform .12s,box-shadow .12s;"
+        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 18px rgba(232,100,26,.45)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(232,100,26,.35)'">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;vertical-align:-3px;margin-right:8px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Importar Ofertas Aprobadas</button>
+      <button onclick="exportExcel('aprobadas')" title="Descargar en Excel"
+        style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:11px 18px;font-family:'Barlow',sans-serif;font-weight:600;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;transition:background .15s;"
+        onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 4v11M8 11l4 4 4-4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Exportar Excel</button>
     </div>
   </div>
 
