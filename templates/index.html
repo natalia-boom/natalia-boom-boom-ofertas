@@ -168,17 +168,18 @@ table.resizable th { position: relative; }
 table.resizable td { overflow:hidden; text-overflow:ellipsis; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
-  background: linear-gradient(135deg, #10192e, #1B2A4A); color: #fff;
+  background: #1B2A4A; color: #eaf0f8;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
-  padding: 11px 14px; text-align: left; white-space: nowrap;
+  padding: 12px 14px; text-align: left; white-space: nowrap;
+  border-bottom: 2px solid var(--orange);
 }
 thead th:first-child { border-radius: 10px 0 0 0; }
 thead th:last-child  { border-radius: 0 10px 0 0; }
-tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
-tbody tr:nth-child(even) { background: #f8fafc; }
-tbody tr:hover { background: #eff6ff; }
-tbody td { padding: 10px 14px; vertical-align: middle; }
+tbody tr { border-bottom: 1px solid #eef1f5; transition: background 0.15s; }
+tbody tr:nth-child(even) { background: #fafbfc; }
+tbody tr:hover { background: #eef2f8; }
+tbody td { padding: 11px 14px; vertical-align: middle; }
 .badge {
   display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 10px;
   font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
