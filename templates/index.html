@@ -110,15 +110,17 @@ h1,h2,h3,h4 { font-family: 'Barlow Condensed', sans-serif; }
 /* CARDS & KPIS */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .kpi-card {
-  background: var(--card); border-radius: var(--radius); padding: 20px 22px;
-  box-shadow: var(--shadow); border-left: 4px solid var(--petrol);
+  background: var(--card); border-radius: 14px; padding: 18px 20px;
+  box-shadow: 0 2px 10px rgba(27,42,74,0.06); border: 1px solid #eef1f5; border-left: 4px solid var(--petrol);
   display: flex; flex-direction: column; gap: 4px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(27,42,74,0.10); }
 .kpi-card.orange { border-left-color: var(--orange); }
 .kpi-card.success { border-left-color: var(--success); }
 .kpi-card.warning { border-left-color: var(--warning); }
+.kpi-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+.kpi-icon svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; }
 .kpi-label svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 5px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .kpi-value { font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 800; color: var(--petrol); line-height: 1; }
@@ -1106,22 +1108,26 @@ body.rol-viewer .write-only { display:none !important; }
   </div>
 
   <div class="kpi-grid" style="grid-template-columns: repeat(4,1fr);">
-    <div class="kpi-card success">
+    <div class="kpi-card" style="border-left:none;">
+      <div class="kpi-icon" style="background:rgba(27,42,74,0.09);color:#1B2A4A;"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.6 13.2l2.3 2.3 4-4.6"/></svg></div>
       <div class="kpi-label">Total Aprobadas</div>
       <div class="kpi-value" id="aTotal">—</div>
     </div>
-    <div class="kpi-card orange">
-      <div class="kpi-label"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Valor Esperado (Meta 2026)</div>
+    <div class="kpi-card" style="border-left:none;">
+      <div class="kpi-icon" style="background:rgba(232,100,26,0.12);color:var(--orange);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg></div>
+      <div class="kpi-label">Valor Esperado (Meta 2026)</div>
       <div class="kpi-value" id="aMeta" style="font-size:18px">—</div>
       <div id="aMetaSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #157a5b;">
-      <div class="kpi-label"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>Valor Facturado</div>
-      <div class="kpi-value" id="aValorConciliado" style="font-size:18px">—</div>
+    <div class="kpi-card" style="border-left:none;">
+      <div class="kpi-icon" style="background:rgba(21,122,91,0.12);color:#157a5b;"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+      <div class="kpi-label">Valor Facturado</div>
+      <div class="kpi-value" id="aValorConciliado" style="font-size:18px;color:#157a5b;">—</div>
       <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #b23a2e;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
-      <div class="kpi-label" style="color:#b23a2e;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg>Sin facturar +15 días</div>
+    <div class="kpi-card" style="border-left:none;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
+      <div class="kpi-icon" style="background:rgba(178,58,46,0.12);color:#b23a2e;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg></div>
+      <div class="kpi-label" style="color:#b23a2e;">Sin facturar +15 días</div>
       <div class="kpi-value" id="aVencidas" style="color:#b23a2e;">—</div>
     </div>
   </div>
