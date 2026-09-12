@@ -79,6 +79,7 @@ h1,h2,h3,h4 { font-family: 'Barlow Condensed', sans-serif; }
 }
 .tab-btn:hover { color: rgba(255,255,255,0.85); }
 .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+.tab-btn svg { width:15px; height:15px; vertical-align:-2px; margin-right:6px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 
 /* MAIN */
 .main { padding: 24px 28px; max-width: 1600px; margin: 0 auto; }
@@ -903,21 +904,21 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- TABS -->
 <nav class="tabs-bar" id="appNav" style="display:none;">
-  <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
-  <button class="tab-btn write-only" onclick="switchTab('iaoferta')">✨ Generar Oferta</button>
-  <button class="tab-btn" onclick="switchTab('control')">📋 Control de Ofertas</button>
-  <button class="tab-btn" onclick="switchTab('aprobadas')">✅ Ofertas Aprobadas</button>
-  <button class="tab-btn" onclick="switchTab('proyeccion')">📈 Proyección</button>
+  <button class="tab-btn active" onclick="switchTab('dashboard')"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>Dashboard</button>
+  <button class="tab-btn write-only" onclick="switchTab('iaoferta')"><svg viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg>Generar Oferta</button>
+  <button class="tab-btn" onclick="switchTab('control')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>Control de Ofertas</button>
+  <button class="tab-btn" onclick="switchTab('aprobadas')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Ofertas Aprobadas</button>
+  <button class="tab-btn" onclick="switchTab('proyeccion')"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Proyección</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
-  <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')">🏢 Clientes</button>
-  <button class="tab-btn" onclick="switchTab('tablero')">🎯 Tablero</button>
-  <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')">🔔 Notificaciones</button>
-  <button class="tab-btn" id="tabOsiBtn" style="display:none;" onclick="switchTab('osi')">📋 OSI</button>
-  <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')">🚛 Equipos</button>
-  <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')">📊 Tarifario</button>
-  <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')">🖥️ TI</button>
-  <button class="tab-btn" id="tabAprobacionesBtn" style="display:none;" onclick="switchTab('aprobaciones')">✅ Aprobación de Presupuestos</button>
-  <button class="tab-btn" id="tabRentabilidadBtn" style="display:none;" onclick="switchTab('rentabilidad')">💹 Rentabilidad</button>
+  <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>Clientes</button>
+  <button class="tab-btn" onclick="switchTab('tablero')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Tablero</button>
+  <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Notificaciones</button>
+  <button class="tab-btn" id="tabOsiBtn" style="display:none;" onclick="switchTab('osi')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>OSI</button>
+  <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')"><svg viewBox="0 0 24 24"><path d="M3 17V6a1 1 0 0 1 1-1h10v12M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg>Equipos</button>
+  <button class="tab-btn" id="tabTarifarioBtn" style="display:none;" onclick="switchTab('tarifario')"><svg viewBox="0 0 24 24"><path d="M4 20V11M9.3 20V4M14.6 20v-6M20 20V8M3 20h18"/></svg>Tarifario</button>
+  <button class="tab-btn" id="tabTiBtn" style="display:none;" onclick="switchTab('ti')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>TI</button>
+  <button class="tab-btn" id="tabAprobacionesBtn" style="display:none;" onclick="switchTab('aprobaciones')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Aprobación de Presupuestos</button>
+  <button class="tab-btn" id="tabRentabilidadBtn" style="display:none;" onclick="switchTab('rentabilidad')"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Rentabilidad</button>
 </nav>
 
 <!-- MAIN CONTENT -->
