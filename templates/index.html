@@ -313,10 +313,10 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 
 /* APPROVED HEADER */
 .approved-header {
-  background: linear-gradient(135deg, #14532d, #157a5b);
-  border-radius: var(--radius); padding: 22px 28px; margin-bottom: 20px;
+  background: linear-gradient(135deg, #16233F, #24365a);
+  border-radius: 14px; padding: 22px 28px; margin-bottom: 20px;
   color: #fff; display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 6px 20px rgba(22,163,74,0.25);
+  box-shadow: 0 4px 16px rgba(27,42,74,0.20);
 }
 .approved-header h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; }
 .approved-header p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
@@ -4723,10 +4723,10 @@ function renderPanelEstado() {
 
   const metaOk = (rojo===0 && sinSeg===0);
   const card = (v,emoji,label,n,color,bg) =>
-    `<div onclick="setSemFilter('${v}')" title="Clic para filtrar" style="cursor:pointer;flex:1;min-width:120px;background:${bg};border:1.5px solid ${color};${semFilter===v?`box-shadow:0 0 0 3px ${color}55;`:''}border-radius:10px;padding:10px 12px;text-align:center;transition:all .15s;">
-        <div style="font-size:22px;line-height:1;">${emoji}</div>
-        <div style="font-size:24px;font-weight:800;color:${color};margin-top:2px;">${n}</div>
-        <div style="font-size:11px;font-weight:700;color:${color};">${label}</div>
+    `<div onclick="setSemFilter('${v}')" title="Clic para filtrar" style="cursor:pointer;flex:1;min-width:120px;background:#fff;border:1px solid #eef1f5;border-left:4px solid ${color};${semFilter===v?`box-shadow:0 0 0 3px ${color}33;`:'box-shadow:0 2px 8px rgba(27,42,74,.05);'}border-radius:12px;padding:12px 14px;text-align:center;transition:all .15s;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${color};margin:0 auto 7px;"></div>
+        <div style="font-size:26px;font-weight:800;color:${color};line-height:1;">${n}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:3px;">${label}</div>
       </div>`;
 
   cont.innerHTML = `
@@ -4742,8 +4742,8 @@ function renderPanelEstado() {
          background:${metaOk?'#f0fdf4':'#fef2f2'};color:${metaOk?'#166534':'#991b1b'};
          border:1.5px solid ${metaOk?'#157a5b':'#b23a2e'};">
       ${metaOk
-        ? '✅ Meta cumplida: no hay ofertas aprobadas sin facturar ni sin seguimiento.'
-        : `🎯 Meta: cero aprobadas sin facturar y sin seguimiento — faltan <b>${rojo}</b> sin facturar y <b>${sinSeg}</b> sin seguimiento.`}
+        ? '<svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-3px;margin-right:6px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Meta cumplida: no hay ofertas aprobadas sin facturar ni sin seguimiento.'
+        : `<svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-3px;margin-right:6px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Meta: cero aprobadas sin facturar y sin seguimiento — faltan <b>${rojo}</b> sin facturar y <b>${sinSeg}</b> sin seguimiento.`}
     </div>`;
 }
 
