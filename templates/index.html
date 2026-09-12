@@ -1450,20 +1450,20 @@ body.rol-viewer .write-only { display:none !important; }
 
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">👆 Haz clic en cada tarjeta para ver las ofertas de ese estado.</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div onclick="pySegVer('por_ejecutar')" title="Ver ofertas por ejecutar" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#c8620f,#e8641a);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🟠 Por ejecutar <span id="pySegCaretpor_ejecutar" style="float:right;">▸</span></div>
-        <div id="pySegPorEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;"><span id="pySegNpor_ejecutar">—</span> ofertas · confirmado, aún no arranca</div>
+      <div onclick="pySegVer('por_ejecutar')" title="Ver ofertas por ejecutar" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #e8641a;box-shadow:0 2px 8px rgba(27,42,74,.05);">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Por ejecutar <span id="pySegCaretpor_ejecutar" style="float:right;color:#e8641a;">▸</span></div>
+        <div id="pySegPorEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#e8641a;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNpor_ejecutar">—</span> ofertas · confirmado, aún no arranca</div>
       </div>
-      <div onclick="pySegVer('en_ejecucion')" title="Ver ofertas en ejecución" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#1565c0,#3b82f6);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🔵 En ejecución <span id="pySegCareten_ejecucion" style="float:right;">▸</span></div>
-        <div id="pySegEnEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;"><span id="pySegNen_ejecucion">—</span> ofertas · en proceso</div>
+      <div onclick="pySegVer('en_ejecucion')" title="Ver ofertas en ejecución" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #1B2A4A;box-shadow:0 2px 8px rgba(27,42,74,.05);">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">En ejecución <span id="pySegCareten_ejecucion" style="float:right;color:#1B2A4A;">▸</span></div>
+        <div id="pySegEnEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#1B2A4A;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNen_ejecucion">—</span> ofertas · en proceso</div>
       </div>
-      <div onclick="pySegVer('ejecutado')" title="Ver ofertas ejecutadas" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#6d28d9,#8b5cf6);">
-        <div style="font-size:12px;opacity:.9;font-weight:600;">🟣 Ejecutado <span id="pySegCaretejecutado" style="float:right;">▸</span></div>
-        <div id="pySegEjec" style="font-size:23px;font-weight:800;margin-top:3px;">—</div>
-        <div style="font-size:11px;opacity:.85;"><span id="pySegNejecutado">—</span> ofertas · terminado, falta facturar</div>
+      <div onclick="pySegVer('ejecutado')" title="Ver ofertas ejecutadas" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #ca8a04;box-shadow:0 2px 8px rgba(27,42,74,.05);">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Ejecutado <span id="pySegCaretejecutado" style="float:right;color:#ca8a04;">▸</span></div>
+        <div id="pySegEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#ca8a04;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNejecutado">—</span> ofertas · terminado, falta facturar</div>
       </div>
     </div>
     <!-- Detalle desplegable de ofertas por estado -->
