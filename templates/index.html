@@ -21,9 +21,9 @@
   --text: #1f2937;
   --text-muted: #6b7280;
   --border: #e5e7eb;
-  --success: #16a34a;
+  --success: #157a5b;
   --warning: #d97706;
-  --danger: #dc2626;
+  --danger: #b23a2e;
   --radius: 14px;
   --shadow: 0 4px 24px rgba(27,42,74,0.09);
   --shadow-lg: 0 8px 32px rgba(27,42,74,0.14);
@@ -235,7 +235,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .btn-ready { box-shadow: 0 0 0 3px rgba(15,118,110,0.30), 0 6px 18px rgba(15,118,110,0.35) !important; }
 .btn-outline { background: transparent; border: 1.5px solid var(--petrol); color: var(--petrol); }
 .btn-outline:hover { background: var(--petrol); color: #fff; }
-.btn-success { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,0.30); }
+.btn-success { background: linear-gradient(135deg, #157a5b, #22c55e); color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,0.30); }
 .btn-success:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(22,163,74,0.40); }
 
 /* FILTERS BAR */
@@ -310,7 +310,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 
 /* APPROVED HEADER */
 .approved-header {
-  background: linear-gradient(135deg, #14532d, #16a34a);
+  background: linear-gradient(135deg, #14532d, #157a5b);
   border-radius: var(--radius); padding: 22px 28px; margin-bottom: 20px;
   color: #fff; display: flex; justify-content: space-between; align-items: center;
   box-shadow: 0 6px 20px rgba(22,163,74,0.25);
@@ -940,14 +940,14 @@ body.rol-viewer .write-only { display:none !important; }
 
     <!-- 3 tarjetas -->
     <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:24px;">
-      <div class="kpi-card" style="border-left:4px solid #16a34a;min-width:220px;flex:1;">
+      <div class="kpi-card" style="border-left:4px solid #157a5b;min-width:220px;flex:1;">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Efectividad</div>
-        <div id="tbEfectividad" style="font-size:26px;font-weight:800;color:#16a34a;">—</div>
+        <div id="tbEfectividad" style="font-size:26px;font-weight:800;color:#157a5b;">—</div>
         <div id="tbEfectividadSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
-      <div class="kpi-card" style="border-left:4px solid #2563eb;min-width:220px;flex:1;">
+      <div class="kpi-card" style="border-left:4px solid #1B2A4A;min-width:220px;flex:1;">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Valor Ganado</div>
-        <div id="tbValorGanado" style="font-size:26px;font-weight:800;color:#2563eb;">—</div>
+        <div id="tbValorGanado" style="font-size:26px;font-weight:800;color:#1B2A4A;">—</div>
         <div id="tbValorGanadoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
     </div>
@@ -1115,14 +1115,14 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="kpi-value" id="aMeta" style="font-size:18px">—</div>
       <div id="aMetaSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #16a34a;">
+    <div class="kpi-card" style="border-left:4px solid #157a5b;">
       <div class="kpi-label"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>Valor Facturado</div>
       <div class="kpi-value" id="aValorConciliado" style="font-size:18px">—</div>
       <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #dc2626;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
-      <div class="kpi-label" style="color:#dc2626;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg>Sin facturar +15 días</div>
-      <div class="kpi-value" id="aVencidas" style="color:#dc2626;">—</div>
+    <div class="kpi-card" style="border-left:4px solid #b23a2e;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
+      <div class="kpi-label" style="color:#b23a2e;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg>Sin facturar +15 días</div>
+      <div class="kpi-value" id="aVencidas" style="color:#b23a2e;">—</div>
     </div>
   </div>
 
@@ -1137,7 +1137,7 @@ body.rol-viewer .write-only { display:none !important; }
 
   <!-- 🔔 Alarma: ofertas ejecutadas pendientes por facturar (solo la ve el admin / Natalia) -->
   <div id="alarmaEjecutadas" onclick="document.getElementById('aSeguimiento').value='Ejecutado';filterAprobadas();"
-       style="display:none;align-items:center;gap:12px;background:#fef2f2;border:1.5px solid #dc2626;border-left:6px solid #dc2626;color:#991b1b;border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer;font-weight:600;box-shadow:0 2px 6px rgba(220,38,38,.15);">
+       style="display:none;align-items:center;gap:12px;background:#fef2f2;border:1.5px solid #b23a2e;border-left:6px solid #b23a2e;color:#991b1b;border-radius:10px;padding:14px 18px;margin-bottom:16px;cursor:pointer;font-weight:600;box-shadow:0 2px 6px rgba(220,38,38,.15);">
     <span style="font-size:22px;">🔔</span>
     <span id="alarmaEjecutadasTxt">Tienes ofertas ejecutadas pendientes por facturar</span>
     <span style="margin-left:auto;font-size:12px;font-weight:600;text-decoration:underline;white-space:nowrap;">Ver pendientes ▸</span>
@@ -1335,14 +1335,14 @@ body.rol-viewer .write-only { display:none !important; }
     </p>
 
     <div id="vulcResumen" style="display:none;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-      <div class="kpi-card" style="border-left:4px solid #16a34a;min-width:210px;flex:1;">
+      <div class="kpi-card" style="border-left:4px solid #157a5b;min-width:210px;flex:1;">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Total Real Vulcano</div>
-        <div id="vulcTotalReal" style="font-size:22px;font-weight:800;color:#16a34a;">—</div>
+        <div id="vulcTotalReal" style="font-size:22px;font-weight:800;color:#157a5b;">—</div>
         <div id="vulcExcluidasInfo" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
-      <div class="kpi-card" style="border-left:4px solid #2563eb;min-width:210px;flex:1;">
+      <div class="kpi-card" style="border-left:4px solid #1B2A4A;min-width:210px;flex:1;">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Total en la App</div>
-        <div id="vulcTotalApp" style="font-size:22px;font-weight:800;color:#2563eb;">—</div>
+        <div id="vulcTotalApp" style="font-size:22px;font-weight:800;color:#1B2A4A;">—</div>
       </div>
       <div class="kpi-card" id="vulcDiffCard" style="border-left:4px solid #f59e0b;min-width:210px;flex:1;">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Diferencia (App − Vulcano)</div>
@@ -2378,7 +2378,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
   </div>
 
   <!-- Historial: presupuestos ya aprobados / rechazados -->
-  <div class="section-card" id="rentCardAprobados" style="border-left:4px solid #16a34a;">
+  <div class="section-card" id="rentCardAprobados" style="border-left:4px solid #157a5b;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div class="section-title" style="margin:0;">✅ Presupuestos aprobados</div>
       <button class="btn" onclick="cargarPresuAprobados()" style="font-size:12px;">🔄 Actualizar</button>
@@ -3216,7 +3216,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NIT</label>
         <input id="ncNit" type="text" placeholder="Ej: 900123456-7" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
       </div>
-      <div id="ncError" style="display:none;font-size:12px;color:#dc2626;font-weight:600;"></div>
+      <div id="ncError" style="display:none;font-size:12px;color:#b23a2e;font-weight:600;"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button onclick="cerrarNuevoCliente()" style="padding:8px 18px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Cancelar</button>
@@ -3247,7 +3247,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">NIT</label>
         <input id="ecNit" type="text" placeholder="Ej: 900123456-7" style="width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
       </div>
-      <div id="ecError" style="display:none;font-size:12px;color:#dc2626;font-weight:600;"></div>
+      <div id="ecError" style="display:none;font-size:12px;color:#b23a2e;font-weight:600;"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button onclick="cerrarEditarCliente()" style="padding:8px 18px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;">Cancelar</button>
@@ -4685,9 +4685,9 @@ function semaforoDe(o) {
   const fact  = facturadoDe(o);
   const valor = o.valor || 0;
   if (fact <= 0)
-    return {emoji:'🔴', label:'Sin facturar', cls:'sem-rojo', color:'#dc2626'};
+    return {emoji:'🔴', label:'Sin facturar', cls:'sem-rojo', color:'#b23a2e'};
   if (valor > 0 && fact >= valor - 1000)   // tolerancia de $1.000 por redondeos
-    return {emoji:'🟢', label:'Facturada total', cls:'sem-verde', color:'#16a34a'};
+    return {emoji:'🟢', label:'Facturada total', cls:'sem-verde', color:'#157a5b'};
   return {emoji:'🟡', label:'Facturada parcial', cls:'sem-amarillo', color:'#ca8a04'};
 }
 
@@ -4733,16 +4733,16 @@ function renderPanelEstado() {
 
   cont.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      ${card('rojo','🔴','Sin facturar',rojo,'#dc2626','#fef2f2')}
+      ${card('rojo','🔴','Sin facturar',rojo,'#b23a2e','#fef2f2')}
       ${card('amarillo','🟡','Facturada parcial',amarillo,'#ca8a04','#fefce8')}
-      ${card('verde','🟢','Facturada total',verde,'#16a34a','#f0fdf4')}
+      ${card('verde','🟢','Facturada total',verde,'#157a5b','#f0fdf4')}
       ${card('contrato','📄','Contrato',contrato,'#475569','#f8fafc')}
       ${card('alerta','⚠️','Sin facturar +15 días',alerta,'#b91c1c','#fff1f2')}
       ${card('sin_seg','📌','Sin seguimiento',sinSeg,'#7c3aed','#faf5ff')}
     </div>
     <div style="margin-top:10px;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:700;
          background:${metaOk?'#f0fdf4':'#fef2f2'};color:${metaOk?'#166534':'#991b1b'};
-         border:1.5px solid ${metaOk?'#16a34a':'#dc2626'};">
+         border:1.5px solid ${metaOk?'#157a5b':'#b23a2e'};">
       ${metaOk
         ? '✅ Meta cumplida: no hay ofertas aprobadas sin facturar ni sin seguimiento.'
         : `🎯 Meta: cero aprobadas sin facturar y sin seguimiento — faltan <b>${rojo}</b> sin facturar y <b>${sinSeg}</b> sin seguimiento.`}
@@ -4896,8 +4896,8 @@ function filterAprobadas() {
       ? `<span onclick="toggleFacturas('${o.num}')" title="Ver ${nFact} factura(s) · Facturado real: ${formatCOP(fg.facturado_real)}" style="cursor:pointer;display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:4px;">📄 ${nFact}</span>`
       : '';
     return `
-    <tr class="${vencida ? 'tr-cobro' : ''}" style="${vencida ? 'border-left:3px solid #dc2626;' : ''}">
-      <td><span class="num-badge">${o.num||''}</span>${vencida ? `<span title="Sin facturar hace ${diasAtraso} días" style="margin-left:4px;color:#dc2626;font-size:13px;">⚠️</span>` : ''}</td>
+    <tr class="${vencida ? 'tr-cobro' : ''}" style="${vencida ? 'border-left:3px solid #b23a2e;' : ''}">
+      <td><span class="num-badge">${o.num||''}</span>${vencida ? `<span title="Sin facturar hace ${diasAtraso} días" style="margin-left:4px;color:#b23a2e;font-size:13px;">⚠️</span>` : ''}</td>
       <td>${o.mes||''}</td>
       <td>${o.fecha||''}</td>
       <td>${o.cliente||''}</td>
@@ -5061,7 +5061,7 @@ async function loadTopClientes(wrapId) {
     let html = '<div style="display:flex;flex-direction:column;gap:14px;">';
     cli.forEach((c, i) => {
       const pct = max ? Math.max(3, Math.round(c.valor * 100 / max)) : 0;
-      const bar = i < 3 ? barColors[i] : 'linear-gradient(90deg,#2563eb,#3b82f6)';
+      const bar = i < 3 ? barColors[i] : 'linear-gradient(90deg,#1B2A4A,#3b82f6)';
       const badge = i < 3 ? medals[i] : (i + 1);
       const nf = c.n_facturas + (c.n_facturas === 1 ? ' factura' : ' facturas');
       html += `
@@ -5072,7 +5072,7 @@ async function loadTopClientes(wrapId) {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;align-items:baseline;">
             <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.cliente}">${c.cliente}</span>
-            <span style="font-weight:800;font-size:14px;color:#16a34a;white-space:nowrap;">${formatCOP(c.valor)}</span>
+            <span style="font-weight:800;font-size:14px;color:#157a5b;white-space:nowrap;">${formatCOP(c.valor)}</span>
           </div>
           <div style="height:11px;background:#eef2f7;border-radius:6px;overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:${bar};border-radius:6px;transition:width .5s ease;"></div>
@@ -5180,8 +5180,8 @@ function renderVulcanoResumen(r) {
   document.getElementById('vulcDiffPct').textContent = pct.toFixed(2) + '% de diferencia';
   // Verde si prácticamente cuadra (<0.1%), ámbar si no.
   const ok = pct < 0.1;
-  card.style.borderLeftColor = ok ? '#16a34a' : '#f59e0b';
-  diffEl.style.color = ok ? '#16a34a' : '#f59e0b';
+  card.style.borderLeftColor = ok ? '#157a5b' : '#f59e0b';
+  diffEl.style.color = ok ? '#157a5b' : '#f59e0b';
 }
 
 function renderVulcanoFacturas() {
@@ -8620,7 +8620,7 @@ function cosiRenderEquipos() {
     const borde = x.subcontratado ? '#d8b4fe' : '#ffedd5';
     return `<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid ${borde};border-radius:6px;padding:6px 10px;margin-bottom:5px;font-size:12px;">
       <span>${p.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}${sub}</span>
-      <button type="button" onclick="cosiQuitarEquipo(${i})" title="Quitar" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px;line-height:1;">✕</button>
+      <button type="button" onclick="cosiQuitarEquipo(${i})" title="Quitar" style="background:none;border:none;color:#b23a2e;cursor:pointer;font-size:15px;line-height:1;">✕</button>
     </div>`;
   }).join('');
 }
@@ -8642,7 +8642,7 @@ function cosiRenderOperadores() {
   cont.innerHTML = _cosiOperadores.map((nom, i) =>
     `<span style="display:inline-flex;align-items:center;gap:5px;background:#eef2f7;border:1px solid #dde3ea;border-radius:14px;padding:3px 10px;font-size:12px;color:#334155;">
        ${nom}
-       <button type="button" onclick="cosiQuitarOperador(${i})" title="Quitar" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;line-height:1;padding:0;">✕</button>
+       <button type="button" onclick="cosiQuitarOperador(${i})" title="Quitar" style="background:none;border:none;color:#b23a2e;cursor:pointer;font-size:13px;line-height:1;padding:0;">✕</button>
      </span>`).join('');
 }
 
@@ -8970,7 +8970,7 @@ async function cosiCopiloto() {
 function _cosiFlag(id, on) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.style.borderColor = on ? '#dc2626' : '';
+  el.style.borderColor = on ? '#b23a2e' : '';
   el.style.boxShadow = on ? '0 0 0 2px rgba(220,38,38,.15)' : '';
   el.style.background = on ? '#fef2f2' : '';
 }
@@ -8998,7 +8998,7 @@ function _cosiValidarObligatorios() {
   const equipoOk = _cosiEquipos.length > 0 &&
     _cosiEquipos.some(e => (e.tracto_placa || e.trailer_placa || (e.otras || '').trim()));
   const eqWrap = document.getElementById('cosiEquiposLista') || document.getElementById('cosiEquiposWrap');
-  if (eqWrap) eqWrap.style.outline = equipoOk ? '' : '2px solid #dc2626';
+  if (eqWrap) eqWrap.style.outline = equipoOk ? '' : '2px solid #b23a2e';
   if (!equipoOk) faltan.push('Equipo / configuración (agrega al menos uno)');
   return faltan;
 }
@@ -9450,9 +9450,9 @@ function renderVersiones(id, versiones) {
   }
   const filas = versiones.map(v => {
     const est = v.vigente
-      ? '<span style="background:#e5f5ec;color:#16a34a;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;">● VIGENTE</span>'
+      ? '<span style="background:#e5f5ec;color:#157a5b;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;">● VIGENTE</span>'
       : '<span style="background:#f0f3f5;color:var(--text-muted);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;">anterior</span>';
-    const dotBg = v.vigente ? '#16a34a' : '#b9c6cc';
+    const dotBg = v.vigente ? '#157a5b' : '#b9c6cc';
     const fecha = v.created_at ? new Date(v.created_at).toLocaleString('es-CO') : '';
     const btnVer = v.tiene_html
       ? `<button class="btn btn-sm" style="background:var(--petrol);color:#fff;border:none;" onclick="window.open('/api/ofertas/${id}/versiones/${v.id}/documento','_blank')">👁️ Ver</button>` : '';
@@ -9501,8 +9501,8 @@ function renderCambios(data) {
           ${data.map(h => `
             <tr>
               <td style="font-weight:600;color:var(--petrol);">${CAMPO_LABELS[h.campo] || h.campo}</td>
-              <td style="color:#dc2626;text-decoration:line-through;font-size:12px;">${h.valor_ant || '—'}</td>
-              <td style="color:#16a34a;font-weight:600;font-size:12px;">${h.valor_nuevo || '—'}</td>
+              <td style="color:#b23a2e;text-decoration:line-through;font-size:12px;">${h.valor_ant || '—'}</td>
+              <td style="color:#157a5b;font-weight:600;font-size:12px;">${h.valor_nuevo || '—'}</td>
               <td style="font-size:12px;">${h.usuario || 'Sistema'}</td>
               <td style="font-size:11px;color:var(--text-muted);">${h.created_at ? new Date(h.created_at).toLocaleString('es-CO') : '—'}</td>
             </tr>`).join('')}
@@ -9556,13 +9556,13 @@ function filterClientes() {
   }
   tbody.innerHTML = data.map(c => {
     const tasa = c.tasa_cierre || 0;
-    const tasaColor = tasa >= 50 ? '#16a34a' : tasa >= 25 ? '#d97706' : '#dc2626';
+    const tasaColor = tasa >= 50 ? '#157a5b' : tasa >= 25 ? '#d97706' : '#b23a2e';
     return `
     <tr>
       <td style="font-weight:600;color:var(--petrol);">${c.cliente}</td>
       <td style="text-align:center;">${c.total_ofertas}</td>
-      <td style="text-align:center;color:#16a34a;font-weight:700;">${c.aceptadas}</td>
-      <td style="text-align:center;color:#dc2626;">${c.rechazadas}</td>
+      <td style="text-align:center;color:#157a5b;font-weight:700;">${c.aceptadas}</td>
+      <td style="text-align:center;color:#b23a2e;">${c.rechazadas}</td>
       <td style="text-align:center;color:#d97706;">${c.en_seguimiento}</td>
       <td style="text-align:center;">
         <span style="background:${tasaColor}22;color:${tasaColor};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;">${tasa}%</span>
@@ -9678,16 +9678,16 @@ async function cargarInformeFact() {
     }
     tbody.innerHTML = data.map(r => {
       const pct = r.tasa_facturacion || 0;
-      const barColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+      const barColor = pct >= 80 ? '#157a5b' : pct >= 50 ? '#d97706' : '#b23a2e';
       const cump = (r.cumplimiento === null || r.cumplimiento === undefined) ? null : r.cumplimiento;
-      const cumpColor = cump === null ? '#94a3b8' : cump >= 100 ? '#16a34a' : cump >= 70 ? '#d97706' : '#dc2626';
+      const cumpColor = cump === null ? '#94a3b8' : cump >= 100 ? '#157a5b' : cump >= 70 ? '#d97706' : '#b23a2e';
       const cumpTxt = cump === null ? '—' : `${cump}%`;
       const presuTxt = (r.presupuesto === null || r.presupuesto === undefined) ? '—' : formatCOP(r.presupuesto);
       return `<tr>
         <td style="font-weight:700;color:var(--petrol);">${r.mes}</td>
         <td style="text-align:center;">${r.total_aceptadas}</td>
-        <td style="text-align:center;color:#16a34a;font-weight:600;">${r.facturadas}</td>
-        <td style="text-align:center;color:#dc2626;">${r.sin_facturar}</td>
+        <td style="text-align:center;color:#157a5b;font-weight:600;">${r.facturadas}</td>
+        <td style="text-align:center;color:#b23a2e;">${r.sin_facturar}</td>
         <td style="text-align:right;">${formatCOP(r.valor_ofertado)}</td>
         <td style="text-align:right;font-weight:600;">${formatCOP(r.valor_facturado)}</td>
         <td style="text-align:right;color:var(--text-muted);">${presuTxt}</td>
@@ -9789,19 +9789,19 @@ async function loadRentabilidadOSI(){
   tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#9aa3b0;">Cargando…</td></tr>';
   let d;
   try { d = await fetch('/api/rentabilidad/osi').then(r=>r.json()); }
-  catch(e){ tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#dc2626;">Error al cargar.</td></tr>'; return; }
+  catch(e){ tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#b23a2e;">Error al cargar.</td></tr>'; return; }
   const rows = d.rows || [];
   if (!rows.length){
     tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#9aa3b0;">Aún no hay presupuestos por OSI. Cuando el líder cree el presupuesto y subas los anticipos, aquí verás la rentabilidad real.</td></tr>';
   } else {
     tb.innerHTML = rows.map(r=>{
       const util = r.utilidad;
-      const utilColor = util < 0 ? '#dc2626' : '#16a34a';
+      const utilColor = util < 0 ? '#b23a2e' : '#157a5b';
       const paso = r.sobre_presupuesto;
       const semaforo = (r.ejecutado===0)
         ? '<span style="color:#9aa3b0;">— sin gasto</span>'
-        : (paso ? '<span style="color:#dc2626;font-weight:700;">🔴 Sí</span>'
-                : '<span style="color:#16a34a;font-weight:700;">🟢 No</span>');
+        : (paso ? '<span style="color:#b23a2e;font-weight:700;">🔴 Sí</span>'
+                : '<span style="color:#157a5b;font-weight:700;">🟢 No</span>');
       return `<tr style="border-bottom:1px solid #eef2f7;">
         <td style="padding:8px 10px;font-weight:600;">${r.osi||'—'}</td>
         <td style="padding:8px 10px;">${_rentOfFmt(r.oferta)}</td>
@@ -9942,7 +9942,7 @@ async function verDesglosePresu(osiId, cliente){
 
 function _costeoKpis(d){
   const rent = (d.rentabilidad_pct==null) ? '—' : d.rentabilidad_pct+'%';
-  const rc = (d.rentabilidad_pct!=null && d.rentabilidad_pct>=0) ? '#16a34a' : '#dc2626';
+  const rc = (d.rentabilidad_pct!=null && d.rentabilidad_pct>=0) ? '#157a5b' : '#b23a2e';
   const box = (l,v,c)=>`<div style="flex:1;min-width:120px;background:#fff;border:1px solid #eef2f7;border-radius:10px;padding:10px 12px;">
     <div style="font-size:10.5px;color:#8a94a3;text-transform:uppercase;letter-spacing:.3px;">${l}</div>
     <div style="font-size:16px;font-weight:800;margin-top:3px;color:${c||'#111827'};">${v}</div></div>`;
@@ -10048,7 +10048,7 @@ async function cargarPresuPendientes(){
   cont.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;">' + data.map(p => {
     const perdida = p.en_perdida;
     const margenTxt = (p.margen==null) ? '—' : (p.margen+'%');
-    const utilColor = perdida ? '#dc2626' : '#16a34a';
+    const utilColor = perdida ? '#b23a2e' : '#157a5b';
     return `<div style="background:#fff;border:1px solid ${perdida?'#fecaca':'#e5e7eb'};border-radius:12px;padding:15px 16px;box-shadow:0 1px 4px rgba(0,0,0,.05);">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="font-weight:800;color:#111827;font-size:15px;">${p.cliente||'—'}</div>
@@ -10063,8 +10063,8 @@ async function cargarPresuPendientes(){
       <div style="font-size:11px;color:#9aa3b0;margin-top:8px;">Enviado por ${p.enviado_por||'—'}</div>
       <button onclick="verDesglosePresu(${p.osi_id}, '${(p.cliente||'').replace(/'/g,'')}')" style="width:100%;margin-top:10px;background:#eef2f7;color:#0f766e;border:1px solid #d7dee8;border-radius:8px;padding:8px;font-size:12.5px;font-weight:800;cursor:pointer;">🔍 Ver detalle del presupuesto</button>
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button onclick="presuAprobar(${p.osi_id})" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">✅ Aprobar</button>
-        <button onclick="presuRechazar(${p.osi_id})" style="flex:1;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">❌ Rechazar</button>
+        <button onclick="presuAprobar(${p.osi_id})" style="flex:1;background:#157a5b;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">✅ Aprobar</button>
+        <button onclick="presuRechazar(${p.osi_id})" style="flex:1;background:#fff;color:#b23a2e;border:1.5px solid #b23a2e;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">❌ Rechazar</button>
       </div>
     </div>`;
   }).join('') + '</div>';
@@ -10260,9 +10260,9 @@ function fmtCop(n) {
 }
 
 function margenColor(pct) {
-  if (pct >= 20) return '#16a34a';
+  if (pct >= 20) return '#157a5b';
   if (pct >= 10) return '#d97706';
-  return '#dc2626';
+  return '#b23a2e';
 }
 
 function renderRentabilidad(data) {
@@ -10279,7 +10279,7 @@ function renderRentabilidad(data) {
   document.getElementById('rentCostos').textContent   = fmtCop(totalCosto);
   document.getElementById('rentUtilidad').textContent = fmtCop(totalUtilidad);
   document.getElementById('rentMargen').textContent   = margenProm.toFixed(1) + '%';
-  document.getElementById('rentUtilidad').style.color = totalUtilidad >= 0 ? '#16a34a' : '#dc2626';
+  document.getElementById('rentUtilidad').style.color = totalUtilidad >= 0 ? '#157a5b' : '#b23a2e';
   document.getElementById('rentMargen').style.color   = margenColor(margenProm);
 
   if (!rows.length) {
