@@ -7455,8 +7455,124 @@ def _vulcano_marcar_gecolsa(cur):
 _MESES_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
              "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 
+def _bucket_estado(e):
+    """Normaliza el ESTADO DEL PROYECTO al bloque de la proyección."""
+    e = (e or "").strip().upper().replace("Ó", "O").replace("Í", "I")
+    if e.startswith("FACTURADO"): return "FACTURADO"
+    if e.startswith("EN EJECUCION"): return "EN EJECUCION"
+    if e == "EJECUTADO": return "EJECUTADO"
+    if e == "POR EJECUTAR": return "POR EJECUTAR"
+    if e == "CANCELADO": return "CANCELADO"
+    return "OTRO"
+
+
+def _parse_aprobadas(contenido: bytes):
+    """Lee la hoja 'Ofertas Aprobadas' del Excel diario de Natalia y devuelve las
+    filas normalizadas para la tabla `facturas` (la proyección)."""
+    from openpyxl import load_workbook
+    try:
+        wb = load_workbook(BytesIO(contenido), data_only=True, read_only=True)
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo leer el Excel: {e}")
+    ws = None
+    for nombre in wb.sheetnames:
+        if nombre.strip().lower().startswith("ofertas aprobadas"):
+            ws = wb[nombre]; break
+    if ws is None:
+        raise HTTPException(400, "No encontré la hoja 'Ofertas Aprobadas' en el archivo.")
+    filas = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        def _g(i): return row[i] if len(row) > i else None
+        num_raw = _g(1); cliente = _g(2); valor = _g(6); estado = _g(7)
+        if all(x is None for x in (num_raw, cliente, valor, estado)):
+            continue
+        num = re.sub(r"\D", "", str(num_raw or ""))
+        try: v = int(float(valor or 0))
+        except Exception: v = 0
+        filas.append({
+            "oferta_num": num or None,
+            "ref_original": (str(num_raw).strip() if num_raw is not None else None),
+            "mes": (str(_g(0)).strip().upper() if _g(0) else None),
+            "cliente": _canon_cliente(str(cliente).strip()) if cliente else None,
+            "descripcion": (str(_g(3)).strip() if _g(3) else None),
+            "origen": (str(_g(4)).strip() if _g(4) else None),
+            "destino": (str(_g(5)).strip() if _g(5) else None),
+            "valor": v,
+            "estado_proyecto": (str(estado).strip().upper() if estado else None),
+            "responsable": (str(_g(10)).strip() if _g(10) else None),
+            "no_factura": (str(_g(11)).strip() if _g(11) else (str(_g(9)).strip() if _g(9) else None)),
+        })
+    return filas
+
+
+def _resumen_buckets(filas):
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"valor": 0, "n": 0})
+    for f in filas:
+        b = _bucket_estado(f.get("estado_proyecto"))
+        agg[b]["valor"] += int(f.get("valor") or 0); agg[b]["n"] += 1
+    return {k: v for k, v in agg.items()}
+
+
+@app.post("/api/aprobadas/importar")
+async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
+                             aplicar: str = Query("no")):
+    """Importa la hoja 'Ofertas Aprobadas' del Excel diario y deja la PROYECCIÓN
+    (tabla `facturas`) IDÉNTICA a esa hoja: es la FUENTE ÚNICA. Maneja parciales
+    (una línea por parte) y movimientos sin N° de oferta (CONTRATO/WP/SOLICITUD).
+    `aplicar='no'` (por defecto) = solo devuelve la comparación (NO toca la base).
+    `aplicar='si'` = reemplaza (borra las líneas OA: y reinserta la hoja completa).
+    Solo el administrador."""
+    u = getattr(request.state, "user", None) or {}
+    if u.get("rol") != "admin":
+        raise HTTPException(403, "Solo el administrador puede importar Ofertas Aprobadas.")
+    if not OPENPYXL_OK:
+        raise HTTPException(500, "openpyxl no está instalado en el servidor")
+    contenido = await archivo.read()
+    filas = _parse_aprobadas(contenido)
+    if not filas:
+        raise HTTPException(400, "La hoja 'Ofertas Aprobadas' no tiene filas para importar.")
+    resumen_excel = _resumen_buckets(filas)
+    # Estado actual del sistema (antes) para mostrar la comparación.
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT CASE WHEN UPPER(TRIM(COALESCE(estado_proyecto,''))) LIKE 'FACTURADO%%'
+                          THEN 'FACTURADO' ELSE UPPER(TRIM(COALESCE(estado_proyecto,''))) END b,
+                          COALESCE(SUM(valor),0) v, COUNT(*) n FROM facturas GROUP BY 1""")
+        antes = {r[0]: {"valor": int(r[1]), "n": int(r[2])} for r in cur.fetchall()}
+    aplicado = False
+    if str(aplicar).strip().lower() in ("si", "sí", "true", "1", "yes"):
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM facturas WHERE dedup_key LIKE 'OA:%'")
+            for i, f in enumerate(filas, start=1):
+                cur.execute("""INSERT INTO facturas
+                    (oferta_num, ref_original, mes, cliente, descripcion, origen, destino,
+                     valor, estado_proyecto, responsable, no_factura, dedup_key, created_at)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())""",
+                    (f["oferta_num"], f["ref_original"], f["mes"], f["cliente"], f["descripcion"],
+                     f["origen"], f["destino"], f["valor"], f["estado_proyecto"],
+                     f["responsable"], f["no_factura"], f"OA:{i}"))
+            conn.commit()
+        aplicado = True
+    return {"ok": True, "aplicado": aplicado, "filas": len(filas),
+            "resumen_excel": resumen_excel, "sistema_antes": antes}
+
+
 def _sync_facturas_estado_proyecto(cur):
-    """Sincroniza la PROYECCIÓN con la facturación real.
+    """DESACTIVADO (Natalia 2026-09-11): la PROYECCIÓN ahora la manda el archivo
+    'Ofertas Aprobadas' que Natalia concilia a diario e importa (POST
+    /api/aprobadas/importar). Ese import deja la tabla `facturas` idéntica a su
+    Excel. Este sincronizador automático de Vulcano PELEABA con ese Excel
+    (sobrescribía sus estados) y hacía que el sistema no cuadrara con la hoja, por
+    eso queda inactivo. Se conserva la lógica abajo por si se necesita retomar.
+    NOTA: `_vulcano_aplicar_a_ofertas` (cierre de `ofertas`) SÍ sigue activo; esto
+    solo evita tocar la proyección (`facturas`)."""
+    return {"facturas_sincronizadas": 0, "desactivado": True,
+            "nota": "La proyección la manda el import de Ofertas Aprobadas."}
+
+    # --- Lógica anterior conservada (inalcanzable) ---
+    _doc = """Sincroniza la PROYECCIÓN con la facturación real.
 
     Problema que resuelve (caso SSAB, Natalia 2026-09-08): la Proyección lee la
     tabla `facturas` por su columna `estado_proyecto`, pero esa tabla era un

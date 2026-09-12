@@ -1103,7 +1103,11 @@ body.rol-viewer .write-only { display:none !important; }
       <h2>✅ Ofertas Aprobadas</h2>
       <p id="aprobSummary">Cargando resumen...</p>
     </div>
-    <button class="btn btn-success" onclick="exportExcel('aprobadas')">⬇ Exportar Excel</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="aprobArchivo" accept=".xlsx,.xls" style="display:none;" onchange="importarAprobadas()">
+      <button class="btn btn-primary" id="btnImportAprob" onclick="document.getElementById('aprobArchivo').click()" style="display:none;" title="Sube tu Excel diario de Ofertas Aprobadas y la Proyección queda idéntica a tu hoja">📥 Importar Ofertas Aprobadas</button>
+      <button class="btn btn-success" onclick="exportExcel('aprobadas')">⬇ Exportar Excel</button>
+    </div>
   </div>
 
   <div class="kpi-grid" style="grid-template-columns: repeat(4,1fr);">
@@ -4713,7 +4717,41 @@ function renderPanelEstado() {
     </div>`;
 }
 
+// 📥 Importa el Excel diario "Ofertas Aprobadas" → deja la Proyección idéntica a
+// tu hoja. Primero muestra una PRUEBA (no toca nada); si confirmas, aplica.
+async function importarAprobadas() {
+  const inp = document.getElementById('aprobArchivo');
+  const f = inp.files && inp.files[0];
+  if (!f) return;
+  const fmt = n => '$' + Number(n || 0).toLocaleString('es-CO');
+  const filas = b => (b && b.n) ? b.n : 0;
+  try {
+    showToast('Leyendo tu Excel…', 'info');
+    const fd = new FormData(); fd.append('archivo', f);
+    const res = await fetch('/api/aprobadas/importar?aplicar=no', { method: 'POST', body: fd });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || 'Error leyendo el Excel');
+    const ex = d.resumen_excel || {};
+    const orden = ['FACTURADO', 'EJECUTADO', 'EN EJECUCION', 'POR EJECUTAR', 'CANCELADO'];
+    const detalle = orden.map(b => `  • ${b}: ${fmt((ex[b] || {}).valor)}  (${filas(ex[b])} líneas)`).join('\n');
+    const msg = `Tu Excel tiene ${d.filas} filas.\n\nLa Proyección quedará EXACTAMENTE así:\n${detalle}\n\n¿Aplico y dejo la Proyección igual a tu Excel?`;
+    if (!confirm(msg)) { inp.value = ''; showToast('Importación cancelada (no se tocó nada)', 'info'); return; }
+    showToast('Aplicando…', 'info');
+    const fd2 = new FormData(); fd2.append('archivo', f);
+    const res2 = await fetch('/api/aprobadas/importar?aplicar=si', { method: 'POST', body: fd2 });
+    const d2 = await res2.json().catch(() => ({}));
+    if (!res2.ok) throw new Error(d2.detail || 'Error aplicando');
+    showToast('✅ Proyección actualizada desde tu Excel (' + d2.filas + ' filas)', 'success');
+    try { if (typeof loadAll === 'function') await loadAll(); } catch (e) {}
+    try { if (typeof pyRenderSeguimiento === 'function') pyRenderSeguimiento(); } catch (e) {}
+  } catch (e) {
+    showToast('❌ ' + (e.message || e), 'error');
+  } finally { inp.value = ''; }
+}
+
 function filterAprobadas() {
+  const _bi = document.getElementById('btnImportAprob');
+  if (_bi) _bi.style.display = (currentUser && currentUser.rol === 'admin') ? '' : 'none';
   const buscar      = document.getElementById('aBuscar').value.toLowerCase();
   const mes         = document.getElementById('aMes').value;
   const seguimiento = document.getElementById('aSeguimiento').value;
