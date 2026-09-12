@@ -4734,7 +4734,11 @@ async function importarAprobadas() {
     const ex = d.resumen_excel || {};
     const orden = ['FACTURADO', 'EJECUTADO', 'EN EJECUCION', 'POR EJECUTAR', 'CANCELADO'];
     const detalle = orden.map(b => `  • ${b}: ${fmt((ex[b] || {}).valor)}  (${filas(ex[b])} líneas)`).join('\n');
-    const msg = `Tu Excel tiene ${d.filas} filas.\n\nLa Proyección quedará EXACTAMENTE así:\n${detalle}\n\n¿Aplico y dejo la Proyección igual a tu Excel?`;
+    const rf = d.resumen_facturacion || {};
+    const factTxt = rf.facturas
+      ? `\n\nFACTURACIÓN (hoja del mismo libro): ${rf.facturas} facturas → Valor Facturado ${fmt(rf.valor_facturado)}`
+      : '\n\n(Sin hoja "Facturación" en este archivo — solo se actualiza la Proyección.)';
+    const msg = `Tu Excel tiene ${d.filas} filas de proyección.\n\nLa Proyección quedará EXACTAMENTE así:\n${detalle}${factTxt}\n\n¿Aplico y dejo TODO (proyección + facturación) igual a tu Excel?`;
     if (!confirm(msg)) { inp.value = ''; showToast('Importación cancelada (no se tocó nada)', 'info'); return; }
     showToast('Aplicando…', 'info');
     const fd2 = new FormData(); fd2.append('archivo', f);

@@ -7514,6 +7514,89 @@ def _resumen_buckets(filas):
     return {k: v for k, v in agg.items()}
 
 
+def _parse_facturacion(contenido: bytes):
+    """Lee la hoja 'Facturación' del MISMO libro (facturas reales de Vulcano) y la
+    devuelve en el formato que usa la importación de Vulcano. Si no está, [].
+    Columnas: Factura · Fecha · Mes · estado · NIT · Cliente · Subtotal · Oferta No.
+    (el encabezado suele ir en la fila 2)."""
+    from openpyxl import load_workbook
+    try:
+        wb = load_workbook(BytesIO(contenido), data_only=True, read_only=True)
+    except Exception:
+        return []
+    ws = None
+    for nombre in wb.sheetnames:
+        if "factur" in nombre.lower():
+            ws = wb[nombre]; break
+    if ws is None:
+        return []
+    # Encabezado = la fila cuya primera celda dice 'Factura'.
+    hdr = None
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=6, values_only=True), start=1):
+        if row and row[0] and str(row[0]).strip().lower() == "factura":
+            hdr = i; break
+    if hdr is None:
+        hdr = 2
+    filas = []
+    for row in ws.iter_rows(min_row=hdr + 1, values_only=True):
+        def _g(i): return row[i] if len(row) > i else None
+        fac = _g(0)
+        if not fac:
+            continue
+        fs = str(fac).strip()
+        if not fs.upper().startswith("BLCE"):
+            continue
+        fecha = _g(1); anio = None
+        try: anio = int(fecha.year) if hasattr(fecha, "year") else None
+        except Exception: anio = None
+        try: sub = int(round(float(_g(6) or 0)))
+        except Exception: sub = 0
+        cli = _g(5)
+        filas.append({
+            "factura": fs,
+            "fecha": (fecha if hasattr(fecha, "year") else None),
+            "mes": (str(_g(2)).strip().upper() if _g(2) else None),
+            "anio": anio,
+            "estado": (str(_g(3)).strip() if _g(3) else None),
+            "nit": (re.sub(r"\D", "", str(_g(4))) if _g(4) else None),
+            "cliente": _vulcano_fix_cliente(_canon_cliente(str(cli).strip())) if cli else None,
+            "subtotal": sub, "total": sub, "valor_pagado": 0, "saldo": 0,
+            "oferta_ref": (str(_g(7)).strip() if _g(7) else None),
+        })
+    return filas
+
+
+def _upsert_facturacion(cur, facs):
+    """UPSERT de facturas por número (misma lógica que el import de Vulcano):
+    conserva la exclusión manual y pre-excluye las de la lista por defecto."""
+    nuevas = actualizadas = 0
+    for f in facs:
+        cur.execute("SELECT excluida FROM vulcano_facturas WHERE factura=%s", (f["factura"],))
+        prev = fetchone(cur)
+        if prev is None:
+            excluida = f["factura"] in _VULCANO_EXCLUIDAS_DEFAULT
+            cur.execute("""
+                INSERT INTO vulcano_facturas
+                    (factura, fecha, mes, anio, estado, nit, cliente,
+                     subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
+                  f["nit"], f["cliente"], f["subtotal"], f["total"],
+                  f["valor_pagado"], f["saldo"], excluida, f.get("oferta_ref")))
+            nuevas += 1
+        else:
+            cur.execute("""
+                UPDATE vulcano_facturas SET
+                    fecha=%s, mes=%s, anio=%s, estado=%s, nit=%s, cliente=%s,
+                    subtotal=%s, total=%s, oferta_ref=COALESCE(%s, oferta_ref),
+                    importado_at=now()
+                WHERE factura=%s
+            """, (f["fecha"], f["mes"], f["anio"], f["estado"], f["nit"],
+                  f["cliente"], f["subtotal"], f["total"], f.get("oferta_ref"), f["factura"]))
+            actualizadas += 1
+    return {"nuevas": nuevas, "actualizadas": actualizadas}
+
+
 @app.post("/api/aprobadas/importar")
 async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
                              aplicar: str = Query("no")):
@@ -7532,18 +7615,23 @@ async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
     filas = _parse_aprobadas(contenido)
     if not filas:
         raise HTTPException(400, "La hoja 'Ofertas Aprobadas' no tiene filas para importar.")
+    facs = _parse_facturacion(contenido)   # hoja 'Facturación' del mismo libro (opcional)
     resumen_excel = _resumen_buckets(filas)
-    # Estado actual del sistema (antes) para mostrar la comparación.
+    # Exclusiones vigentes (default + las que Natalia haya marcado a mano) para
+    # calcular el 'Valor Facturado' EXACTO que quedaría (= tu hoja, sin excluidas).
+    excl = set(_VULCANO_EXCLUIDAS_DEFAULT)
     with get_conn() as conn:
         cur = conn.cursor()
-        cur.execute("""SELECT CASE WHEN UPPER(TRIM(COALESCE(estado_proyecto,''))) LIKE 'FACTURADO%%'
-                          THEN 'FACTURADO' ELSE UPPER(TRIM(COALESCE(estado_proyecto,''))) END b,
-                          COALESCE(SUM(valor),0) v, COUNT(*) n FROM facturas GROUP BY 1""")
-        antes = {r[0]: {"valor": int(r[1]), "n": int(r[2])} for r in cur.fetchall()}
+        cur.execute("SELECT factura FROM vulcano_facturas WHERE excluida = true")
+        excl |= {str(r[0]).strip() for r in cur.fetchall() if r[0]}
+    fact_no_exc = sum(f["subtotal"] for f in facs if f["factura"] not in excl)
+    resumen_fact = {"facturas": len(facs), "valor_facturado": int(fact_no_exc)}
     aplicado = False
+    aplicado_fact = None
     if str(aplicar).strip().lower() in ("si", "sí", "true", "1", "yes"):
         with get_conn() as conn:
             cur = conn.cursor()
+            # 1) PROYECCIÓN: la tabla facturas queda idéntica a 'Ofertas Aprobadas'.
             cur.execute("DELETE FROM facturas WHERE dedup_key LIKE 'OA:%'")
             for i, f in enumerate(filas, start=1):
                 cur.execute("""INSERT INTO facturas
@@ -7553,10 +7641,32 @@ async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
                     (f["oferta_num"], f["ref_original"], f["mes"], f["cliente"], f["descripcion"],
                      f["origen"], f["destino"], f["valor"], f["estado_proyecto"],
                      f["responsable"], f["no_factura"], f"OA:{i}"))
+            # 2) FACTURACIÓN: REEMPLAZA las facturas por la hoja 'Facturación' (así el
+            #    sistema queda IDÉNTICO a tu Excel). Conserva las exclusiones (default
+            #    + manuales). Luego cruza a ofertas (valor_facturado/cierre) + GECOLSA.
+            #    Esto alimenta dashboard, tablero de clientes y Control de Aprobadas.
+            if facs:
+                cur.execute("SELECT factura FROM vulcano_facturas WHERE excluida = true")
+                manual_exc = {str(r[0]).strip() for r in cur.fetchall() if r[0]}
+                cur.execute("DELETE FROM vulcano_facturas")
+                for f in facs:
+                    ex = (f["factura"] in _VULCANO_EXCLUIDAS_DEFAULT) or (f["factura"] in manual_exc)
+                    cur.execute("""
+                        INSERT INTO vulcano_facturas
+                            (factura, fecha, mes, anio, estado, nit, cliente,
+                             subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
+                          f["nit"], f["cliente"], f["subtotal"], f["total"],
+                          f["valor_pagado"], f["saldo"], ex, f.get("oferta_ref")))
+                aplic = _vulcano_aplicar_a_ofertas(cur)
+                gec = _vulcano_marcar_gecolsa(cur)
+                aplicado_fact = {"facturas": len(facs), "ofertas": aplic, "gecolsa": gec}
             conn.commit()
         aplicado = True
     return {"ok": True, "aplicado": aplicado, "filas": len(filas),
-            "resumen_excel": resumen_excel, "sistema_antes": antes}
+            "resumen_excel": resumen_excel, "resumen_facturacion": resumen_fact,
+            "facturacion_aplicada": aplicado_fact}
 
 
 def _sync_facturas_estado_proyecto(cur):
