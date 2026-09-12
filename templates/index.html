@@ -413,9 +413,9 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .login-panel {
   position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;
-  width:100%;max-width:520px;box-sizing:border-box;padding:60px 52px 40px;
+  width:100%;max-width:520px;box-sizing:border-box;padding:92px 52px 40px;
 }
-.login-logo-wrap { margin-bottom:14px;overflow:visible; }
+.login-logo-wrap { margin-bottom:18px;overflow:visible; }
 .login-niap { margin-bottom:14px;opacity:0.92; }
 .login-remember { margin:-2px 0 16px 2px; }
 .login-remember label { display:flex;align-items:center;gap:8px;color:#b8c4d8;font-size:13px;cursor:pointer; }
@@ -498,11 +498,11 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 @keyframes o-bounce {
   0%   { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
-  10%  { transform:translateY(-65px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  10%  { transform:translateY(-40px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
   20%  { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
-  28%  { transform:translateY(-38px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  28%  { transform:translateY(-24px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
   36%  { transform:translateY(0);     animation-timing-function:cubic-bezier(0.215,0.61,0.355,1); }
-  42%  { transform:translateY(-18px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
+  42%  { transform:translateY(-11px); animation-timing-function:cubic-bezier(0.755,0.05,0.855,0.06); }
   48%  { transform:translateY(0); }
   100% { transform:translateY(0); }
 }
@@ -592,14 +592,6 @@ body.rol-viewer .write-only { display:none !important; }
 
     <!-- Centro: marca NIAP + bienvenida + formulario -->
     <div class="login-mid">
-      <div class="login-niap">
-        <svg viewBox="0 0 180 82" role="img" aria-label="nIAP" style="width:108px;max-width:100%;" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0" y="3" width="76" height="76" rx="22" fill="#16233F"/>
-          <text x="38" y="60" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="54" fill="#ffffff">n</text>
-          <path d="M61,11 C61,17.3 63.7,20 70,20 C63.7,20 61,22.7 61,29 C61,22.7 58.3,20 52,20 C58.3,20 61,17.3 61,11 Z" fill="#E8601C"/>
-          <text x="79" y="60" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="50" fill="#E8601C">IAP</text>
-        </svg>
-      </div>
       <p class="login-sub">Ingresa tus datos para continuar</p>
 
       <div class="login-error" id="loginError"></div>
