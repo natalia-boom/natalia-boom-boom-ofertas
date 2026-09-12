@@ -413,9 +413,13 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .login-panel {
   position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;
-  width:100%;max-width:520px;box-sizing:border-box;padding:44px 52px;
+  width:100%;max-width:520px;box-sizing:border-box;padding:60px 52px 40px;
 }
-.login-niap { margin-bottom:16px; }
+.login-logo-wrap { margin-bottom:14px;overflow:visible; }
+.login-niap { margin-bottom:14px;opacity:0.92; }
+.login-remember { margin:-2px 0 16px 2px; }
+.login-remember label { display:flex;align-items:center;gap:8px;color:#b8c4d8;font-size:13px;cursor:pointer; }
+.login-remember input { width:auto;accent-color:#E8601C; }
 .login-mid h1 { font-family:'Barlow',sans-serif;color:#fff;font-size:28px;font-weight:600;margin:0; }
 .login-sub { color:#b8c4d8;font-size:14px;margin:6px 0 22px; }
 .login-logo-wrap { margin-bottom:6px; }
@@ -589,14 +593,13 @@ body.rol-viewer .write-only { display:none !important; }
     <!-- Centro: marca NIAP + bienvenida + formulario -->
     <div class="login-mid">
       <div class="login-niap">
-        <svg viewBox="0 0 180 82" role="img" aria-label="nIAP" style="width:150px;max-width:100%;" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 180 82" role="img" aria-label="nIAP" style="width:108px;max-width:100%;" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="3" width="76" height="76" rx="22" fill="#16233F"/>
           <text x="38" y="60" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="54" fill="#ffffff">n</text>
           <path d="M61,11 C61,17.3 63.7,20 70,20 C63.7,20 61,22.7 61,29 C61,22.7 58.3,20 52,20 C58.3,20 61,17.3 61,11 Z" fill="#E8601C"/>
           <text x="79" y="60" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="50" fill="#E8601C">IAP</text>
         </svg>
       </div>
-      <h1>Bienvenido de nuevo</h1>
       <p class="login-sub">Ingresa tus datos para continuar</p>
 
       <div class="login-error" id="loginError"></div>
@@ -613,6 +616,10 @@ body.rol-viewer .write-only { display:none !important; }
           <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
             style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;color:#cfd8e6;">👁</button>
         </div>
+      </div>
+
+      <div class="login-remember">
+        <label><input type="checkbox" id="loginRemember"> Guardar contraseña</label>
       </div>
 
       <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
