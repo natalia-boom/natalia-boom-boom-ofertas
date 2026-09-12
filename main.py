@@ -2570,7 +2570,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/login-bg"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -5827,6 +5827,34 @@ def login(body: LoginBody, response: Response):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+class CambiarClaveBody(BaseModel):
+    username: str
+    actual: str
+    nueva: str
+
+
+@app.post("/auth/cambiar-clave")
+def cambiar_clave(body: CambiarClaveBody):
+    """El propio usuario cambia su contraseña (verificando la actual). SOLO se
+    guarda el hash seguro; la contraseña NO se almacena legible (decisión de
+    Natalia por seguridad)."""
+    u = (body.username or "").lower().strip()
+    if not u or not body.actual or not body.nueva:
+        raise HTTPException(400, "Faltan datos")
+    if len(body.nueva.strip()) < 4:
+        raise HTTPException(400, "La nueva contraseña debe tener al menos 4 caracteres")
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT password_hash, activo FROM usuarios WHERE username=%s", (u,))
+        row = fetchone(cur)
+        if not row or not row.get("activo") or not _verify_pw(body.actual, row["password_hash"]):
+            raise HTTPException(401, "Usuario o contraseña actual incorrectos")
+        cur.execute("UPDATE usuarios SET password_hash=%s WHERE username=%s",
+                    (_hash_pw(body.nueva), u))
+        conn.commit()
+    return {"ok": True}
 
 
 @app.post("/auth/logout")

@@ -623,6 +623,24 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
 
       <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
+
+      <div style="text-align:center;margin-top:14px;">
+        <a onclick="toggleCambiarClave()" style="color:#cfd8e6;font-size:12.5px;cursor:pointer;text-decoration:underline;">🔑 Cambiar mi contraseña</a>
+      </div>
+
+      <div id="cambiarClavePanel" style="display:none;margin-top:14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:16px;">
+        <div style="color:#fff;font-size:14px;font-weight:600;margin-bottom:10px;">Cambiar contraseña</div>
+        <div id="ccMsg" style="display:none;font-size:12px;margin-bottom:10px;"></div>
+        <div class="login-field"><input type="text" id="ccUser" placeholder="Usuario" autocomplete="username"></div>
+        <div class="login-field"><input type="password" id="ccActual" placeholder="Contraseña actual" autocomplete="current-password"></div>
+        <div class="login-field"><input type="password" id="ccNueva" placeholder="Nueva contraseña" autocomplete="new-password"></div>
+        <div class="login-field"><input type="password" id="ccNueva2" placeholder="Repite la nueva contraseña" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter') cambiarClave()"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="cambiarClave()" class="login-btn" style="flex:1;padding:11px;font-size:15px;">Guardar</button>
+          <button onclick="toggleCambiarClave()" style="background:transparent;border:1px solid rgba(255,255,255,0.25);color:#cfd8e6;border-radius:10px;padding:0 16px;cursor:pointer;">Cancelar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Abajo: lemas -->
@@ -3508,6 +3526,43 @@ function ocultarApp() {
   document.getElementById('appHeader').style.display = 'none';
   document.getElementById('appNav').style.display = 'none';
   document.getElementById('appMain').style.display = 'none';
+}
+
+function toggleCambiarClave() {
+  const p = document.getElementById('cambiarClavePanel');
+  if (!p) return;
+  const abrir = p.style.display === 'none' || !p.style.display;
+  p.style.display = abrir ? 'block' : 'none';
+  if (abrir) {
+    const u = document.getElementById('loginUser');
+    const cu = document.getElementById('ccUser');
+    if (u && cu && !cu.value) cu.value = u.value.trim();
+  }
+}
+
+async function cambiarClave() {
+  const user   = document.getElementById('ccUser').value.trim();
+  const actual = document.getElementById('ccActual').value;
+  const nueva  = document.getElementById('ccNueva').value;
+  const nueva2 = document.getElementById('ccNueva2').value;
+  const msg = document.getElementById('ccMsg');
+  const show = (t, ok) => { msg.style.display = 'block'; msg.textContent = t; msg.style.color = ok ? '#7ee0a8' : '#ff9b9b'; };
+  if (!user || !actual || !nueva) { show('Completa todos los campos.', false); return; }
+  if (nueva.trim().length < 4) { show('La nueva contraseña debe tener al menos 4 caracteres.', false); return; }
+  if (nueva !== nueva2) { show('Las contraseñas nuevas no coinciden.', false); return; }
+  try {
+    const res = await fetch('/auth/cambiar-clave', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, actual: actual, nueva: nueva })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || 'No se pudo cambiar');
+    show('✅ Contraseña cambiada. Entra con la nueva.', true);
+    document.getElementById('ccActual').value = '';
+    document.getElementById('ccNueva').value = '';
+    document.getElementById('ccNueva2').value = '';
+    const lp = document.getElementById('loginPass'); if (lp) lp.value = '';
+  } catch (e) { show('❌ ' + (e.message || e), false); }
 }
 
 async function doLogin() {
