@@ -595,28 +595,29 @@ body.rol-viewer .write-only { display:none !important; }
 
       <div class="login-error" id="loginError"></div>
 
-      <div class="login-fields-wrap">
-        <div class="login-field">
-          <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username"
-            onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+      <form id="loginForm" autocomplete="on" onsubmit="doLogin(); return false;">
+        <div class="login-fields-wrap">
+          <div class="login-field">
+            <input type="text" id="loginUser" name="username" placeholder="Usuario" autocomplete="username"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPass').focus();}">
+          </div>
+          <div class="login-field" style="position:relative;">
+            <input type="password" id="loginPass" name="password" placeholder="Contraseña" autocomplete="current-password"
+              style="padding-right:42px;">
+            <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;color:#cfd8e6;">👁</button>
+          </div>
         </div>
-        <div class="login-field" style="position:relative;">
-          <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"
-            style="padding-right:42px;"
-            onkeydown="if(event.key==='Enter') doLogin()">
-          <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
-            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;color:#cfd8e6;">👁</button>
+
+        <div class="login-remember">
+          <label><input type="checkbox" id="loginRemember"> Guardar contraseña</label>
         </div>
-      </div>
 
-      <div class="login-remember">
-        <label><input type="checkbox" id="loginRemember"> Guardar contraseña</label>
-      </div>
-
-      <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
+        <button class="login-btn" id="loginBtn" type="submit">ENTRAR</button>
+      </form>
 
       <div style="text-align:center;margin-top:14px;">
-        <a onclick="toggleCambiarClave()" style="color:#cfd8e6;font-size:12.5px;cursor:pointer;text-decoration:underline;">🔑 Cambiar mi contraseña</a>
+        <a onclick="toggleCambiarClave()" style="color:#cfd8e6;font-size:12.5px;cursor:pointer;text-decoration:underline;">Cambiar mi contraseña</a>
       </div>
 
       <div id="cambiarClavePanel" style="display:none;margin-top:14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:16px;">
@@ -3422,6 +3423,14 @@ function showLoginOverlay() {
   document.getElementById('loginOverlay').style.display = 'flex';
   ocultarApp();
   document.getElementById('moduloSelector').style.display = 'none';
+  // Si venimos de una recarga por sesión caída/actualización, avisa.
+  try {
+    if (sessionStorage.getItem('niap_sesion_msg')) {
+      sessionStorage.removeItem('niap_sesion_msg');
+      const err = document.getElementById('loginError');
+      if (err) { err.textContent = 'La plataforma se actualizó o tu sesión se cerró. Ingresa de nuevo para ver la información al día.'; err.style.display = ''; }
+    }
+  } catch (e) {}
 }
 
 function prepareUser(user) {
@@ -3643,12 +3652,16 @@ function _sesionCaida() {
   _detenerVigilanciaInactividad();
   try { if (typeof autoRefreshTimer !== 'undefined') clearInterval(autoRefreshTimer); } catch(e){}
   currentUser = null;
+  // RECARGA la página para cargar SIEMPRE la última versión (evita quedar con el
+  // código viejo en memoria tras un despliegue). El aviso se muestra tras recargar.
+  try { sessionStorage.setItem('niap_sesion_msg', '1'); } catch (e) {}
+  try { location.reload(); return; } catch (e) {}
   const u = document.getElementById('loginUser'); if (u) u.value = '';
   const p = document.getElementById('loginPass'); if (p) p.value = '';
   showLoginOverlay();
   const err = document.getElementById('loginError');
   if (err) {
-    err.textContent = '🔄 La plataforma se actualizó o tu sesión se cerró. Ingresa de nuevo para ver la información al día.';
+    err.textContent = 'La plataforma se actualizó o tu sesión se cerró. Ingresa de nuevo para ver la información al día.';
     err.style.display = '';
   }
 }
