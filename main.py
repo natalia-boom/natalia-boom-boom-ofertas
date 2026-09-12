@@ -2570,7 +2570,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/api/logo", "/api/login-bg"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -3418,6 +3418,17 @@ def anexo_legal():
 @app.get("/api/logo")
 def get_logo():
     return {"src": _logo_src()}
+
+
+@app.get("/api/login-bg")
+def login_bg():
+    """Foto de fondo del login (mula BOOM con carga extradimensionada). Pública
+    para que cargue en la pantalla de acceso antes de iniciar sesión."""
+    ruta = os.path.join(os.path.dirname(__file__), "templates", "login_mula.jpg")
+    if not os.path.exists(ruta):
+        raise HTTPException(404, "Sin imagen de fondo")
+    return FileResponse(ruta, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/consecutivo")
@@ -7597,6 +7608,42 @@ def _upsert_facturacion(cur, facs):
     return {"nuevas": nuevas, "actualizadas": actualizadas}
 
 
+def _ref_digits(s):
+    """Extrae el N° de oferta como dígitos (25-879->'25879', 26-1155->'261155')."""
+    m = re.search(r"(\d{2})-?(\d{3,4})", str(s or ""))
+    return (m.group(1) + m.group(2)) if m else None
+
+
+def _detectar_anomalias(filas, facs):
+    """Cruza la hoja 'Ofertas Aprobadas' (proyección) con la hoja 'Facturación'
+    (facturas) y devuelve una lista de AVISOS para que Natalia los revise ANTES de
+    aplicar. Caza los casos tipo BDP (factura mal asignada, oferta que no existe,
+    factura sobre algo que no está marcado facturado, duplicados)."""
+    av = []
+    proy_nums = set(); proy_est = {}
+    for f in filas:
+        rd = _ref_digits(f.get("ref_original"))
+        if rd:
+            proy_nums.add(rd)
+            proy_est.setdefault(rd, set()).add(_bucket_estado(f.get("estado_proyecto")))
+    vistos = {}
+    for fc in facs:
+        bl = fc["factura"]; vistos[bl] = vistos.get(bl, 0) + 1
+        rd = _ref_digits(fc.get("oferta_ref"))
+        if not rd:
+            continue   # 'AÑO PASADO' / 'CONTRATO' / vacío: no es N° de oferta
+        if rd not in proy_nums:
+            av.append(f"Factura {bl} → oferta {fc.get('oferta_ref')} NO aparece en tu proyección (¿número equivocado?).")
+        else:
+            bks = proy_est.get(rd, set())
+            if "FACTURADO" not in bks:
+                av.append(f"Factura {bl} es de la oferta {fc.get('oferta_ref')}, pero en tu proyección está como {'/'.join(sorted(bks))} (no FACTURADO). ¿La marcas facturada?")
+    for bl, n in vistos.items():
+        if n > 1:
+            av.append(f"Factura {bl} aparece {n} veces (duplicada).")
+    return av
+
+
 @app.post("/api/aprobadas/importar")
 async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
                              aplicar: str = Query("no")):
@@ -7626,6 +7673,7 @@ async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
         excl |= {str(r[0]).strip() for r in cur.fetchall() if r[0]}
     fact_no_exc = sum(f["subtotal"] for f in facs if f["factura"] not in excl)
     resumen_fact = {"facturas": len(facs), "valor_facturado": int(fact_no_exc)}
+    anomalias = _detectar_anomalias(filas, facs)
     aplicado = False
     aplicado_fact = None
     if str(aplicar).strip().lower() in ("si", "sí", "true", "1", "yes"):
@@ -7666,7 +7714,7 @@ async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
         aplicado = True
     return {"ok": True, "aplicado": aplicado, "filas": len(filas),
             "resumen_excel": resumen_excel, "resumen_facturacion": resumen_fact,
-            "facturacion_aplicada": aplicado_fact}
+            "anomalias": anomalias, "facturacion_aplicada": aplicado_fact}
 
 
 def _sync_facturas_estado_proyecto(cur):

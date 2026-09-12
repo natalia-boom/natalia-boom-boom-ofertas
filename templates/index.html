@@ -404,55 +404,43 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 
 /* LOGIN OVERLAY */
 #loginOverlay {
-  position:fixed;inset:0;z-index:9999;display:flex;
-  background:#0b1628;
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:stretch;
+  background:#0b1424 url('/api/login-bg') center center/cover no-repeat;
 }
-.login-left {
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:linear-gradient(145deg,#0b1628 0%,#112040 50%,#0d1a30 100%);
-  padding:48px;gap:32px;
+#loginOverlay::before {
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,rgba(8,15,28,0.95) 0%,rgba(8,15,28,0.88) 38%,rgba(8,15,28,0.55) 74%,rgba(8,15,28,0.28) 100%);
 }
-.login-left-tagline {
-  text-align:center;
+.login-panel {
+  position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;
+  width:100%;max-width:520px;box-sizing:border-box;padding:44px 52px;
 }
-.login-left-tagline h2 {
-  font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:600;
-  color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;margin:0 0 8px;
-}
-.login-left-tagline p {
-  font-size:13px;color:rgba(255,255,255,0.3);max-width:340px;line-height:1.6;
-}
-.login-right {
-  width:460px;min-width:360px;max-width:100%;
-  background:#ffffff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:60px 52px;
-  box-shadow:-8px 0 40px rgba(0,0,0,0.3);
-}
-.login-logo-wrap { margin-bottom:28px;text-align:center; }
-.login-fields-wrap { width:100%;margin-bottom:28px; }
-.login-field {
-  width:100%;
-  border-bottom:1.5px solid #dde1e7;
-  padding:14px 4px;
-}
-.login-field + .login-field { margin-top:6px; }
+.login-niap { margin-bottom:16px; }
+.login-mid h1 { font-family:'Barlow',sans-serif;color:#fff;font-size:28px;font-weight:600;margin:0; }
+.login-sub { color:#b8c4d8;font-size:14px;margin:6px 0 22px; }
+.login-logo-wrap { margin-bottom:6px; }
+.login-fields-wrap { width:100%;margin-bottom:18px; }
+.login-field { width:100%;margin-bottom:12px; }
 .login-field input {
-  width:100%;border:none;outline:none;
-  font-family:'Barlow',sans-serif;font-size:15px;color:#1a1a1a;
-  background:transparent;
+  width:100%;box-sizing:border-box;outline:none;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);
+  color:#fff;border-radius:10px;padding:13px 14px;
+  font-family:'Barlow',sans-serif;font-size:14px;
 }
-.login-field input::placeholder { color:#b0b8c4; }
-.login-error { display:none;background:#fff2f2;color:#d63031;border:1px solid #ffb3b3;font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;width:100%; }
+.login-field input::placeholder { color:#8b9ab5; }
+.login-error { display:none;background:rgba(214,48,49,0.15);color:#ff9b9b;border:1px solid rgba(214,48,49,0.4);font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:14px;text-align:center;width:100%; }
 .login-btn {
   width:100%;background:var(--orange);color:#fff;border:none;
-  border-radius:6px;padding:16px;
-  font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;
+  border-radius:10px;padding:15px;
+  font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;
   cursor:pointer;letter-spacing:2px;transition:all 0.2s;
-  text-transform:uppercase;box-shadow:0 4px 20px rgba(232,96,28,0.35);
+  text-transform:uppercase;box-shadow:0 4px 20px rgba(232,96,28,0.4);
 }
-.login-btn:hover { background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 28px rgba(232,96,28,0.5); }
+.login-btn:hover { background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 28px rgba(232,96,28,0.55); }
 .login-btn:disabled { opacity:0.6;cursor:default;transform:none; }
+.login-lema { color:#fff;font-family:'Barlow',sans-serif;font-size:22px;font-weight:600;line-height:1.2;margin-top:6px; }
+.login-lema span { display:block;color:#E8601C;font-size:13px;font-weight:500;margin-top:6px; }
+.login-copy { color:#6f83a3;font-size:11px;letter-spacing:0.1em;margin-top:14px; }
 .boom-letters-wrap {
   display:flex;
   align-items:flex-end;
@@ -516,9 +504,9 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 }
 .o-bounce { animation:o-bounce 2.8s ease-in-out infinite; transform-origin:center bottom; }
 @media (max-width:700px) {
-  #loginOverlay { flex-direction:column; }
-  .login-left { min-height:200px;flex:none;padding:32px 24px; }
-  .login-right { width:100%;padding:36px 28px; }
+  .login-panel { max-width:100%;padding:34px 26px; }
+  #loginOverlay::before { background:rgba(8,15,28,0.9); }
+  .login-lema { font-size:19px; }
 }
 
 /* ROL VIEWER — oculta elementos de escritura */
@@ -577,67 +565,64 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
 
-  <!-- LADO IZQUIERDO: Marca -->
-  <div class="login-left">
-    <!-- Logo BOOM oficial - blanco para fondo oscuro -->
-    <svg viewBox="0 0 340 175" fill="none" xmlns="http://www.w3.org/2000/svg"
-         style="width:300px;overflow:visible;">
-      <!-- B -->
-      <text x="2" y="148"
-            font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
-            font-weight="900" font-size="100" fill="#ffffff" font-style="italic">B</text>
-      <!-- O naranja animada con skew italic para coincidir con la fuente -->
-      <g class="o-bounce">
-        <g transform="translate(118,104) skewX(-12) translate(-118,-104)">
-          <ellipse cx="118" cy="104" rx="35" ry="37"
-                   fill="none" stroke="#E8601C" stroke-width="22"
-                   stroke-linecap="round"/>
-        </g>
-      </g>
-      <!-- OM -->
-      <text x="148" y="148"
-            font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
-            font-weight="900" font-size="100" fill="#ffffff" font-style="italic">OM</text>
-      <!-- Líneas de velocidad -->
-      <polygon points="6,164 50,164 45,173 2,173"   fill="#ffffff" opacity="0.5"/>
-      <polygon points="60,164 332,164 327,173 55,173" fill="#ffffff" opacity="0.5"/>
-    </svg>
-    <div class="login-left-tagline">
-      <h2>Logistics Colombia S.A.S.</h2>
-      <p>Sistema que conecta</p>
-    </div>
-  </div>
+  <!-- CONCEPTO 3: foto de la mula de fondo + velo oscuro + formulario a la izquierda -->
+  <div class="login-panel">
 
-  <!-- LADO DERECHO: Formulario -->
-  <div class="login-right">
+    <!-- Arriba: logo BOOM oficial (blanco) con la bolita saltando -->
     <div class="login-logo-wrap">
-      <!-- Logo nIAP -->
-      <svg viewBox="0 0 180 82" role="img" aria-label="nIAP" style="width:210px;max-width:100%;" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="3" width="76" height="76" rx="22" fill="#16233F"/>
-        <text x="38" y="60" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="54" fill="#ffffff">n</text>
-        <path d="M61,11 C61,17.3 63.7,20 70,20 C63.7,20 61,22.7 61,29 C61,22.7 58.3,20 52,20 C58.3,20 61,17.3 61,11 Z" fill="#E8601C"/>
-        <text x="79" y="60" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="50" fill="#E8601C">IAP</text>
+      <svg viewBox="0 0 340 175" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="width:210px;overflow:visible;">
+        <text x="2" y="148" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="100" fill="#ffffff" font-style="italic">B</text>
+        <g class="o-bounce">
+          <g transform="translate(118,104) skewX(-12) translate(-118,-104)">
+            <ellipse cx="118" cy="104" rx="35" ry="37" fill="none" stroke="#E8601C" stroke-width="22" stroke-linecap="round"/>
+          </g>
+        </g>
+        <text x="148" y="148" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
+              font-weight="900" font-size="100" fill="#ffffff" font-style="italic">OM</text>
+        <polygon points="6,164 50,164 45,173 2,173"   fill="#ffffff" opacity="0.5"/>
+        <polygon points="60,164 332,164 327,173 55,173" fill="#ffffff" opacity="0.5"/>
       </svg>
     </div>
 
-    <div class="login-error" id="loginError"></div>
+    <!-- Centro: marca NIAP + bienvenida + formulario -->
+    <div class="login-mid">
+      <div class="login-niap">
+        <svg viewBox="0 0 180 82" role="img" aria-label="nIAP" style="width:150px;max-width:100%;" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="3" width="76" height="76" rx="22" fill="#16233F"/>
+          <text x="38" y="60" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="54" fill="#ffffff">n</text>
+          <path d="M61,11 C61,17.3 63.7,20 70,20 C63.7,20 61,22.7 61,29 C61,22.7 58.3,20 52,20 C58.3,20 61,17.3 61,11 Z" fill="#E8601C"/>
+          <text x="79" y="60" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="50" fill="#E8601C">IAP</text>
+        </svg>
+      </div>
+      <h1>Bienvenido de nuevo</h1>
+      <p class="login-sub">Ingresa tus datos para continuar</p>
 
-    <div class="login-fields-wrap">
-      <div class="login-field">
-        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username"
-          onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+      <div class="login-error" id="loginError"></div>
+
+      <div class="login-fields-wrap">
+        <div class="login-field">
+          <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username"
+            onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+        </div>
+        <div class="login-field" style="position:relative;">
+          <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"
+            style="padding-right:42px;"
+            onkeydown="if(event.key==='Enter') doLogin()">
+          <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
+            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;color:#cfd8e6;">👁</button>
+        </div>
       </div>
-      <div class="login-field" style="position:relative;">
-        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"
-          style="padding-right:42px;"
-          onkeydown="if(event.key==='Enter') doLogin()">
-        <button type="button" onclick="togglePass('loginPass', this)" title="Mostrar / ocultar contraseña"
-          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;line-height:1;padding:2px;">👁</button>
-      </div>
+
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
     </div>
 
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">ENTRAR</button>
-    <div style="margin-top:28px;font-size:11px;color:#c8cdd4;text-align:center;">© 2026 BOOM Logistics Colombia S.A.S.</div>
+    <!-- Abajo: lemas -->
+    <div class="login-bottom">
+      <div class="login-lema">Ingeniería en movimiento.<span>Carga extradimensionada, sin límites.</span></div>
+      <div class="login-copy">NIAP · © 2026 BOOM Logistics Colombia S.A.S.</div>
+    </div>
   </div>
 
   <div style="display:none">
@@ -4738,7 +4723,15 @@ async function importarAprobadas() {
     const factTxt = rf.facturas
       ? `\n\nFACTURACIÓN (hoja del mismo libro): ${rf.facturas} facturas → Valor Facturado ${fmt(rf.valor_facturado)}`
       : '\n\n(Sin hoja "Facturación" en este archivo — solo se actualiza la Proyección.)';
-    const msg = `Tu Excel tiene ${d.filas} filas de proyección.\n\nLa Proyección quedará EXACTAMENTE así:\n${detalle}${factTxt}\n\n¿Aplico y dejo TODO (proyección + facturación) igual a tu Excel?`;
+    const anom = d.anomalias || [];
+    let anomTxt = '';
+    if (anom.length) {
+      const top = anom.slice(0, 15).map(a => '  ⚠️ ' + a).join('\n');
+      anomTxt = `\n\n🚨 REVISA ESTAS ${anom.length} POSIBLES ANOMALÍAS antes de aplicar:\n${top}` +
+        (anom.length > 15 ? `\n  …y ${anom.length - 15} más.` : '') +
+        `\n\nPuedes corregirlas en tu Excel y volver a importar, o aplicar de todas formas.`;
+    }
+    const msg = `Tu Excel tiene ${d.filas} filas de proyección.\n\nLa Proyección quedará EXACTAMENTE así:\n${detalle}${factTxt}${anomTxt}\n\n¿Aplico y dejo TODO (proyección + facturación) igual a tu Excel?`;
     if (!confirm(msg)) { inp.value = ''; showToast('Importación cancelada (no se tocó nada)', 'info'); return; }
     showToast('Aplicando…', 'info');
     const fd2 = new FormData(); fd2.append('archivo', f);
