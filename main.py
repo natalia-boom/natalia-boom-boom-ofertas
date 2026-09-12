@@ -4533,6 +4533,46 @@ def facturacion_real():
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/facturacion/real/mes/{mes}")
+def facturacion_real_mes(mes: str, clase: Optional[str] = Query(None)):
+    """Detalle: facturas (no excluidas) de un mes, para desplegar al hacer clic en
+    la tarjeta del mes en la Proyección. `clase` opcional: of2026 / of2025 /
+    contrato / total (filtra por el mismo criterio que el chip activo)."""
+    mes_u = (mes or "").strip().upper()
+    where = ["excluida = false", "UPPER(TRIM(COALESCE(mes,''))) = %s"]
+    params = [mes_u]
+    cl = (clase or "total").strip().lower()
+    if cl == "of2026":
+        where.append("UPPER(TRIM(COALESCE(clase,''))) = '2026'")
+    elif cl == "of2025":
+        where.append("UPPER(TRIM(COALESCE(clase,''))) = '2025'")
+    elif cl == "contrato":
+        where.append("UPPER(TRIM(COALESCE(clase,''))) NOT IN ('2026','2025')")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT factura, fecha, cliente, oferta_ref, COALESCE(subtotal,0) subtotal "
+                "FROM vulcano_facturas WHERE " + " AND ".join(where) +
+                " ORDER BY fecha, factura", params)
+            rows = fetchall(cur)
+        out = []
+        for r in rows:
+            f = r.get("fecha")
+            out.append({
+                "factura": r.get("factura"),
+                "fecha": f.isoformat() if hasattr(f, "isoformat") else (f or ""),
+                "cliente": r.get("cliente"),
+                "oferta_ref": r.get("oferta_ref"),
+                "subtotal": int(r.get("subtotal") or 0),
+            })
+        return {"mes": mes_u, "facturas": out,
+                "total": sum(x["subtotal"] for x in out), "n": len(out)}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 class ContratoPendCreate(BaseModel):
     cliente: str
     descripcion: Optional[str] = ""

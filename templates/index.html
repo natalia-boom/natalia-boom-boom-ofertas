@@ -1442,6 +1442,7 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
 
     <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
   </div>
 
   <!-- ============ BLOQUE 2 — Seguimiento 2026 ============ -->
@@ -4045,11 +4046,63 @@ function pyPintarReal() {
 
   const cont = document.getElementById('pyRealMeses');
   cont.innerHTML = meses.map(m =>
-    `<div class="py-mes">
-       <div class="m">${m.mes}</div>
+    `<div class="py-mes" onclick="pyVerMes('${m.mes}')" title="Ver facturas de ${m.mes}" style="cursor:pointer;">
+       <div class="m">${m.mes} <span id="pyCaret-${m.mes}" style="float:right;color:var(--text-muted);">▸</span></div>
        <div class="v">${fmtCop(m[key] || 0)}</div>
        <div class="c">${m.n} fac</div>
      </div>`).join('') || '<span style="color:var(--text-muted);">Sin datos aún.</span>';
+  const det = document.getElementById('pyRealDetalle');
+  if (det) { det.style.display = 'none'; det.innerHTML = ''; pyMesAbierto = null; }
+}
+
+let pyMesAbierto = null;
+async function pyVerMes(mes) {
+  const det = document.getElementById('pyRealDetalle');
+  if (!det) return;
+  // Segundo clic en el mismo mes: cerrar.
+  if (pyMesAbierto === mes) {
+    det.style.display = 'none'; det.innerHTML = ''; pyMesAbierto = null;
+    const cr = document.getElementById('pyCaret-' + mes); if (cr) cr.textContent = '▸';
+    return;
+  }
+  document.querySelectorAll('#pyRealMeses [id^="pyCaret-"]').forEach(c => c.textContent = '▸');
+  const cr = document.getElementById('pyCaret-' + mes); if (cr) cr.textContent = '▾';
+  pyMesAbierto = mes;
+  det.style.display = 'block';
+  det.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;">Cargando facturas de ' + mes + '…</div>';
+  try {
+    const res = await fetch('/api/facturacion/real/mes/' + encodeURIComponent(mes) + '?clase=' + encodeURIComponent(pyFiltro || 'total'));
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || 'Error');
+    const fac = d.facturas || [];
+    if (!fac.length) { det.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;">Sin facturas en ' + mes + '.</div>'; return; }
+    const filas = fac.map(f => `
+      <tr style="border-bottom:1px solid #eef1f5;">
+        <td style="padding:8px 12px;font-weight:600;color:var(--petrol);">${f.factura || '—'}</td>
+        <td style="padding:8px 12px;">${(f.fecha || '').slice(0,10)}</td>
+        <td style="padding:8px 12px;">${f.cliente || '—'}</td>
+        <td style="padding:8px 12px;">${f.oferta_ref || '—'}</td>
+        <td style="padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;">${fmtCop(f.subtotal || 0)}</td>
+      </tr>`).join('');
+    det.innerHTML = `
+      <div style="background:#1B2A4A;color:#eaf0f8;padding:10px 14px;font-size:12px;font-weight:600;display:flex;justify-content:space-between;">
+        <span>Facturas de ${mes} — ${d.n} factura(s)</span><span>${fmtCop(d.total || 0)}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#f7f9fc;color:var(--text-muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;">
+            <th style="padding:8px 12px;text-align:left;">Factura</th>
+            <th style="padding:8px 12px;text-align:left;">Fecha</th>
+            <th style="padding:8px 12px;text-align:left;">Cliente</th>
+            <th style="padding:8px 12px;text-align:left;">Oferta</th>
+            <th style="padding:8px 12px;text-align:right;">Valor</th>
+          </tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    det.innerHTML = '<div style="padding:16px;color:var(--danger);font-size:13px;">❌ ' + (e.message || e) + '</div>';
+  }
 }
 
 // ---------- BLOQUE 2: Seguimiento ofertas 2026 (por facturar) ----------
