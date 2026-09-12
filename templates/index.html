@@ -120,6 +120,7 @@ h1,h2,h3,h4 { font-family: 'Barlow Condensed', sans-serif; }
 .kpi-card.success { border-left-color: var(--success); }
 .kpi-card.warning { border-left-color: var(--warning); }
 .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; }
+.kpi-label svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 5px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .kpi-value { font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 800; color: var(--petrol); line-height: 1; }
 .kpi-sub { font-size: 12px; color: var(--text-muted); }
 
@@ -886,11 +887,6 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- HEADER -->
 <header class="header" id="appHeader" style="display:none;">
   <div class="header-brand">
-    <svg width="46" height="46" viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="10" width="50" height="50" rx="16" fill="#16233F" stroke="#E8601C" stroke-width="1.6"/>
-      <text x="28" y="51" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-weight="900" font-style="italic" font-size="38" fill="#ffffff">n</text>
-      <g transform="translate(39,3) scale(0.95)"><path d="M10,1 C10,6 12,8 17,10 C12,12 10,14 10,19 C10,14 8,12 3,10 C8,8 10,6 10,1 Z" fill="#E8601C"/></g>
-    </svg>
     <div>
       <div class="header-title" style="font-family:'Exo 2',sans-serif;letter-spacing:1px;display:inline-flex;align-items:center;">n<svg width="11" height="11" viewBox="0 0 20 20" style="margin:0 1px;vertical-align:middle;"><path d="M10,1 C10,6 12,8 17,10 C12,12 10,14 10,19 C10,14 8,12 3,10 C8,8 10,6 10,1 Z" fill="#E8601C"/></svg><span style="color:#E8601C;text-shadow:0 0 10px rgba(232,96,28,0.65);">IAP</span></div>
       <div class="header-subtitle">BOOM Logistics · Control de Ofertas</div>
@@ -937,7 +933,7 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- ==================== TABLERO COMERCIAL ==================== -->
 <section class="tab-panel" id="tab-tablero">
   <div class="section-card">
-    <div class="section-title" style="margin:0 0 4px;">🎯 Tablero Comercial</div>
+    <div class="section-title" style="margin:0 0 4px;">Tablero Comercial</div>
     <p style="margin:0 0 18px;font-size:12.5px;color:var(--text-muted);">
       Resumen ejecutivo de tu gestión comercial 2026, de un vistazo.
     </p>
@@ -945,12 +941,12 @@ body.rol-viewer .write-only { display:none !important; }
     <!-- 3 tarjetas -->
     <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:24px;">
       <div class="kpi-card" style="border-left:4px solid #16a34a;min-width:220px;flex:1;">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">🎯 Efectividad</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Efectividad</div>
         <div id="tbEfectividad" style="font-size:26px;font-weight:800;color:#16a34a;">—</div>
         <div id="tbEfectividadSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
       <div class="kpi-card" style="border-left:4px solid #2563eb;min-width:220px;flex:1;">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">💰 Valor Ganado</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Valor Ganado</div>
         <div id="tbValorGanado" style="font-size:26px;font-weight:800;color:#2563eb;">—</div>
         <div id="tbValorGanadoSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
@@ -1115,17 +1111,17 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="kpi-value" id="aTotal">—</div>
     </div>
     <div class="kpi-card orange">
-      <div class="kpi-label">🎯 Valor Esperado (Meta 2026)</div>
+      <div class="kpi-label"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Valor Esperado (Meta 2026)</div>
       <div class="kpi-value" id="aMeta" style="font-size:18px">—</div>
       <div id="aMetaSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #16a34a;">
-      <div class="kpi-label">💰 Valor Facturado</div>
+      <div class="kpi-label"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>Valor Facturado</div>
       <div class="kpi-value" id="aValorConciliado" style="font-size:18px">—</div>
       <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #dc2626;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
-      <div class="kpi-label" style="color:#dc2626;">⚠️ Sin facturar +15 días</div>
+      <div class="kpi-label" style="color:#dc2626;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg>Sin facturar +15 días</div>
       <div class="kpi-value" id="aVencidas" style="color:#dc2626;">—</div>
     </div>
   </div>
@@ -1133,7 +1129,7 @@ body.rol-viewer .write-only { display:none !important; }
   <!-- 📊 Estado de Proyectos: lo que el jefe siempre pregunta (por ejecutar / en ejecución / ejecutado / facturado) -->
   <div class="section-card" style="padding:14px 18px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:15px;font-weight:700;color:var(--petrol);">🚦 Control de Aprobadas</span>
+      <span style="font-size:15px;font-weight:700;color:var(--petrol);display:inline-flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--orange);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><rect x="8" y="2.5" width="8" height="19" rx="4"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg>Control de Aprobadas</span>
       <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(clic en una tarjeta para filtrar)</span>
     </div>
     <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
