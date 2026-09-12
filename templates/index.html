@@ -540,7 +540,7 @@ body.rol-viewer .write-only { display:none !important; }
 .chat-img-thumb .thumb-remove { position:absolute; top:-5px; right:-5px; background:var(--danger); color:#fff; border:none; border-radius:50%; width:17px; height:17px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; padding:0; }
 .chat-burbuja img { max-width:220px; max-height:160px; border-radius:6px; object-fit:cover; display:block; margin-bottom:4px; border:1px solid rgba(0,0,0,0.08); }
 /* ── Selector de Módulos ── */
-#moduloSelector { position:fixed; inset:0; background:linear-gradient(135deg,#0c1a3a 0%,#1a3060 55%,#0d1c3f 100%); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:998; overflow:hidden; }
+#moduloSelector { position:fixed; inset:0; background:linear-gradient(135deg,#0c1a3a 0%,#1a3060 55%,#0d1c3f 100%); display:none; flex-direction:column; align-items:center; justify-content:flex-start; z-index:998; overflow-y:auto; padding:6vh 0 48px; }
 .modulo-header { text-align:center; margin-bottom:40px; position:relative; z-index:1; }
 .modulo-header-logo { height:52px; margin-bottom:10px; }
 .modulo-header h2 { font-size:22px; font-weight:700; color:#ffffff; margin:0 0 4px; }
@@ -555,7 +555,10 @@ body.rol-viewer .write-only { display:none !important; }
 .modulo-card { background:#fff; border-radius:20px; padding:40px 28px; text-align:center; cursor:pointer; border:2px solid transparent; box-shadow:var(--shadow); transition:all 0.22s; user-select:none; }
 .modulo-card:hover { border-color:var(--orange); transform:translateY(-5px); box-shadow:var(--shadow-lg); }
 .modulo-card.disabled { opacity:0.35; cursor:not-allowed; pointer-events:none; }
-.modulo-icon { font-size:54px; margin-bottom:16px; line-height:1; }
+.modulo-icon { width:66px; height:66px; margin:0 auto 16px; border-radius:16px; background:rgba(232,96,28,0.10); display:flex; align-items:center; justify-content:center; }
+.modulo-icon svg { width:34px; height:34px; stroke:#E8601C; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.modulo-card.pronto-card .modulo-icon { background:rgba(143,163,196,0.14); }
+.modulo-card.pronto-card .modulo-icon svg { stroke:#8fa3c4; }
 .modulo-title { font-size:19px; font-weight:700; color:var(--petrol); margin-bottom:8px; }
 .modulo-desc { font-size:12.5px; color:var(--text-muted); line-height:1.55; }
 .modulo-tag { display:inline-block; margin-top:14px; background:var(--orange); color:#fff; border-radius:20px; padding:3px 14px; font-size:11px; font-weight:700; letter-spacing:0.5px; }
@@ -821,17 +824,17 @@ body.rol-viewer .write-only { display:none !important; }
     </g>
 
     <!-- Engranaje grande — esquina inferior izquierda -->
-    <g transform="translate(30, 860) scale(4)" fill="rgba(255,255,255,0.05)">
+    <g transform="translate(30, 860) scale(4)" fill="rgba(255,255,255,0.028)">
       <use class="gear-bg-ccw" href="#mgear"/>
     </g>
 
     <!-- Engranaje mediano — esquina inferior derecha -->
-    <g transform="translate(1420, 840) scale(3)" fill="rgba(232,96,28,0.08)">
+    <g transform="translate(1420, 840) scale(3)" fill="rgba(232,96,28,0.045)">
       <use class="gear-bg-med" href="#mgear"/>
     </g>
 
     <!-- Engranaje pequeño — zona central alta izquierda -->
-    <g transform="translate(110, 200) scale(1.8)" fill="rgba(255,255,255,0.04)">
+    <g transform="translate(110, 200) scale(1.8)" fill="rgba(255,255,255,0.022)">
       <use class="gear-bg-ccw" href="#mgear"/>
     </g>
   </svg>
@@ -847,37 +850,37 @@ body.rol-viewer .write-only { display:none !important; }
   </div>
   <div class="modulo-grid">
     <div class="modulo-card" id="cardComercial" onclick="enterModulo('comercial')">
-      <div class="modulo-icon">🚛</div>
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M3 17V6a1 1 0 0 1 1-1h10v12M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg></div>
       <div class="modulo-title">Comercial</div>
       <div class="modulo-desc">Gestión de ofertas, control comercial, clientes y facturación</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card" id="cardOperaciones" onclick="enterModulo('operaciones')">
-      <div class="modulo-icon">⚙️</div>
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M4.2 7.5l1.9 1.1M17.9 15.4l1.9 1.1M4.2 16.5l1.9-1.1M17.9 8.6l1.9-1.1"/></svg></div>
       <div class="modulo-title">Operaciones</div>
       <div class="modulo-desc">Alertas de proyectos aceptados y gestión de Órdenes de Servicio Internas (OSI)</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
-    <div class="modulo-card" id="cardTarifario" onclick="enterModulo('tarifario')">
-      <div class="modulo-icon">📊</div>
+    <div class="modulo-card pronto-card" id="cardTarifario" onclick="enterModulo('tarifario')">
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M4 20V11M9.3 20V4M14.6 20v-6M20 20V8M3 20h18"/></svg></div>
       <div class="modulo-title">Tarifario Automático</div>
       <div class="modulo-desc">Consulta de tarifas inteligente basada en el historial de ofertas realizadas</div>
       <div class="modulo-tag pronto">Próximamente</div>
     </div>
     <div class="modulo-card disabled" id="cardTi" onclick="enterModulo('ti')">
-      <div class="modulo-icon">🖥️</div>
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></div>
       <div class="modulo-title">Tecnología — TI</div>
       <div class="modulo-desc">Administración de áreas, usuarios, permisos y estado del sistema</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardAprobaciones" onclick="enterModulo('aprobar_presupuesto')">
-      <div class="modulo-icon">✅</div>
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.6 13.2l2.3 2.3 4-4.6"/></svg></div>
       <div class="modulo-title">Aprobación de Presupuestos</div>
       <div class="modulo-desc">Revisa y aprueba (o devuelve para ajustar) los presupuestos que arma el líder del proyecto</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardRentabilidad" onclick="enterModulo('rentabilidad')">
-      <div class="modulo-icon">💹</div>
+      <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L21 6"/><path d="M15 6h6v6"/></svg></div>
       <div class="modulo-title">Rentabilidad</div>
       <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente ejecutado</div>
       <div class="modulo-tag">Ingresar</div>
