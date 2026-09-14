@@ -231,16 +231,16 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
   font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.4px;
 }
-.btn-primary { background: linear-gradient(135deg, var(--orange), #f5813f); color: #fff; box-shadow: 0 4px 14px rgba(232,100,26,0.35); }
-.btn-primary:hover { background: linear-gradient(135deg, var(--orange-dark), var(--orange)); box-shadow: 0 6px 18px rgba(232,100,26,0.45); transform: translateY(-1px); }
-.btn-secondary { background: var(--petrol); color: #fff; box-shadow: 0 2px 10px rgba(27,42,74,0.20); }
-.btn-secondary:hover { background: var(--petrol-light); transform: translateY(-1px); }
+/* SISTEMA UNIFICADO DE BOTONES — solo dos estilos en toda la plataforma:
+   PRIMARIO = naranja sólido (acción principal de cada pantalla)
+   SECUNDARIO = contorno petróleo (todo lo demás: cancelar, exportar, filtros…)
+   btn-secondary / btn-outline / btn-success comparten el mismo look secundario. */
+.btn-primary { background: var(--orange); color: #fff; border: 1.5px solid var(--orange); box-shadow: 0 2px 8px rgba(232,100,26,0.25); }
+.btn-primary:hover { background: var(--orange-dark); border-color: var(--orange-dark); box-shadow: 0 4px 12px rgba(232,100,26,0.32); transform: translateY(-1px); }
+.btn-secondary, .btn-outline, .btn-success { background: transparent; border: 1.5px solid var(--petrol); color: var(--petrol); box-shadow: none; }
+.btn-secondary:hover, .btn-outline:hover, .btn-success:hover { background: var(--petrol); color: #fff; border-color: var(--petrol); box-shadow: none; transform: translateY(-1px); }
 .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; }
-.btn-ready { box-shadow: 0 0 0 3px rgba(15,118,110,0.30), 0 6px 18px rgba(15,118,110,0.35) !important; }
-.btn-outline { background: transparent; border: 1.5px solid var(--petrol); color: var(--petrol); }
-.btn-outline:hover { background: var(--petrol); color: #fff; }
-.btn-success { background: linear-gradient(135deg, #157a5b, #22c55e); color: #fff; box-shadow: 0 4px 12px rgba(22,163,74,0.30); }
-.btn-success:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(22,163,74,0.40); }
+.btn-ready { box-shadow: 0 0 0 3px rgba(232,100,26,0.28), 0 6px 18px rgba(232,100,26,0.30) !important; }
 
 /* FILTERS BAR */
 .filters-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
@@ -628,6 +628,9 @@ body.rol-viewer .write-only { display:none !important; }
         <div class="login-field"><input type="password" id="ccNueva" placeholder="Nueva contraseña" autocomplete="new-password"></div>
         <div class="login-field"><input type="password" id="ccNueva2" placeholder="Repite la nueva contraseña" autocomplete="new-password"
           onkeydown="if(event.key==='Enter') cambiarClave()"></div>
+        <div class="login-remember" style="margin:4px 0 2px;">
+          <label style="color:#cfd8e6;"><input type="checkbox" id="ccGuardar" checked> Guardar esta contraseña en este equipo</label>
+        </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button onclick="cambiarClave()" class="login-btn" style="flex:1;padding:11px;font-size:15px;">Guardar</button>
           <button onclick="toggleCambiarClave()" style="background:transparent;border:1px solid rgba(255,255,255,0.25);color:#cfd8e6;border-radius:10px;padding:0 16px;cursor:pointer;">Cancelar</button>
@@ -1490,7 +1493,7 @@ body.rol-viewer .write-only { display:none !important; }
         <div style="font-size:17px;font-weight:800;color:#0a4f5c;">Contratos — pendiente por facturar</div>
         <div style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">Lo que el equipo de proyectos confirma por WhatsApp y Vulcano aún no factura. Lo digitas tú.</div>
       </div>
-      <button class="btn btn-sm write-only" style="background:#6d28d9;color:#fff;border:none;" onclick="pyToggleForm()">Agregar pendiente de contrato</button>
+      <button class="btn btn-primary btn-sm write-only" onclick="pyToggleForm()">Agregar pendiente de contrato</button>
     </div>
 
     <!-- Formulario (oculto por defecto) -->
@@ -1539,7 +1542,7 @@ body.rol-viewer .write-only { display:none !important; }
         </div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;">
-        <button class="btn btn-sm" style="background:#6d28d9;color:#fff;border:none;" onclick="pyGuardarContrato()">Guardar</button>
+        <button class="btn btn-primary btn-sm" onclick="pyGuardarContrato()">Guardar</button>
         <button class="btn btn-sm btn-outline" onclick="pyToggleForm(false)">Cancelar</button>
       </div>
     </div>
@@ -2540,6 +2543,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <table>
         <thead>
           <tr>
+            <th style="text-align:center;width:44px;">#</th>
             <th>Cliente</th>
             <th style="text-align:center;">Total Ofertas</th>
             <th style="text-align:center;">Aceptadas</th>
@@ -2553,7 +2557,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           </tr>
         </thead>
         <tbody id="crmBody">
-          <tr><td colspan="10" class="empty-state">Cargando...</td></tr>
+          <tr><td colspan="11" class="empty-state">Cargando...</td></tr>
         </tbody>
       </table>
     </div>
@@ -2873,7 +2877,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         <div id="cosiIABanner" style="font-size:12.5px;color:#4c1d95;line-height:1.5;background:#fff;border:1px solid #ede9fe;border-radius:8px;padding:9px 11px;">Preparando la OSI desde la oferta…</div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <input id="cosiIAInput" placeholder="Ej: fechas del 10 al 12 sep, tracto ABC123, líder Boris" onkeydown="if(event.key==='Enter'){event.preventDefault();cosiCopiloto();}" style="flex:1;padding:8px 11px;border:1px solid #ddd6fe;border-radius:7px;font-size:13px;">
-          <button type="button" onclick="cosiCopiloto()" style="background:#6d28d9;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">Enviar</button>
+          <button type="button" onclick="cosiCopiloto()" style="background:var(--orange);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">Enviar</button>
         </div>
       </div>
 
@@ -2995,7 +2999,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
               <label style="font-size:11px;font-weight:700;color:#64748b;">EMPRESA</label>
               <input id="cosiSubEmpresa" placeholder="Nombre del subcontratado" style="width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:6px;font-size:13px;">
             </div>
-            <button type="button" onclick="cosiAgregarSub()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Agregar</button>
+            <button type="button" onclick="cosiAgregarSub()" style="background:var(--orange);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Agregar</button>
           </div>
         </div>
         <div id="cosiEquiposLista" style="margin-top:10px;"></div>
@@ -3423,6 +3427,7 @@ function showLoginOverlay() {
   document.getElementById('loginOverlay').style.display = 'flex';
   ocultarApp();
   document.getElementById('moduloSelector').style.display = 'none';
+  _rcPrefill();   // si "Guardar contraseña" está activo en este equipo, precarga usuario+clave
   // Si venimos de una recarga por sesión caída/actualización, avisa.
   try {
     if (sessionStorage.getItem('niap_sesion_msg')) {
@@ -3557,12 +3562,39 @@ async function cambiarClave() {
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.detail || 'No se pudo cambiar');
-    show('Contraseña cambiada. Entra con la nueva.', true);
+    // Precarga el login con la nueva clave y, si se pidió, la guarda en este equipo.
+    const guardar = document.getElementById('ccGuardar');
+    const lu = document.getElementById('loginUser'); if (lu) lu.value = user;
+    const lp = document.getElementById('loginPass'); if (lp) lp.value = nueva;
+    const rem = document.getElementById('loginRemember');
+    if (guardar && guardar.checked) {
+      _rcSet(user, nueva);
+      if (rem) rem.checked = true;
+      show('Contraseña cambiada y guardada en este equipo. Ya puedes ENTRAR.', true);
+    } else {
+      _rcClear();
+      if (rem) rem.checked = false;
+      show('Contraseña cambiada. Ya la dejé escrita: pulsa ENTRAR.', true);
+    }
     document.getElementById('ccActual').value = '';
     document.getElementById('ccNueva').value = '';
     document.getElementById('ccNueva2').value = '';
-    const lp = document.getElementById('loginPass'); if (lp) lp.value = '';
+    // Cierra el panel tras un momento para que se vea el login listo.
+    setTimeout(() => { const pnl = document.getElementById('cambiarClavePanel'); if (pnl) pnl.style.display = 'none'; }, 1800);
   } catch (e) { show('' + (e.message || e), false); }
+}
+
+// ── Recordar usuario/contraseña en ESTE equipo (opt-in con "Guardar contraseña").
+// Se guarda solo en el navegador de este equipo (localStorage), nunca en el servidor.
+function _rcSet(u, p) { try { localStorage.setItem('niap_rc', btoa(unescape(encodeURIComponent(JSON.stringify({ u: u, p: p }))))); } catch (e) {} }
+function _rcGet() { try { const s = localStorage.getItem('niap_rc'); return s ? JSON.parse(decodeURIComponent(escape(atob(s)))) : null; } catch (e) { return null; } }
+function _rcClear() { try { localStorage.removeItem('niap_rc'); } catch (e) {} }
+function _rcPrefill() {
+  const rc = _rcGet(); if (!rc) return;
+  const u = document.getElementById('loginUser'), p = document.getElementById('loginPass'), r = document.getElementById('loginRemember');
+  if (u && !u.value) u.value = rc.u || '';
+  if (p && !p.value) p.value = rc.p || '';
+  if (r) r.checked = true;
 }
 
 async function doLogin() {
@@ -3579,6 +3611,9 @@ async function doLogin() {
     });
     if (!res.ok) { const e = await res.json(); err.textContent = e.detail || 'Error'; err.style.display = ''; return; }
     const user = await res.json();
+    // Guardar / olvidar según la casilla "Guardar contraseña".
+    const rem = document.getElementById('loginRemember');
+    if (rem && rem.checked) _rcSet(username, password); else _rcClear();
     prepareUser(user);
     showModuloSelector(user);
   } catch(e) { err.textContent = 'Error de conexión'; err.style.display = ''; }
@@ -9622,14 +9657,15 @@ function filterClientes() {
   const data = allClientes.filter(c => !buscar || (c.cliente||'').toLowerCase().includes(buscar));
   const tbody = document.getElementById('crmBody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Sin clientes que coincidan</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Sin clientes que coincidan</td></tr>';
     return;
   }
-  tbody.innerHTML = data.map(c => {
+  tbody.innerHTML = data.map((c, i) => {
     const tasa = c.tasa_cierre || 0;
     const tasaColor = tasa >= 50 ? '#157a5b' : tasa >= 25 ? '#d97706' : '#b23a2e';
     return `
     <tr>
+      <td style="text-align:center;color:var(--text-muted);font-weight:700;font-variant-numeric:tabular-nums;">${i + 1}</td>
       <td style="font-weight:600;color:var(--petrol);">${c.cliente}</td>
       <td style="text-align:center;">${c.total_ofertas}</td>
       <td style="text-align:center;color:#157a5b;font-weight:700;">${c.aceptadas}</td>
