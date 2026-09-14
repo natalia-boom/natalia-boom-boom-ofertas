@@ -1662,6 +1662,38 @@ def _ensure_db():
                 _revert)
             cur.execute("INSERT INTO app_migraciones (clave) VALUES ('soe360_revert_v1')")
 
+        # ── Unificación DHL → DHL GLOBAL FORWARDING ───────────────────────────
+        # Natalia: "todo lo de DHL" es el mismo cliente. Renombramos TODAS las
+        # variantes (DHL, DHL GF, DHL GLOBAL FORWARDING SAS, etc.) en todas las
+        # tablas con columna 'cliente' y fusionamos el catálogo en una sola fila.
+        # Lo nuevo/editado ya se normaliza en _canon_cliente (prefijo "DHL").
+        cur.execute("SELECT 1 FROM app_migraciones WHERE clave='dhl_unificar_v1'")
+        if not cur.fetchone():
+            for _t in ("ofertas", "ofertas_2025", "contratos", "facturacion_cat",
+                       "notificaciones", "osi", "vulcano_facturas"):
+                try:
+                    cur.execute(
+                        f"UPDATE {_t} SET cliente='DHL GLOBAL FORWARDING' "
+                        f"WHERE UPPER(cliente) LIKE 'DHL%%' AND cliente <> 'DHL GLOBAL FORWARDING'")
+                except Exception as _e:
+                    print(f"[DHL] no se pudo normalizar {_t}: {_e}")
+            # Catálogo de clientes: deja UNA sola fila DHL (conserva la que tenga NIT).
+            try:
+                cur.execute("SELECT id, nit FROM clientes WHERE UPPER(nombre_corto) LIKE 'DHL%' ORDER BY id")
+                _rows = cur.fetchall()
+                if _rows:
+                    _con_nit = [r[0] for r in _rows if (r[1] or '').strip()]
+                    _keep = _con_nit[0] if _con_nit else _rows[0][0]
+                    # Borra primero las variantes sobrantes para no chocar con el
+                    # índice único al renombrar la fila que se conserva.
+                    for _r in _rows:
+                        if _r[0] != _keep:
+                            cur.execute("DELETE FROM clientes WHERE id=%s", (_r[0],))
+                    cur.execute("UPDATE clientes SET nombre_corto='DHL GLOBAL FORWARDING' WHERE id=%s", (_keep,))
+            except Exception as _e:
+                print(f"[DHL] no se pudo fusionar el catálogo: {_e}")
+            cur.execute("INSERT INTO app_migraciones (clave) VALUES ('dhl_unificar_v1')")
+
         # ── CANDADO DE CONSECUTIVO ────────────────────────────────────────────
         # Evita que dos ofertas ACTIVAS compartan el mismo número (bug de
         # consecutivo duplicado). Tiene dos partes idempotentes:
@@ -2622,6 +2654,9 @@ def _canon_cliente(nombre):
     if not nombre:
         return nombre
     n = re.sub(r"\s+", " ", str(nombre).strip()).upper()
+    # DHL: por pedido de Natalia, TODO lo de DHL es el mismo cliente.
+    if n.startswith("DHL"):
+        return "DHL GLOBAL FORWARDING"
     return _CLIENTES_CANON.get(n, n)
 
 
