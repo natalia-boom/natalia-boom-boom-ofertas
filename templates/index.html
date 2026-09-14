@@ -3937,13 +3937,36 @@ async function loadAll() {
     if (!res.ok) throw new Error('Error cargando ofertas');
     allOfertas = await res.json();
     // Enriquecer cada oferta con origen/destino/descripción SACADOS DE LA OFERTA
-    // (campo estructurado de pdf_data). Se hace una sola vez, al cargar. Las que no
-    // los tengan estructurados quedan vacías (se pueden rellenar por backfill/OSI).
+    // (campo estructurado de pdf_data). Se hace una sola vez, al cargar. Si el
+    // campo estructurado viene vacío (ofertas viejas), se RESCATA del texto de la
+    // oferta (notas/HTML/general), donde aparece "Origen: … / Destino: …".
+    const _rescataCampo = (txt, campo) => {
+      if (!txt) return '';
+      // Captura hasta el siguiente rótulo (Origen/Destino/Stand-by), salto o separador.
+      const m = txt.match(new RegExp(campo + '\\s*:\\s*(.+?)\\s*(?:\\n|·|\\||→|destino\\s*:|origen\\s*:|stand|$)', 'i'));
+      if (!m) return '';
+      const v = m[1].replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      // Ignora rellenos genéricos que no son una ciudad real.
+      if (!v || /^(a confirmar|por confirmar|sin |n\/?a$|-$|—$)/i.test(v)) return '';
+      return v;
+    };
     allOfertas.forEach(o => {
       let pdf = o.pdf_data;
       if (typeof pdf === 'string') { try { pdf = JSON.parse(pdf); } catch (e) { pdf = null; } }
-      o._origen  = ((pdf && pdf.origen)      || '').toString().trim();
-      o._destino = ((pdf && pdf.destino)     || '').toString().trim();
+      let og = ((pdf && pdf.origen)  || '').toString().trim();
+      let de = ((pdf && pdf.destino) || '').toString().trim();
+      if (!og || !de) {
+        // Quita etiquetas HTML para que "<strong>Origen:</strong> CIUDAD" quede plano.
+        const blob = [
+          pdf && pdf.notas ? (Array.isArray(pdf.notas) ? pdf.notas.join('\n') : String(pdf.notas)) : '',
+          pdf && typeof pdf.html === 'string' ? pdf.html : '',
+          o.general || '', o.seguimiento || ''
+        ].join('\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
+        if (!og) og = _rescataCampo(blob, 'origen');
+        if (!de) de = _rescataCampo(blob, 'destino');
+      }
+      o._origen  = og;
+      o._destino = de;
       o._desc    = ((pdf && pdf.descripcion) || o.general || '').toString().trim();
     });
     // Facturas por oferta (1 oferta -> N facturas). No bloquea si falla.

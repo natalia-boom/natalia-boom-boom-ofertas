@@ -2660,6 +2660,116 @@ def _canon_cliente(nombre):
     return _CLIENTES_CANON.get(n, n)
 
 
+# Tablas con columna 'cliente' que se renombran al propagar un cambio de nombre.
+_TABLAS_CLIENTE = ["ofertas", "ofertas_2025", "contratos", "facturacion_cat",
+                   "notificaciones", "osi"]
+
+
+def _norm_nit(v):
+    """Deja solo los dígitos del NIT para poder cruzar sin importar puntos/guiones."""
+    return re.sub(r"\D", "", str(v or ""))
+
+
+def _sync_clientes_facturacion(cur):
+    """Cruza cada cliente con la facturación real de VULCANO por NIT y adopta el
+    NOMBRE tal como aparece en la facturación como nombre oficial, tanto en el
+    catálogo como en todas las tablas (ofertas, contratos, etc.).
+
+    Decisión de Natalia (2026-09-14): el nombre de la facturación MANDA; se cruza
+    por NIT (única llave confiable, porque las ofertas no guardan NIT sino que
+    heredan el nombre del catálogo). Es IDEMPOTENTE: cuando los nombres ya
+    coinciden no cambia nada. Solo actúa donde HAY NIT en el catálogo y ese NIT
+    aparece en Vulcano; los clientes sin NIT o nunca facturados quedan igual.
+    Devuelve cuántos clientes renombró."""
+    try:
+        # 1) NIT (solo dígitos) -> nombre de facturación más frecuente en Vulcano.
+        cur.execute("""
+            SELECT nit, cliente, COUNT(*) AS n
+              FROM vulcano_facturas
+             WHERE nit IS NOT NULL AND TRIM(nit) <> ''
+               AND cliente IS NOT NULL AND TRIM(cliente) <> ''
+             GROUP BY nit, cliente
+        """)
+        fact_por_nit = {}   # nitdig -> (nombre, n)
+        for nit, cli, n in cur.fetchall():
+            k = _norm_nit(nit)
+            if not k:
+                continue
+            nombre = _canon_cliente(str(cli).strip())
+            prev = fact_por_nit.get(k)
+            if not prev or n > prev[1]:
+                fact_por_nit[k] = (nombre, n)
+        if not fact_por_nit:
+            return 0
+        nombre_oficial = {k: v[0] for k, v in fact_por_nit.items()}
+        # nombre(canon MAYÚS) -> nitdig, para autocompletar NITs faltantes.
+        nombre_a_nit = {}
+        for k, (nombre, _n) in fact_por_nit.items():
+            nombre_a_nit.setdefault(nombre.upper(), k)
+
+        # 2) Bootstrap: catálogo SIN NIT cuyo nombre ya coincide con facturación
+        #    -> le copiamos el NIT para que quede cruzado a futuro.
+        cur.execute("SELECT id, nombre_corto, nit FROM clientes")
+        for cid, nombre_corto, nit in cur.fetchall():
+            if (nit or "").strip():
+                continue
+            k = nombre_a_nit.get(_canon_cliente(nombre_corto or "").upper())
+            if k:
+                cur.execute("UPDATE clientes SET nit=%s WHERE id=%s", (k, cid))
+
+        # 3) Renombra cada cliente del catálogo (con NIT cruzado) al nombre oficial
+        #    de la facturación y propaga a todas las tablas.
+        cur.execute("SELECT id, nombre_corto, nit FROM clientes")
+        cambios = 0
+        for cid, nombre_corto, nit in cur.fetchall():
+            k = _norm_nit(nit)
+            oficial = nombre_oficial.get(k)
+            if not oficial or oficial == nombre_corto:
+                continue
+            viejo = nombre_corto
+            # ¿Ya existe otra fila con el nombre oficial? -> fusiona en ella.
+            cur.execute(
+                "SELECT id, nit FROM clientes WHERE lower(nombre_corto)=lower(%s) AND id<>%s",
+                (oficial, cid))
+            existe = cur.fetchone()
+            if existe:
+                for t in _TABLAS_CLIENTE:
+                    try:
+                        cur.execute(f"UPDATE {t} SET cliente=%s WHERE cliente=%s", (oficial, viejo))
+                    except Exception:
+                        pass
+                try:
+                    cur.execute("UPDATE clientes SET nit=COALESCE(NULLIF(TRIM(nit),''), %s) WHERE id=%s",
+                                (k, existe[0]))
+                except Exception:
+                    pass
+                cur.execute("DELETE FROM clientes WHERE id=%s", (cid,))
+            else:
+                cur.execute("UPDATE clientes SET nombre_corto=%s WHERE id=%s", (oficial, cid))
+                for t in _TABLAS_CLIENTE:
+                    try:
+                        cur.execute(f"UPDATE {t} SET cliente=%s WHERE cliente=%s", (oficial, viejo))
+                    except Exception:
+                        pass
+            cambios += 1
+        if cambios:
+            print(f"[SYNC CLIENTES-FACT] {cambios} cliente(s) renombrados al nombre de facturación")
+        return cambios
+    except Exception as e:
+        print(f"[SYNC CLIENTES-FACT] error: {e}")
+        return 0
+
+
+# Cruce INICIAL al arrancar: sincroniza los nombres existentes con la facturación.
+# (Va aquí, después de definir _sync_clientes_facturacion, porque _ensure_db() ya
+#  se ejecutó arriba en el import y estas funciones aún no existían entonces.)
+try:
+    with get_conn() as _c0:
+        _sync_clientes_facturacion(_c0.cursor())
+except Exception as _e0:
+    print(f"[SYNC CLIENTES-FACT] arranque: {_e0}")
+
+
 # ── GRUPOS EMPRESARIALES para el TABLERO DE FACTURACIÓN ────────────────────────
 # Un mismo cliente factura bajo varias razones sociales (varios NIT). SOLO en el
 # ranking de facturación por cliente esas razones sociales se suman como uno solo.
@@ -4806,7 +4916,13 @@ def create_oferta(oferta: OfertaCreate):
                            )""",
                         (oferta.cliente, oferta.cliente),
                     )
-                return nueva
+                # Cruza y actualiza los nombres con la facturación (por NIT). Así,
+                # cada vez que se hace una oferta, los nombres quedan al día.
+                _sync_clientes_facturacion(cur)
+                # Re-lee por si el cruce renombró el cliente de esta oferta.
+                cur.execute("SELECT * FROM ofertas WHERE id = %s", (nueva["id"],))
+                fresca = fetchone(cur)
+                return fresca or nueva
         except pgdb.DatabaseError as e:
             msg = str(e).lower()
             if "unique" in msg or "duplicate" in msg:
@@ -8037,6 +8153,9 @@ async def vulcano_importar(archivo: UploadFile = File(...)):
             # Proyección automática: mueve las ofertas ya facturadas de
             # EJECUTADO/POR EJECUTAR a 'FACTURADO <mes>' (arregla el caso SSAB).
             proy_sync = _sync_facturas_estado_proyecto(cur)
+            # Con la facturación recién importada, cruza y actualiza los nombres
+            # de cliente al nombre oficial de la facturación (por NIT).
+            _sync_clientes_facturacion(cur)
             resumen = _vulcano_calc_resumen(cur)
     except HTTPException:
         raise
