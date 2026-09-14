@@ -3965,6 +3965,18 @@ async function loadAll() {
         if (!og) og = _rescataCampo(blob, 'origen');
         if (!de) de = _rescataCampo(blob, 'destino');
       }
+      // Último recurso: si la DESCRIPCIÓN arranca con una ruta "A → B", tómala
+      // (así se muestran las rutas que quedaron escritas dentro de la descripción).
+      if (!og || !de) {
+        const t = ((pdf && pdf.descripcion) || o.general || '').toString()
+          .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+          .replace(/&#8594;|&rarr;/g, '→').replace(/-&gt;|->/g, '→').trim();
+        const mr = t.match(/^([^→]{1,40}?)\s*→\s*([^—–|,;\n]{1,40}?)\s*(?:\s-\s|[—–|,;\n]|$)/);
+        if (mr) {
+          if (!og) og = mr[1].trim();
+          if (!de) de = mr[2].trim();
+        }
+      }
       o._origen  = og;
       o._destino = de;
       o._desc    = ((pdf && pdf.descripcion) || o.general || '').toString().trim();
