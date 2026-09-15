@@ -3950,6 +3950,28 @@ async function loadAll() {
       if (!v || /^(a confirmar|por confirmar|sin |n\/?a$|-$|—$)/i.test(v)) return '';
       return v;
     };
+    // Detecta una RUTA dentro de la descripción, aunque no tenga rótulo "Origen:".
+    // Entiende: "A → B", "A -> B" y "Lugar (Depto) - Lugar (Depto)". El guion solo
+    // cuenta como ruta si al menos un lado trae el departamento entre paréntesis
+    // (así "Grúa 50 Ton - Montaje" NO se confunde con una ruta). Alta precisión:
+    // si no hay una ruta clara, deja vacío en vez de inventar.
+    const _LUGAR = "[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*(?:\\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*){0,3}(?:\\s*\\([^)]+\\))?";
+    const _LUGAR_DEP = "[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*(?:\\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*){0,3}\\s*\\([^)]+\\)";
+    const _RE_FLECHA = new RegExp("(" + _LUGAR + ")\\s*(?:→|->)\\s*(" + _LUGAR + ")");
+    const _RE_GUION  = new RegExp("(" + _LUGAR_DEP + ")\\s*(?:—|–|\\s-\\s)\\s*(" + _LUGAR + ")");
+    const _RE_GUION2 = new RegExp("(" + _LUGAR + ")\\s*(?:—|–|\\s-\\s)\\s*(" + _LUGAR_DEP + ")");
+    const _RE_VERBO = /^(transporte|transportes|movilizaci[oó]n|traslado|cargue|carga|servicio|alquiler|izaje|montaje|desmonte|retiro|entrega|despacho|ruta|desde|recogida|recolecci[oó]n)s?\s+/i;
+    const _limpiaLugar = (v) => { v = (v || '').trim(); for (let i = 0; i < 2; i++) { const nv = v.replace(_RE_VERBO, ''); if (nv === v) break; v = nv; } return v.trim(); };
+    const _rutaDeTexto = (raw) => {
+      if (!raw) return ['', ''];
+      const t = raw.toString().replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+        .replace(/&#8594;|&rarr;/g, '→').replace(/-&gt;/g, '→').trim();
+      for (const rx of [_RE_FLECHA, _RE_GUION, _RE_GUION2]) {
+        const m = t.match(rx);
+        if (m) return [_limpiaLugar(m[1]), _limpiaLugar(m[2])];
+      }
+      return ['', ''];
+    };
     allOfertas.forEach(o => {
       let pdf = o.pdf_data;
       if (typeof pdf === 'string') { try { pdf = JSON.parse(pdf); } catch (e) { pdf = null; } }
@@ -3965,17 +3987,11 @@ async function loadAll() {
         if (!og) og = _rescataCampo(blob, 'origen');
         if (!de) de = _rescataCampo(blob, 'destino');
       }
-      // Último recurso: si la DESCRIPCIÓN arranca con una ruta "A → B", tómala
-      // (así se muestran las rutas que quedaron escritas dentro de la descripción).
+      // Último recurso: leer la RUTA de la descripción (flecha o "Lugar (Depto) - Lugar (Depto)").
       if (!og || !de) {
-        const t = ((pdf && pdf.descripcion) || o.general || '').toString()
-          .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
-          .replace(/&#8594;|&rarr;/g, '→').replace(/-&gt;|->/g, '→').trim();
-        const mr = t.match(/^([^→]{1,40}?)\s*→\s*([^—–|,;\n]{1,40}?)\s*(?:\s-\s|[—–|,;\n]|$)/);
-        if (mr) {
-          if (!og) og = mr[1].trim();
-          if (!de) de = mr[2].trim();
-        }
+        const [ro, rd] = _rutaDeTexto((pdf && pdf.descripcion) || o.general || '');
+        if (!og) og = ro;
+        if (!de) de = rd;
       }
       o._origen  = og;
       o._destino = de;
