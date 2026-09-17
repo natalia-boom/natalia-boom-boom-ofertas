@@ -296,7 +296,13 @@ def _auto_notas(equipos: list, texto_cliente: str = "",
         "cama alta", "camalta", "cama-alta", "extensible",
     ])
 
-    if is_cama5:
+    # Semimodular / Extensible se detecta PRIMERO: "semimodular 5 ejes" contiene
+    # "5 ejes" y no debe caer en la tarifa de cama baja 5.
+    is_semimodular = any(w in all_text for w in ["semi modular", "semimodular", "extensible"])
+    if is_semimodular:
+        standby_valor = "$2.500.000"
+        standby_tipo  = "Semimodular / Extensible"
+    elif is_cama5:
         standby_valor = "$2.600.000"
         standby_tipo  = "Cama Baja 5 Ejes"
     elif is_cama4:
@@ -374,17 +380,28 @@ def _auto_notas(equipos: list, texto_cliente: str = "",
 
 # ── HTML offer generation ─────────────────────────────────────────────────────
 
+# Tarifas FIJAS 2026 (tabla oficial confirmada por Natalia). El ORDEN importa:
+# se devuelve la PRIMERA categoría que coincide, así que las más específicas y
+# las que sufren choque de subcadena van primero.
+#  · SEMIMODULAR/EXTENSIBLE va de PRIMERO: "semimodular 5 ejes" contiene
+#    "modular 5" y antes caía por error en la tarifa de modular ($8.500.000).
+#  · CAMA ALTA va antes que las cama baja: "cama alta 3 ejes" contiene "3 ejes"
+#    y no debe caer en la de cama baja 3.
 _STANDBY_RATES = [
-    (["modular 6","modular6","6 cuna 6","6cuna6"],                        "$8.500.000/día", "12 horas", "12 horas"),
-    (["modular 5","modular5","5 cuna 5","5cuna5",
-      "modular 4","modular4","4 cuna 4","4cuna4"],                        "$8.500.000/día", "12 horas", "12 horas"),
-    (["semi modular","semimodular","2v4","modular"],                       "$2.800.000/día", "12 horas", "12 horas"),
+    (["semi modular","semimodular","extensible"],                          "$2.500.000/día", "12 horas", "12 horas"),
+    (["jacking","skidding"],                                               "$15.000.000/día","12 horas", "12 horas"),
+    (["modular 18","18 lineas","18 líneas"],                               "$15.000.000/día","12 horas", "12 horas"),
+    (["modular 6","modular6","6 cuna","6-8 lineas","6-8 líneas",
+      "6 lineas","6 líneas","modular 12","12 lineas","12 líneas"],         "$8.500.000/día", "12 horas", "12 horas"),
+    (["modular 2","2 cuna","cuna 2 lineas","cuna 2 líneas"],               "$4.800.000/día", "12 horas", "12 horas"),
+    (["modular 5","modular5","5 cuna","modular 4","modular4","4 cuna"],     "$8.500.000/día", "12 horas", "12 horas"),
+    (["cama alta","camalta","patineta"],                                   "$1.200.000/día", "6 horas",  "6 horas"),
     (["cama baja 5","camabaja5","cb5","5 ejes","60 ton","60ton"],          "$2.600.000/día", "6 horas",  "6 horas"),
     (["cama baja 4","camabaja4","cb4","4 ejes","45 ton","45ton"],          "$1.800.000/día", "8 horas",  "8 horas"),
     (["cama baja 3","camabaja3","cb3","3 ejes","30 ton","30ton",
-      "cama baja","camabaja","cama plana"],                                "$1.200.000/día", "6 horas",  "6 horas"),
+      "cama baja","camabaja","cama plana"],                                "$1.500.000/día", "6 horas",  "6 horas"),
     (["camión turbo","camion turbo","turbo","sencillo","camioneta"],       "$550.000/día",   "6 horas",  "6 horas"),
-    (["cama alta","camalta","patineta","extensible"],                      "$1.200.000/día", "6 horas",  "6 horas"),
+    (["modular","spmt","self-propelled"],                                  "$2.500.000/día", "12 horas", "12 horas"),
 ]
 
 def _standby_for_equipo(eq_name: str, eq_config: str) -> tuple:
@@ -1693,6 +1710,35 @@ def _ensure_db():
             except Exception as _e:
                 print(f"[DHL] no se pudo fusionar el catálogo: {_e}")
             cur.execute("INSERT INTO app_migraciones (clave) VALUES ('dhl_unificar_v1')")
+
+        # ── Corrección puntual: intercambio Komatsu 261243 ↔ DHL 261244 ───────
+        # 2026-09-17: al crear dos ofertas casi al tiempo (Willington/Natalia),
+        # los números quedaron cruzados. A DHL ya se le enviaron 261242 y 261243,
+        # así que 261243 le pertenece a DHL ante el cliente; pero en Control quedó
+        # como KOMATSU, y la DHL de $35M en 261244. Se intercambian para dejar
+        # 261243=DHL (como lo recibió el cliente) y KOMATSU en 261244.
+        # SOLO se aplica si el estado coincide EXACTAMENTE con lo esperado
+        # (número + cliente + valor); si no, no toca nada. El PDF impreso se
+        # autocorrige al descargar desde Control (_forzar_ref_en_html).
+        cur.execute("SELECT 1 FROM app_migraciones WHERE clave='swap_komatsu_dhl_20260917_v1'")
+        if not cur.fetchone():
+            try:
+                cur.execute("SELECT id FROM ofertas WHERE num='261243' AND UPPER(cliente) LIKE 'KOMATSU%%' AND valor=40000000 AND NOT COALESCE(anulada,false)")
+                _kom = cur.fetchone()
+                cur.execute("SELECT id FROM ofertas WHERE num='261244' AND UPPER(cliente) LIKE 'DHL%%' AND valor=35000000 AND NOT COALESCE(anulada,false)")
+                _dhl = cur.fetchone()
+                if _kom and _dhl:
+                    _kid, _did = _kom[0], _dhl[0]
+                    # Intercambio vía número temporal para no violar el índice único.
+                    cur.execute("UPDATE ofertas SET num='900000243' WHERE id=%s", (_kid,))
+                    cur.execute("UPDATE ofertas SET num='261243', pdf_data=jsonb_set(COALESCE(pdf_data,'{}'::jsonb),'{ref}',to_jsonb('261243'::text)) WHERE id=%s", (_did,))
+                    cur.execute("UPDATE ofertas SET num='261244', pdf_data=jsonb_set(COALESCE(pdf_data,'{}'::jsonb),'{ref}',to_jsonb('261244'::text)) WHERE id=%s", (_kid,))
+                    cur.execute("INSERT INTO app_migraciones (clave) VALUES ('swap_komatsu_dhl_20260917_v1')")
+                    print("[SWAP] Komatsu<->DHL 261243/261244 aplicado")
+                else:
+                    print("[SWAP] estado no coincide con lo esperado; no se cambió nada (reintenta en el próximo deploy)")
+            except Exception as _e:
+                print(f"[SWAP] error, no se aplicó: {_e}")
 
         # ── CANDADO DE CONSECUTIVO ────────────────────────────────────────────
         # Evita que dos ofertas ACTIVAS compartan el mismo número (bug de
