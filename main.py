@@ -3510,12 +3510,17 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
         except Exception:
             meta = None
 
+    aviso_sb = None
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
         html = _limpiar_oferta_html(html)
         html = _inject_anexo(html)
+        html, aviso_sb = _asegurar_standby(html)
 
-    return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt}
+    if aviso_sb:
+        reply = (aviso_sb + "\n\n" + reply).strip() if reply else aviso_sb
+
+    return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt, "aviso": aviso_sb}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -5201,6 +5206,9 @@ def download_oferta_pdf(oferta_id: int):
         # Ofertas del modo IA avanzada guardan el HTML completo ya renderizado.
         if payload.get("ia_html"):
             _html = _limpiar_oferta_html(payload["ia_html"])
+            # El PDF descargado desde Control SIEMPRE muestra el número real de
+            # la oferta (autocorrige las que quedaron con el número desfasado).
+            _html = _forzar_ref_en_html(_html, _fmt_ref(row.get("num") or oferta_id))
             if _pk:
                 _html = _inject_packing(_html, oferta_id, _pk_nombre or "")
             pdf_bytes = _html_to_pdf_bytes(_html)
@@ -5544,6 +5552,99 @@ def _inject_anexo(html: str) -> str:
     return html + bloque
 
 
+# ── Stand-by: red de seguridad para el modo IA avanzado ───────────────────────
+# Si la IA olvida poner el stand-by (a veces pasa en las ofertas "estilo Boris"),
+# aquí se detecta el equipo y se INYECTA la nota con la tarifa FIJA 2026. Si no
+# se logra identificar el equipo, se devuelve un aviso para mostrarlo al generar.
+# Orden: del más específico al más general (gana el primero que coincide).
+_STANDBY_INYECTAR = [
+    (["modular 18", "18 lineas", "18 líneas"],                       "Modular 18 líneas",        "$15.000.000"),
+    (["jacking", "skidding"],                                        "Jacking Skidding",         "$15.000.000"),
+    (["modular 6", "modular6", "6 cuna", "6-8 lineas", "6-8 líneas",
+      "6 lineas", "6 líneas", "modular 12", "12 lineas", "12 líneas"], "Modular 6 líneas",       "$8.500.000"),
+    (["modular 2", "2 cuna", "cuna 2 lineas", "cuna 2 líneas"],       "Modular 2 Cuna",           "$4.800.000"),
+    (["semi modular", "semimodular", "extensible"],                  "Semimodular / Extensible", "$2.500.000"),
+    (["cama baja 5", "camabaja5", "cb5", "5 ejes"],                  "Cama Baja 5 ejes",         "$2.600.000"),
+    (["cama baja 4", "camabaja4", "cb4", "4 ejes"],                  "Cama Baja 4 ejes",         "$1.800.000"),
+    (["cama baja 3", "camabaja3", "cb3", "3 ejes",
+      "cama baja", "camabaja"],                                      "Cama Baja 3 ejes",         "$1.500.000"),
+    (["cama alta", "camalta", "patineta"],                           "Cama Alta 3 ejes",         "$1.200.000"),
+    (["camión turbo", "camion turbo", "turbo", "sencillo"],          "Camión Turbo",             "$550.000"),
+]
+
+
+def _bloque_standby_html(label: str, rate: str) -> str:
+    return (
+        '<!--STANDBY-->'
+        '<div style="margin:14px 0 4px 0;padding:12px 16px;border:1px solid #f0d9c4;'
+        'border-left:5px solid #e8641a;border-radius:8px;background:#fff7f0;'
+        'font-family:Arial,sans-serif;font-size:13px;color:#1B2A4A;line-height:1.5;">'
+        f'<strong>Stand-by {label}: {rate}/día.</strong> '
+        'Las horas adicionales ser&aacute;n cobradas proporcionalmente seg&uacute;n tarifa establecida.'
+        '</div>'
+    )
+
+
+def _asegurar_standby(html: str):
+    """Garantiza que la oferta IA lleve stand-by. Devuelve (html, aviso).
+    - Si ya lo trae (mención de stand-by con un valor en $) → no toca nada.
+    - Si falta y se identifica el equipo → inyecta la nota con la tarifa fija.
+    - Si falta y NO se identifica el equipo → devuelve un aviso (no inyecta)."""
+    if not html or "<!--STANDBY-->" in html:
+        return html, None
+    low = html.lower()
+    # ¿Ya hay una nota de stand-by con su valor en pesos?
+    if re.search(r"stand\s*-?\s*by", low) and re.search(r"stand\s*-?\s*by.{0,180}\$", low, re.S):
+        return html, None
+    # Falta: intentar identificar el equipo por palabras clave.
+    label = rate = None
+    for keywords, lbl, r in _STANDBY_INYECTAR:
+        if any(k in low for k in keywords):
+            label, rate = lbl, r
+            break
+    if not label:
+        return html, ("⚠️ Esta oferta salió SIN stand-by y no pude identificar el "
+                      "equipo para agregarlo automáticamente. Revísala y añade la nota "
+                      "de stand-by antes de enviarla.")
+    bloque = _bloque_standby_html(label, rate)
+    # Anclar encima del Anexo / la firma (mismo patrón que packing/anexo).
+    if "<!--ANEXO1-->" in html:
+        return html.replace("<!--ANEXO1-->", bloque + "\n<!--ANEXO1-->", 1), None
+    if '<div class="footer">' in html:
+        return html.replace('<div class="footer">', bloque + '\n<div class="footer">', 1), None
+    if "</body>" in html:
+        return html.replace("</body>", bloque + "\n</body>", 1), None
+    return html + bloque, None
+
+
+def _forzar_ref_en_html(html: str, ref_fmt: str) -> str:
+    """Obliga a que el número impreso en la oferta IA sea EXACTAMENTE ref_fmt
+    (el consecutivo real que quedó en Control). Corrige el desfase que aparece
+    cuando el número se reasigna al guardar (dos personas creando a la vez): la
+    hoja quedaba con el número viejo y Control con otro. Aquí se reemplaza el
+    número dentro de la ref-bar y cualquier otra aparición del número viejo
+    (p. ej. en el asunto). Idempotente: si ya coincide, no toca nada."""
+    if not html or not ref_fmt:
+        return html
+    m = re.search(r'(REF\s*:?\s*)(\d{2}\s*-\s*\d{3,4})', html, re.I)
+    if m:
+        impreso = m.group(2)
+        norm = re.sub(r'\s+', '', impreso)
+        if norm != ref_fmt:
+            # Corrige la ref-bar en su posición exacta…
+            html = html[:m.start(2)] + ref_fmt + html[m.end(2):]
+            # …y cualquier otra aparición del mismo número viejo en el documento.
+            if impreso in html:
+                html = html.replace(impreso, ref_fmt)
+            if norm != impreso and norm in html:
+                html = html.replace(norm, ref_fmt)
+    else:
+        # No hay número tras la etiqueta "REF:": insertarlo. Se exige los dos
+        # puntos para no confundir con la clase CSS "ref-bar".
+        html = re.sub(r'(REF\s*:\s*)', r'\g<1>' + ref_fmt + ' ', html, count=1)
+    return html
+
+
 def _bloque_packing_html(oferta_id: int, nombre: str = "") -> str:
     """Recuadro con el enlace de descarga del Packing List adjunto de la oferta."""
     url = f"https://web-production-73608.up.railway.app/api/ofertas/{oferta_id}/packing-list"
@@ -5760,6 +5861,11 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                     cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
                     ex = fetchone(cur)
                 pdf_data["ref"] = num
+                # El número impreso en la hoja DEBE ser el mismo que queda en
+                # Control. Si al guardar se reasignó el consecutivo, se corrige
+                # aquí para que documento y registro nunca se descuadren.
+                if pdf_data.get("ia_html"):
+                    pdf_data["ia_html"] = _forzar_ref_en_html(pdf_data["ia_html"], _fmt_ref(num))
                 if ex:
                     oferta_id = ex["id"]
                     valor_ant = int(ex.get("valor") or 0)
