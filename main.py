@@ -3543,11 +3543,12 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
     api_messages = _trim_api_messages([{"role": m.role, "content": m.content} for m in messages])
     message = client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=8000,
+        max_tokens=16000,
         system=sys,
         messages=api_messages,
     )
     raw = message.content[0].text
+    _truncado = (getattr(message, "stop_reason", None) == "max_tokens")
 
     def _between(t, a, b):
         i, j = t.find(a), t.find(b)
@@ -3566,6 +3567,16 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
         except Exception:
             meta = None
 
+    # Red de seguridad: si la respuesta se cortó por tamaño, la oferta queda
+    # incompleta (sin <<<FINHTML>>>) y el cambio NO se aplica. En vez de fallar
+    # en silencio, avisamos para que el usuario divida el pedido en partes.
+    aviso_trunc = None
+    if _truncado and ("<<<HTML>>>" in raw) and ("<<<FINHTML>>>" not in raw):
+        aviso_trunc = ("⚠️ La oferta quedó demasiado grande y la respuesta se cortó, "
+                       "por eso el cambio NO se aplicó. Pídelo en partes más pequeñas "
+                       "(por ejemplo, agrega una sola tabla a la vez).")
+        html = ""  # no dejamos pasar HTML incompleto
+
     aviso_sb = None
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
@@ -3573,10 +3584,13 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
         html = _inject_anexo(html)
         html, aviso_sb = _asegurar_standby(html)
 
-    if aviso_sb:
-        reply = (aviso_sb + "\n\n" + reply).strip() if reply else aviso_sb
+    avisos = [a for a in (aviso_trunc, aviso_sb) if a]
+    if avisos:
+        _av = "\n\n".join(avisos)
+        reply = (_av + "\n\n" + reply).strip() if reply else _av
 
-    return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt, "aviso": aviso_sb}
+    return {"reply": reply, "html": html, "meta": meta, "ref": ref_fmt,
+            "aviso": ("\n\n".join(avisos) if avisos else None)}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
