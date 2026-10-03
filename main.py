@@ -8499,7 +8499,9 @@ def get_clientes_stats():
                   AND NOT COALESCE(anulada, false)
                   AND NOT COALESCE(es_prueba, false)
                 GROUP BY cliente
-                ORDER BY total_ofertas DESC
+                ORDER BY tasa_cierre DESC NULLS LAST,
+                         aceptadas DESC,
+                         total_ofertas DESC
             """)
             return fetchall(cur)
     except Exception as e:
