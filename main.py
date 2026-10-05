@@ -3505,6 +3505,24 @@ def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
     return html
 
 
+# Datos legales REALES de la empresa (únicos y verdaderos).
+_PIE_LEGAL_BOOM = ("BOOM LOGISTICS COLOMBIA S.A.S. | NIT 900.548.985-7 | "
+                   "Vía 40 No. 73-290 Oficina 401, Barranquilla, Colombia")
+
+
+def _normalizar_pie_legal(html: str) -> str:
+    """El modelo a veces INVENTA el NIT y el domicilio de BOOM en el pie legal
+    (p. ej. 'NIT 900.513.XXX-X ... Bogotá' o 'NIT 901.123.456-7 | Cartagena').
+    Forzamos SIEMPRE los datos reales (NIT 900.548.985-7, domicilio en
+    Barranquilla). Se hace aquí, en el post-proceso, para NO tocar el prompt.
+    Solo toca la línea legal de BOOM (nombre de la empresa + separador + NIT),
+    así jamás altera el NIT de un cliente que aparezca en otra parte."""
+    patt = re.compile(
+        r"BOOM\s+LOGISTICS\s+COLOMBIA\s+S\.?\s*A\.?\s*S\.?\s*[|\-–—]\s*NIT[^<\n\r]*",
+        re.I)
+    return patt.sub(_PIE_LEGAL_BOOM, html)
+
+
 def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, forma_pago: str = None) -> dict:
     if not ANTHROPIC_OK:
         raise RuntimeError("Instala el paquete 'anthropic': pip install anthropic")
@@ -3580,6 +3598,7 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
     aviso_sb = None
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
+        html = _normalizar_pie_legal(html)
         html = _limpiar_oferta_html(html)
         html = _inject_anexo(html)
         html, aviso_sb = _asegurar_standby(html)
