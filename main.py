@@ -2683,7 +2683,10 @@ _COSTEO_WRITE_PREFIX = "/api/costeo"
 # secciones (dashboard, clientes, tablero, proyección) quedan concatenadas bajo
 # un único nombre. Las claves van en MAYÚSCULA y sin espacios dobles.
 _CLIENTES_CANON = {
-    "TIBA": "TIBA GROUP",
+    "TIBA": "TIBA COLOMBIA S.A.S.",
+    "TIBA GROUP": "TIBA COLOMBIA S.A.S.",
+    "TIBA COLOMBIA": "TIBA COLOMBIA S.A.S.",
+    "TIBA GROUP COLOMBIA": "TIBA COLOMBIA S.A.S.",
     "OBEN": "OBEN GROUP",
     "KOMATSU": "KOMATSU COLOMBIA",
     "KOMATSU COLOMBIA S.A.S.": "KOMATSU COLOMBIA",
@@ -5298,6 +5301,9 @@ def download_oferta_pdf(oferta_id: int):
             # El PDF descargado desde Control SIEMPRE muestra el número real de
             # la oferta (autocorrige las que quedaron con el número desfasado).
             _html = _forzar_ref_en_html(_html, _fmt_ref(row.get("num") or oferta_id))
+            # Autocorrige el pie legal (NIT/domicilio) en ofertas viejas que lo
+            # tenían inventado por la IA: se arregla al descargar, sin tocar la BD.
+            _html = _normalizar_pie_legal(_html)
             if _pk:
                 _html = _inject_packing(_html, oferta_id, _pk_nombre or "")
             pdf_bytes = _html_to_pdf_bytes(_html)
@@ -5927,7 +5933,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
         pdf_data = {
             "ref": num, "cliente": cliente, "descripcion": body.descripcion,
             "moneda": body.moneda or "COP", "modo": "ia",
-            "forma_pago": body.forma_pago, "ia_html": body.html or "",
+            "forma_pago": body.forma_pago, "ia_html": _normalizar_pie_legal(body.html or ""),
             "origen": (body.origen or "").strip(), "destino": (body.destino or "").strip(),
         }
         nuevo_valor = int(body.valor or 0)
@@ -6092,6 +6098,7 @@ def ver_version_documento(oferta_id: int, ver_id: int):
         if not r:
             raise HTTPException(404, "Versión no encontrada")
         html = r.get("html") or "<p style='font-family:sans-serif;padding:24px'>Esta versión no tiene documento HTML (solo PDF original o datos).</p>"
+        html = _normalizar_pie_legal(html)
         return Response(content=html, media_type="text/html; charset=utf-8")
     except HTTPException:
         raise
@@ -6115,7 +6122,7 @@ def ver_version_pdf(oferta_id: int, ver_id: int):
         if r.get("pdf_b64"):
             data = base64.b64decode(r["pdf_b64"].split(",", 1)[-1])
         elif r.get("html"):
-            data = _html_to_pdf_bytes(r["html"])
+            data = _html_to_pdf_bytes(_normalizar_pie_legal(r["html"]))
         else:
             raise HTTPException(404, "Esta versión no tiene documento")
         fn = "Oferta_v%s.pdf" % r["version"]
