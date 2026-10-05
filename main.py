@@ -8475,12 +8475,37 @@ def set_presupuesto(body: PresupuestoItem):
 
 
 # ── Feature 2: Mini CRM Clientes ──────────────────────────────────────────────
+_MESES_ORDEN = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO",
+                "AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"]
+
+
 @app.get("/api/clientes/stats")
-def get_clientes_stats():
+def get_clientes_stats(mes: str = None, ejecutivo: str = None, unidad: str = None):
+    """Resumen por cliente. Acepta filtros opcionales (mes/ejecutivo/unidad)
+    para que gerencia pueda 'jugar' con las tasas de cierre por periodo,
+    ejecutivo o unidad de negocio. Devuelve además el catálogo de opciones
+    de filtro, calculado sobre el universo completo (sin filtros aplicados)."""
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("""
+            base_where = [
+                "cliente IS NOT NULL AND cliente != ''",
+                "NOT COALESCE(anulada, false)",
+                "NOT COALESCE(es_prueba, false)",
+            ]
+            where  = list(base_where)
+            params = []
+            if mes:
+                where.append("UPPER(TRIM(mes)) = UPPER(TRIM(%s))")
+                params.append(mes)
+            if ejecutivo:
+                where.append("UPPER(TRIM(realizada)) = UPPER(TRIM(%s))")
+                params.append(ejecutivo)
+            if unidad:
+                where.append("UPPER(TRIM(unidad)) = UPPER(TRIM(%s))")
+                params.append(unidad)
+
+            cur.execute(f"""
                 SELECT
                     cliente,
                     COUNT(*) AS total_ofertas,
@@ -8495,15 +8520,38 @@ def get_clientes_stats():
                     COALESCE(SUM(valor_facturado), 0) AS valor_total_facturado,
                     MAX(fecha) AS ultima_oferta
                 FROM ofertas
-                WHERE cliente IS NOT NULL AND cliente != ''
-                  AND NOT COALESCE(anulada, false)
-                  AND NOT COALESCE(es_prueba, false)
+                WHERE {' AND '.join(where)}
                 GROUP BY cliente
                 ORDER BY tasa_cierre DESC NULLS LAST,
                          aceptadas DESC,
                          total_ofertas DESC
-            """)
-            return fetchall(cur)
+            """, params)
+            clientes = fetchall(cur)
+
+            # Opciones de filtro (universo completo, sin filtros aplicados)
+            def _distinct(col):
+                cur.execute(f"""
+                    SELECT DISTINCT TRIM({col}) AS v
+                    FROM ofertas
+                    WHERE {' AND '.join(base_where)}
+                      AND {col} IS NOT NULL AND TRIM({col}) != ''
+                """)
+                return [r["v"] for r in fetchall(cur)]
+
+            meses = _distinct("mes")
+            meses.sort(key=lambda m: _MESES_ORDEN.index(m.upper())
+                       if m.upper() in _MESES_ORDEN else 99)
+            ejecutivos = sorted(_distinct("realizada"), key=lambda s: s.upper())
+            unidades   = sorted(_distinct("unidad"),    key=lambda s: s.upper())
+
+            return {
+                "clientes": clientes,
+                "filtros": {
+                    "meses":      meses,
+                    "ejecutivos": ejecutivos,
+                    "unidades":   unidades,
+                },
+            }
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
