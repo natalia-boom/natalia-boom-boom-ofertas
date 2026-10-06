@@ -2759,6 +2759,10 @@ _CLIENTES_CANON = {
     # Erratas / variantes sin espacio detectadas en ofertas (2026-10-06)
     "REHENUS": "RHENUS LOGISTICS COLOMBIA S.A.S",
     "ACICARGO": "ACI CARGO LOGISTICA S.A.S",
+    # Nombres definidos por Natalia (2026-10-06)
+    "RED GAMA": "REDGAMA",
+    "RED GAMA S.A.S.": "REDGAMA",
+    "MAERSK": "MAERSK COLOMBIA S.A.",
 }
 
 
