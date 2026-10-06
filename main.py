@@ -296,28 +296,28 @@ def _auto_notas(equipos: list, texto_cliente: str = "",
         "cama alta", "camalta", "cama-alta", "extensible",
     ])
 
-    # Regla (Natalia): un semimodular CON ejes se cobra como la cama baja de esos
-    # ejes; solo el extensible/semimodular SIN ejes vale $2.500.000. Por eso los
-    # ejes se evalúan primero y el semimodular genérico queda de último.
+    # Tarifas stand-by (actualizadas por Natalia 2026-10-06): semimodular/extensible
+    # y cama baja 5 ejes comparten tarifa ($2.800.000). Los ejes se evalúan antes
+    # que el semimodular genérico.
     is_extensible  = "extensible" in all_text
     is_semimodular = any(w in all_text for w in ["semi modular", "semimodular"])
     if is_extensible:
-        standby_valor = "$2.500.000"
+        standby_valor = "$2.800.000"
         standby_tipo  = "Extensible / Semimodular"
     elif is_cama5:
-        standby_valor = "$2.600.000"
+        standby_valor = "$2.800.000"
         standby_tipo  = "5 Ejes"
     elif is_cama4:
-        standby_valor = "$1.800.000"
+        standby_valor = "$2.100.000"
         standby_tipo  = "Cama Baja 4 Ejes"
     elif is_cama3:
-        standby_valor = "$1.500.000"
+        standby_valor = "$1.800.000"
         standby_tipo  = "Cama Baja 3 Ejes"
     elif is_semimodular:
-        standby_valor = "$2.500.000"
+        standby_valor = "$2.800.000"
         standby_tipo  = "Semimodular / Extensible"
     else:
-        standby_valor = "$1.200.000"
+        standby_valor = "$1.500.000"
         standby_tipo  = "Cama Alta"
 
     # ── Detect extra/special service ──────────────────────────────────────
@@ -393,25 +393,25 @@ def _auto_notas(equipos: list, texto_cliente: str = "",
 #  · CAMA ALTA va antes que las cama baja: "cama alta 3 ejes" contiene "3 ejes"
 #    y no debe caer en la de cama baja 3.
 _STANDBY_RATES = [
-    # El ORDEN importa (gana la PRIMERA coincidencia). Regla confirmada por
-    # Natalia: un SEMIMODULAR con ejes se cobra como la CAMA BAJA de esos ejes
-    # (semimodular 5 ejes = cama baja 5 ejes = $2.600.000). El $2.500.000 aplica
-    # solo al semimodular/extensible SIN ejes. Por eso "extensible" va antes que
-    # los ejes, y las cama baja por ejes van antes que el semimodular genérico.
+    # El ORDEN importa (gana la PRIMERA coincidencia). Tarifas actualizadas por
+    # Natalia (2026-10-06): CAMA ALTA $1.500.000, CAMA BAJA 3 EJES $1.800.000,
+    # CAMA BAJA 4 EJES $2.100.000, SEMIMODULAR/EXTENSIBLE y CAMA BAJA 5 EJES
+    # $2.800.000. "extensible" va antes que los ejes, y las cama baja por ejes
+    # van antes que el semimodular genérico.
     (["jacking","skidding"],                                               "$15.000.000/día","12 horas", "12 horas"),
     (["modular 18","18 lineas","18 líneas"],                               "$15.000.000/día","12 horas", "12 horas"),
     (["modular 6","modular6","6 cuna","6-8 lineas","6-8 líneas",
       "6 lineas","6 líneas","modular 12","12 lineas","12 líneas"],         "$8.500.000/día", "12 horas", "12 horas"),
     (["modular 2","2 cuna","cuna 2 lineas","cuna 2 líneas"],               "$4.800.000/día", "12 horas", "12 horas"),
-    (["extensible"],                                                       "$2.500.000/día", "12 horas", "12 horas"),
-    (["cama alta","camalta","patineta"],                                   "$1.200.000/día", "6 horas",  "6 horas"),
-    (["cama baja 5","camabaja5","cb5","5 ejes","60 ton","60ton"],          "$2.600.000/día", "6 horas",  "6 horas"),
-    (["cama baja 4","camabaja4","cb4","4 ejes","45 ton","45ton"],          "$1.800.000/día", "8 horas",  "8 horas"),
+    (["extensible"],                                                       "$2.800.000/día", "12 horas", "12 horas"),
+    (["cama alta","camalta","patineta"],                                   "$1.500.000/día", "6 horas",  "6 horas"),
+    (["cama baja 5","camabaja5","cb5","5 ejes","60 ton","60ton"],          "$2.800.000/día", "6 horas",  "6 horas"),
+    (["cama baja 4","camabaja4","cb4","4 ejes","45 ton","45ton"],          "$2.100.000/día", "8 horas",  "8 horas"),
     (["cama baja 3","camabaja3","cb3","3 ejes","30 ton","30ton",
-      "cama baja","camabaja","cama plana"],                                "$1.500.000/día", "6 horas",  "6 horas"),
+      "cama baja","camabaja","cama plana"],                                "$1.800.000/día", "6 horas",  "6 horas"),
     (["modular 5","modular5","5 cuna","modular 4","modular4","4 cuna"],     "$8.500.000/día", "12 horas", "12 horas"),
     (["camión turbo","camion turbo","turbo","sencillo","camioneta"],       "$550.000/día",   "6 horas",  "6 horas"),
-    (["semi modular","semimodular","modular","spmt","self-propelled"],     "$2.500.000/día", "12 horas", "12 horas"),
+    (["semi modular","semimodular","modular","spmt","self-propelled"],     "$2.800.000/día", "12 horas", "12 horas"),
 ]
 
 def _standby_for_equipo(eq_name: str, eq_config: str) -> tuple:
@@ -419,7 +419,7 @@ def _standby_for_equipo(eq_name: str, eq_config: str) -> tuple:
     for keywords, rate, libre_c, libre_d in _STANDBY_RATES:
         if any(k in txt for k in keywords):
             return rate, libre_c, libre_d
-    return "$1.200.000/día", "6 horas", "6 horas"
+    return "$1.500.000/día", "6 horas", "6 horas"
 
 
 def _personal_from_config(config: str) -> str:
@@ -3162,11 +3162,11 @@ PREGUNTA a Naty en el chat (sin generar aún) cuando:
   nunca dejar "A confirmar".
 
 ═══ TARIFAS STAND-BY 2026 (fijas — nunca "a confirmar") ═══
-- Cama Alta 3 ejes: $1.200.000/día
-- Cama Baja 3 ejes: $1.500.000/día
-- Cama Baja 4 ejes: $1.800.000/día
-- Cama Baja 5 ejes: $2.600.000/día
-- Cama Alta/Baja Extensible o Semi Modular/Extensible: $2.500.000/día
+- Cama Alta 3 ejes: $1.500.000/día
+- Cama Baja 3 ejes: $1.800.000/día
+- Cama Baja 4 ejes: $2.100.000/día
+- Cama Baja 5 ejes: $2.800.000/día
+- Cama Alta/Baja Extensible o Semi Modular/Extensible: $2.800.000/día
 - Modular 2 Cuna / Modular Cuna 2 Líneas: $4.800.000/día
 - Modular 6 Cuna / 6–8 Líneas / Modular 12 líneas: $8.500.000/día
 - Modular 18 líneas: $15.000.000/día
@@ -3395,11 +3395,11 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - Opciones alternativas A/B: preséntalas etiquetadas, sin asumir cuál elige el cliente.
 - STAND-BY 2026 (tarifas FIJAS preestablecidas — úsalas SIEMPRE, salvo que quien realiza la oferta
   indique en el chat otro valor). Toda oferta debe llevar la nota de stand-by con la tarifa del equipo:
-    · Cama Alta 3 ejes: $1.200.000/día
-    · Cama Baja 3 ejes: $1.500.000/día
-    · Cama Baja 4 ejes: $1.800.000/día
-    · Cama Baja 5 ejes: $2.600.000/día
-    · Cama Alta/Baja Extensible o Semi Modular/Extensible: $2.500.000/día
+    · Cama Alta 3 ejes: $1.500.000/día
+    · Cama Baja 3 ejes: $1.800.000/día
+    · Cama Baja 4 ejes: $2.100.000/día
+    · Cama Baja 5 ejes: $2.800.000/día
+    · Cama Alta/Baja Extensible o Semi Modular/Extensible: $2.800.000/día
     · Modular 2 Cuna / Modular Cuna 2 Líneas: $4.800.000/día
     · Modular 6 Cuna / 6–8 Líneas / Modular 12 líneas: $8.500.000/día
     · Modular 18 líneas: $15.000.000/día
@@ -3410,7 +3410,7 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
   Nunca dejes el stand-by en blanco ni en "a confirmar". Solo cámbialo si el usuario lo pide expresamente.
   ⚠️ OBLIGATORIO Y NO NEGOCIABLE: el stand-by DEBE aparecer como una nota/línea PROPIA y visible dentro
   de las Condiciones Comerciales (o su propia sección), con el VALOR EN PESOS del equipo de la oferta,
-  por ejemplo: "Stand-by Cama Alta 3 ejes: $1.200.000/día. Las horas adicionales se cobran
+  por ejemplo: "Stand-by Cama Alta 3 ejes: $1.500.000/día. Las horas adicionales se cobran
   proporcionalmente según tarifa establecida." NO es suficiente mencionarlo solo en las exclusiones.
   QUEDA PROHIBIDO escribir el stand-by como "según tarifa vigente", "según tarifa", "a confirmar" o
   cualquier frase sin número: SIEMPRE va el valor fijo en pesos. Si la oferta tiene varios equipos,
@@ -5705,22 +5705,23 @@ def _inject_anexo(html: str) -> str:
 # se logra identificar el equipo, se devuelve un aviso para mostrarlo al generar.
 # Orden: del más específico al más general (gana el primero que coincide).
 _STANDBY_INYECTAR = [
-    # Mismo orden/regla que _STANDBY_RATES: semimodular con ejes = cama baja de
-    # esos ejes; extensible/semimodular sin ejes = $2.500.000.
+    # Mismo orden/regla que _STANDBY_RATES. Tarifas actualizadas 2026-10-06:
+    # cama alta $1.500.000, cama baja 3 $1.800.000, cama baja 4 $2.100.000,
+    # semimodular/extensible y cama baja 5 ejes $2.800.000.
     (["jacking", "skidding"],                                        "Jacking Skidding",         "$15.000.000"),
     (["modular 18", "18 lineas", "18 líneas"],                       "Modular 18 líneas",        "$15.000.000"),
     (["modular 6", "modular6", "6 cuna", "6-8 lineas", "6-8 líneas",
       "6 lineas", "6 líneas", "modular 12", "12 lineas", "12 líneas"], "Modular 6 líneas",       "$8.500.000"),
     (["modular 2", "2 cuna", "cuna 2 lineas", "cuna 2 líneas"],       "Modular 2 Cuna",           "$4.800.000"),
-    (["extensible"],                                                 "Extensible / Semimodular", "$2.500.000"),
-    (["cama alta", "camalta", "patineta"],                           "Cama Alta 3 ejes",         "$1.200.000"),
-    (["cama baja 5", "camabaja5", "cb5", "5 ejes"],                  "5 ejes",                   "$2.600.000"),
-    (["cama baja 4", "camabaja4", "cb4", "4 ejes"],                  "4 ejes",                   "$1.800.000"),
+    (["extensible"],                                                 "Extensible / Semimodular", "$2.800.000"),
+    (["cama alta", "camalta", "patineta"],                           "Cama Alta 3 ejes",         "$1.500.000"),
+    (["cama baja 5", "camabaja5", "cb5", "5 ejes"],                  "5 ejes",                   "$2.800.000"),
+    (["cama baja 4", "camabaja4", "cb4", "4 ejes"],                  "4 ejes",                   "$2.100.000"),
     (["cama baja 3", "camabaja3", "cb3", "3 ejes",
-      "cama baja", "camabaja"],                                      "3 ejes",                   "$1.500.000"),
+      "cama baja", "camabaja"],                                      "3 ejes",                   "$1.800.000"),
     (["modular 5", "modular5", "5 cuna", "modular 4", "modular4", "4 cuna"], "Modular",          "$8.500.000"),
     (["camión turbo", "camion turbo", "turbo", "sencillo"],          "Camión Turbo",             "$550.000"),
-    (["semi modular", "semimodular"],                               "Semimodular / Extensible", "$2.500.000"),
+    (["semi modular", "semimodular"],                               "Semimodular / Extensible", "$2.800.000"),
 ]
 
 
