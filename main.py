@@ -4699,7 +4699,7 @@ def facturacion_estado_proyecto():
             # Detalle línea a línea de las ofertas que aún NO se han facturado
             # (por ejecutar / en ejecución / ejecutado) para desplegar en el panel.
             cur.execute(
-                "SELECT oferta_num, cliente, descripcion, mes, responsable, "
+                "SELECT oferta_num, ref_original, cliente, descripcion, mes, responsable, "
                 "COALESCE(valor,0) valor, UPPER(TRIM(COALESCE(estado_proyecto,''))) e "
                 "FROM facturas "
                 "WHERE UPPER(TRIM(COALESCE(estado_proyecto,''))) IN "
@@ -4718,6 +4718,7 @@ def facturacion_estado_proyecto():
                 continue
             detalle[e_norm].append({
                 "oferta_num": r.get("oferta_num") or "",
+                "ref_original": r.get("ref_original") or "",
                 "cliente": r.get("cliente") or "",
                 "descripcion": r.get("descripcion") or "",
                 "mes": r.get("mes") or "",
@@ -8205,6 +8206,43 @@ async def aprobadas_importar(request: Request, archivo: UploadFile = File(...),
     return {"ok": True, "aplicado": aplicado, "filas": len(filas),
             "resumen_excel": resumen_excel, "resumen_facturacion": resumen_fact,
             "anomalias": anomalias, "facturacion_aplicada": aplicado_fact}
+
+
+@app.post("/api/proyeccion/importar")
+async def proyeccion_importar(request: Request, archivo: UploadFile = File(...),
+                              aplicar: str = Query("no")):
+    """AISLADO — actualiza SOLO la Proyección (filas 'OA:' de la tabla `facturas`)
+    desde la hoja 'Ofertas Aprobadas' del Excel. NO toca vulcano_facturas ni las
+    ofertas (no cruza, no cierra, no reemplaza facturación). Es el 'espejo' del Excel
+    de Natalia a nivel de movimiento, sin riesgo para el resto del sistema.
+    aplicar='no' (por defecto) = solo devuelve la comparación; 'si' = reemplaza las
+    filas OA:. Solo el administrador."""
+    u = getattr(request.state, "user", None) or {}
+    if u.get("rol") != "admin":
+        raise HTTPException(403, "Solo el administrador puede actualizar la Proyección.")
+    if not OPENPYXL_OK:
+        raise HTTPException(500, "openpyxl no está instalado en el servidor")
+    contenido = await archivo.read()
+    filas = _parse_aprobadas(contenido)
+    if not filas:
+        raise HTTPException(400, "La hoja 'Ofertas Aprobadas' no tiene filas para importar.")
+    resumen_excel = _resumen_buckets(filas)
+    aplicado = False
+    if str(aplicar).strip().lower() in ("si", "sí", "true", "1", "yes"):
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM facturas WHERE dedup_key LIKE 'OA:%'")
+            for i, f in enumerate(filas, start=1):
+                cur.execute("""INSERT INTO facturas
+                    (oferta_num, ref_original, mes, cliente, descripcion, origen, destino,
+                     valor, estado_proyecto, responsable, no_factura, dedup_key, created_at)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())""",
+                    (f["oferta_num"], f["ref_original"], f["mes"], f["cliente"], f["descripcion"],
+                     f["origen"], f["destino"], f["valor"], f["estado_proyecto"],
+                     f["responsable"], f["no_factura"], f"OA:{i}"))
+            conn.commit()
+        aplicado = True
+    return {"ok": True, "aplicado": aplicado, "filas": len(filas), "resumen_excel": resumen_excel}
 
 
 def _sync_facturas_estado_proyecto(cur):

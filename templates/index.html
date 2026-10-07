@@ -1415,7 +1415,11 @@ body.rol-viewer .write-only { display:none !important; }
         Lo que tienes pendiente por facturar: ofertas aprobadas (por ejecutar / en ejecución / ejecutado) + contratos.
       </p>
     </div>
-    <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">Actualizar</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="pyExcelArchivo" accept=".xlsx,.xls" style="display:none;" onchange="pyImportarExcel()">
+      <button class="btn btn-sm write-only" onclick="document.getElementById('pyExcelArchivo').click()" title="Sube tu Excel de Ofertas Aprobadas y la Proyección queda idéntica a tu hoja (solo la Proyección)" style="background:#e8641a;color:#fff;border:none;">Actualizar desde mi Excel</button>
+      <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">Refrescar</button>
+    </div>
   </div>
 
   <!-- ============ Total pendiente ============ -->
@@ -1457,7 +1461,7 @@ body.rol-viewer .write-only { display:none !important; }
   <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;overflow:hidden;">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef1f5;flex-wrap:wrap;gap:8px;">
       <span id="pyListaTit" style="font-size:13px;font-weight:700;color:#1B2A4A;">Detalle de pendientes</span>
-      <button class="btn btn-sm btn-outline write-only" onclick="pyToggleForm()">+ Agregar contrato</button>
+      <span style="font-size:11px;color:#9ca3af;">Fuente: tu Excel de Ofertas Aprobadas</span>
     </div>
 
     <!-- Barra de filtros (tipo Excel) -->
@@ -4129,28 +4133,49 @@ const PY_EST_META = {
 };
 const PY_MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 
+// Importa tu Excel de Ofertas Aprobadas SOLO a la Proyección (no toca facturación ni ofertas).
+async function pyImportarExcel() {
+  const inp = document.getElementById('pyExcelArchivo');
+  const f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  try {
+    showToast('Leyendo tu Excel…', 'info');
+    const fd = new FormData(); fd.append('archivo', f);
+    const prev = await (await fetch('/api/proyeccion/importar?aplicar=no', {method:'POST', body:fd})).json();
+    if (!prev.ok) throw new Error(prev.detail || 'No se pudo leer el Excel');
+    const r = prev.resumen_excel || {};
+    const det = Object.keys(r).length
+      ? '\n\n' + Object.entries(r).map(([k,v]) => `• ${k}: ${fmtCop((v && v.valor) || 0)}`).join('\n')
+      : '';
+    if (!confirm(`Tu Excel tiene ${prev.filas} movimientos.\n\nLa Proyección quedará IDÉNTICA a tu hoja (solo la Proyección — NO toca facturación ni las ofertas).${det}\n\n¿Actualizo la Proyección?`)) { inp.value=''; return; }
+    const fd2 = new FormData(); fd2.append('archivo', f);
+    const res = await (await fetch('/api/proyeccion/importar?aplicar=si', {method:'POST', body:fd2})).json();
+    if (!res.ok) throw new Error(res.detail || 'No se pudo actualizar');
+    showToast('Proyección actualizada (' + res.filas + ' movimientos de tu Excel)', 'success');
+    renderProyeccion();
+  } catch (e) {
+    showToast('' + (e.message || e), 'error');
+  } finally {
+    if (inp) inp.value = '';
+  }
+}
+
 async function renderProyeccion() {
   try {
-    const [seg, con] = await Promise.all([
-      fetch('/api/facturacion/estado_proyecto').then(r=>r.json()).catch(()=>({})),
-      fetch('/api/contratos_pendientes').then(r=>r.json()).catch(()=>({}))
-    ]);
+    // Fuente única = tu Excel (tabla `facturas`, nivel movimiento). Incluye los contratos
+    // (filas CONTRATO), así que NO se mezcla con la lista manual para no contar doble.
+    const seg = await fetch('/api/facturacion/estado_proyecto').then(r=>r.json()).catch(()=>({}));
     const det = seg.detalle || {};
     pyItems = [];
     ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k => {
-      (det[k]||[]).forEach(it => pyItems.push({
-        ref: it.oferta_num || '—', cliente: it.cliente, desc: it.descripcion,
-        mes: (it.mes||'').toUpperCase(), valor: +it.valor||0, estado: k, tipo:'oferta'
-      }));
-    });
-    (con.items||[]).forEach(it => {
-      const e = (it.estado||'').toUpperCase();
-      if (e === 'FACTURADO') return;
-      const k = e === 'EN EJECUCION' ? 'en_ejecucion' : 'por_ejecutar';
-      pyItems.push({
-        ref:'Contrato', cliente: it.cliente, desc: it.descripcion,
-        mes:(it.mes||'').toUpperCase(), valor:+it.valor||0, estado:k, tipo:'contrato',
-        id: it.id, raw: it
+      (det[k]||[]).forEach(it => {
+        const refRaw = (it.oferta_num || it.ref_original || '').toString().trim();
+        const esContrato = /CONTRATO/i.test(it.ref_original || '') || /CONTRATO/i.test(it.oferta_num || '');
+        pyItems.push({
+          ref: refRaw, esContrato: esContrato,
+          cliente: it.cliente, desc: it.descripcion,
+          mes: (it.mes||'').toUpperCase(), valor: +it.valor||0, estado: k
+        });
       });
     });
     pyPintarProyeccion();
@@ -4254,12 +4279,10 @@ function pyPintarLista() {
   if (!lista.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Sin pendientes.</td></tr>'; return; }
   body.innerHTML = lista.map(it => {
     const m = PY_EST_META[it.estado] || PY_EST_META.por_ejecutar;
-    const refCell = it.tipo==='contrato'
+    const refCell = it.esContrato
       ? '<span style="background:#f3e8ff;color:#6d28d9;border:1px solid #d8b4fe;border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;">Contrato</span>'
-      : `<span style="color:var(--text-muted);font-size:12px;">${pyEscape(it.ref)}</span>`;
-    const acc = it.tipo==='contrato'
-      ? `<span class="write-only" style="white-space:nowrap;"><span style="cursor:pointer;" title="Editar" onclick="pyEditarContrato('${encodeURIComponent(JSON.stringify(it.raw))}')">✏️</span><span style="cursor:pointer;margin-left:10px;" title="Eliminar" onclick="pyEliminarContrato(${it.id}, '${pyEscape(it.cliente)}')">🗑️</span></span>`
-      : '';
+      : `<span style="color:var(--text-muted);font-size:12px;">${pyEscape(it.ref || '—')}</span>`;
+    const acc = '';
     const mesCap = it.mes ? it.mes.charAt(0)+it.mes.slice(1).toLowerCase() : '';
     return `<tr>
       <td style="white-space:nowrap;">${refCell}</td>
