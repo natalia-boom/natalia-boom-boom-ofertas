@@ -1191,7 +1191,7 @@ body.rol-viewer .write-only { display:none !important; }
       <table class="resizable">
         <thead>
           <tr>
-            <th>Oferta</th><th>Cliente</th><th>Ruta</th>
+            <th>Oferta</th><th>Cliente</th><th>Descripción</th>
             <th style="text-align:right;">Valor</th><th>Facturación</th>
             <th>Estado</th><th></th>
           </tr>
@@ -5081,8 +5081,8 @@ function filterAprobadas() {
     return `
     <tr class="${vencida ? 'tr-cobro' : ''}" style="${vencida ? 'border-left:3px solid #b23a2e;' : ''}">
       <td style="white-space:nowrap;vertical-align:top;"><span class="num-badge">${o.num||''}</span>${vencida ? `<span title="Sin facturar hace ${diasAtraso} días" style="margin-left:4px;color:#b23a2e;"></span>` : ''}<div style="font-size:10px;color:#94a3b8;margin-top:2px;">${o.mes||''}${o.fecha?' · '+o.fecha:''}</div></td>
-      <td style="vertical-align:top;"><div style="font-weight:600;font-size:12px;">${o.cliente||''}</div><div style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:#94a3b8;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc||''}</div></td>
-      <td style="white-space:nowrap;font-size:11px;color:#556;vertical-align:top;">${(o._origen||o._destino) ? `${o._origen||'—'} <span style="color:var(--orange);font-weight:700;">→</span> ${o._destino||'—'}` : '<span style="color:#b8c0cc;">—</span>'}</td>
+      <td style="vertical-align:top;"><div style="font-weight:600;font-size:12px;">${o.cliente||''}</div></td>
+      <td style="vertical-align:top;font-size:11px;color:#556;max-width:300px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc || '<span style=\"color:#b8c0cc;\">—</span>'}</div></td>
       <td style="text-align:right;font-size:11.5px;white-space:nowrap;vertical-align:top;">${valCell}</td>
       <td style="min-width:150px;vertical-align:top;">${factCell}</td>
       <td style="vertical-align:top;">
