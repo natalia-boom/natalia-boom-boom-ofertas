@@ -1460,6 +1460,24 @@ body.rol-viewer .write-only { display:none !important; }
       <button class="btn btn-sm btn-outline write-only" onclick="pyToggleForm()">+ Agregar contrato</button>
     </div>
 
+    <!-- Barra de filtros (tipo Excel) -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 16px;border-bottom:1px solid #eef1f5;background:#fafbfc;">
+      <input id="pyBuscar" oninput="pyAplicarFiltros()" placeholder="Buscar N°, cliente o servicio…" style="flex:1;min-width:200px;padding:7px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;">
+      <select id="pyMesFiltro" onchange="pyAplicarFiltros()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;">
+        <option value="">Todos los meses</option>
+        <option>ENERO</option><option>FEBRERO</option><option>MARZO</option><option>ABRIL</option>
+        <option>MAYO</option><option>JUNIO</option><option>JULIO</option><option>AGOSTO</option>
+        <option>SEPTIEMBRE</option><option>OCTUBRE</option><option>NOVIEMBRE</option><option>DICIEMBRE</option>
+      </select>
+      <select id="pyEstadoFiltro" onchange="pyFiltroEstado=this.value;pyPintarProyeccion();" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;">
+        <option value="">Todos los estados</option>
+        <option value="por_ejecutar">Por ejecutar</option>
+        <option value="en_ejecucion">En ejecución</option>
+        <option value="ejecutado">Ejecutado</option>
+      </select>
+      <button onclick="pyLimpiarFiltros()" style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12.5px;cursor:pointer;color:#556;">Limpiar</button>
+    </div>
+
     <!-- Formulario de contrato (oculto por defecto) -->
     <div id="pyCpForm" style="display:none;background:#faf7ff;border:1px solid #e5d9ff;border-radius:12px;padding:14px 16px;margin-top:12px;">
       <input type="hidden" id="pyCpId" value="">
@@ -1514,7 +1532,15 @@ body.rol-viewer .write-only { display:none !important; }
     <div style="overflow-x:auto;">
       <table class="data-table" style="width:100%;min-width:680px;">
         <thead>
-          <tr><th>Ref.</th><th>Cliente</th><th>Servicio</th><th>Mes</th><th>Estado</th><th style="text-align:right;">Valor</th><th></th></tr>
+          <tr>
+            <th onclick="pySort('ref')" style="cursor:pointer;">Ref. <span class="pyarr" data-c="ref"></span></th>
+            <th onclick="pySort('cliente')" style="cursor:pointer;">Cliente <span class="pyarr" data-c="cliente"></span></th>
+            <th onclick="pySort('desc')" style="cursor:pointer;">Servicio <span class="pyarr" data-c="desc"></span></th>
+            <th onclick="pySort('mes')" style="cursor:pointer;">Mes <span class="pyarr" data-c="mes"></span></th>
+            <th onclick="pySort('estado')" style="cursor:pointer;">Estado <span class="pyarr" data-c="estado"></span></th>
+            <th onclick="pySort('valor')" style="cursor:pointer;text-align:right;">Valor <span class="pyarr" data-c="valor"></span></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody id="pyListaBody">
           <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Cargando…</td></tr>
@@ -4094,6 +4120,8 @@ const PY_FILTRO_LBL = {
 // ====== PROYECCIÓN = pendiente por facturar (ofertas aprobadas + contratos) ======
 let pyItems = [];
 let pyFiltroEstado = '';
+let pySortCol = '';
+let pySortDir = 1;
 const PY_EST_META = {
   por_ejecutar: {lbl:'Por ejecutar', bg:'#FAEEDA', tx:'#854F0B'},
   en_ejecucion: {lbl:'En ejecución', bg:'#E6F1FB', tx:'#0C447C'},
@@ -4178,12 +4206,48 @@ function pyFiltrarEstado(k) {
   pyPintarProyeccion();
 }
 
+function pyAplicarFiltros() { pyPintarLista(); }
+
+function pyLimpiarFiltros() {
+  const b=document.getElementById('pyBuscar'); if(b) b.value='';
+  const m=document.getElementById('pyMesFiltro'); if(m) m.value='';
+  const e=document.getElementById('pyEstadoFiltro'); if(e) e.value='';
+  pyFiltroEstado=''; pySortCol=''; pySortDir=1;
+  pyPintarProyeccion();
+}
+
+function pySort(col) {
+  if (pySortCol===col) pySortDir=-pySortDir; else { pySortCol=col; pySortDir=1; }
+  pyPintarLista();
+}
+
 function pyPintarLista() {
   const body = document.getElementById('pyListaBody'); if(!body) return;
+  const buscar = (document.getElementById('pyBuscar') ? document.getElementById('pyBuscar').value : '').trim().toLowerCase();
+  const mesF = document.getElementById('pyMesFiltro') ? document.getElementById('pyMesFiltro').value : '';
+  // mantener el select de estado sincronizado con las tarjetas
+  const selEst = document.getElementById('pyEstadoFiltro'); if (selEst && selEst.value !== pyFiltroEstado) selEst.value = pyFiltroEstado;
   let lista = pyItems.slice();
   if (pyFiltroEstado) lista = lista.filter(it => it.estado===pyFiltroEstado);
+  if (mesF) lista = lista.filter(it => (it.mes||'')===mesF);
+  if (buscar) lista = lista.filter(it => ((it.ref||'')+' '+(it.cliente||'')+' '+(it.desc||'')).toLowerCase().includes(buscar));
   const ord = {por_ejecutar:0, en_ejecucion:1, ejecutado:2};
-  lista.sort((a,b)=> (ord[a.estado]-ord[b.estado]) || (b.valor-a.valor));
+  if (pySortCol) {
+    lista.sort((a,b)=>{
+      let va, vb;
+      if (pySortCol==='valor') { va=a.valor; vb=b.valor; }
+      else if (pySortCol==='estado') { va=ord[a.estado]; vb=ord[b.estado]; }
+      else if (pySortCol==='mes') { va=PY_MESES.indexOf(a.mes); vb=PY_MESES.indexOf(b.mes); }
+      else { va=(a[pySortCol]||'').toString().toLowerCase(); vb=(b[pySortCol]||'').toString().toLowerCase(); }
+      if (va<vb) return -pySortDir; if (va>vb) return pySortDir; return 0;
+    });
+  } else {
+    lista.sort((a,b)=> (ord[a.estado]-ord[b.estado]) || (b.valor-a.valor));
+  }
+  // flechas de orden en los encabezados
+  document.querySelectorAll('#tab-proyeccion .pyarr').forEach(s=>{
+    s.textContent = (s.dataset.c===pySortCol) ? (pySortDir>0?' ▲':' ▼') : '';
+  });
   const totF = lista.reduce((s,it)=>s+it.valor,0);
   const tit = document.getElementById('pyListaTit');
   if (tit) tit.textContent = (pyFiltroEstado ? PY_EST_META[pyFiltroEstado].lbl : 'Detalle de pendientes') + ' — ' + lista.length + ' · ' + fmtCop(totF);
