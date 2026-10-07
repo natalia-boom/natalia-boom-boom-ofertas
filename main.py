@@ -8609,10 +8609,10 @@ _MESES_ORDEN = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO",
 
 
 @app.get("/api/clientes/stats")
-def get_clientes_stats(mes: str = None, ejecutivo: str = None, unidad: str = None):
-    """Resumen por cliente. Acepta filtros opcionales (mes/ejecutivo/unidad)
+def get_clientes_stats(mes: str = None, cliente: str = None, unidad: str = None):
+    """Resumen por cliente. Acepta filtros opcionales (mes/cliente/unidad)
     para que gerencia pueda 'jugar' con las tasas de cierre por periodo,
-    ejecutivo o unidad de negocio. Devuelve además el catálogo de opciones
+    cliente o unidad de negocio. Devuelve además el catálogo de opciones
     de filtro, calculado sobre el universo completo (sin filtros aplicados)."""
     try:
         with get_conn() as conn:
@@ -8627,9 +8627,9 @@ def get_clientes_stats(mes: str = None, ejecutivo: str = None, unidad: str = Non
             if mes:
                 where.append("UPPER(TRIM(mes)) = UPPER(TRIM(%s))")
                 params.append(mes)
-            if ejecutivo:
-                where.append("UPPER(TRIM(realizada)) = UPPER(TRIM(%s))")
-                params.append(ejecutivo)
+            if cliente:
+                where.append("UPPER(TRIM(cliente)) = UPPER(TRIM(%s))")
+                params.append(cliente)
             if unidad:
                 where.append("UPPER(TRIM(unidad)) = UPPER(TRIM(%s))")
                 params.append(unidad)
@@ -8670,15 +8670,15 @@ def get_clientes_stats(mes: str = None, ejecutivo: str = None, unidad: str = Non
             meses = _distinct("mes")
             meses.sort(key=lambda m: _MESES_ORDEN.index(m.upper())
                        if m.upper() in _MESES_ORDEN else 99)
-            ejecutivos = sorted(_distinct("realizada"), key=lambda s: s.upper())
-            unidades   = sorted(_distinct("unidad"),    key=lambda s: s.upper())
+            clientes_opts = sorted(_distinct("cliente"), key=lambda s: s.upper())
+            unidades      = sorted(_distinct("unidad"),  key=lambda s: s.upper())
 
             return {
                 "clientes": clientes,
                 "filtros": {
-                    "meses":      meses,
-                    "ejecutivos": ejecutivos,
-                    "unidades":   unidades,
+                    "meses":    meses,
+                    "clientes": clientes_opts,
+                    "unidades": unidades,
                 },
             }
     except Exception as e:

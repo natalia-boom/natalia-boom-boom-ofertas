@@ -2536,9 +2536,9 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
         style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;min-width:150px;">
         <option value="">Todos los meses</option>
       </select>
-      <select id="crmFiltroEjecutivo" onchange="cargarClientes()"
-        style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;min-width:170px;">
-        <option value="">Todos los ejecutivos</option>
+      <select id="crmFiltroCliente" onchange="cargarClientes()"
+        style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;min-width:200px;">
+        <option value="">Todos los clientes</option>
       </select>
       <select id="crmFiltroUnidad" onchange="cargarClientes()"
         style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;min-width:190px;">
@@ -9876,18 +9876,18 @@ async function cargarClientes() {
   try {
     await cargarCatalogoClientes();   // para poder editar NIT/razón por fila
     const mes  = (document.getElementById('crmFiltroMes')||{}).value || '';
-    const ejec = (document.getElementById('crmFiltroEjecutivo')||{}).value || '';
+    const cli  = (document.getElementById('crmFiltroCliente')||{}).value || '';
     const uni  = (document.getElementById('crmFiltroUnidad')||{}).value || '';
     const qs = new URLSearchParams();
     if (mes)  qs.set('mes', mes);
-    if (ejec) qs.set('ejecutivo', ejec);
+    if (cli)  qs.set('cliente', cli);
     if (uni)  qs.set('unidad', uni);
     const url = '/api/clientes/stats' + (qs.toString() ? ('?' + qs.toString()) : '');
     const res = await fetch(url);
     const data = await res.json();
     allClientes = (data && data.clientes) ? data.clientes : (Array.isArray(data) ? data : []);
     if (data && data.filtros) poblarFiltrosClientes(data.filtros);
-    renderFiltroResumen(mes, ejec, uni);
+    renderFiltroResumen(mes, cli, uni);
     renderClientesKPIs();
     filterClientes();
   } catch(e) {
@@ -9905,16 +9905,16 @@ function poblarFiltrosClientes(f) {
       (items||[]).map(v => `<option value="${String(v).replace(/"/g,'&quot;')}">${v}</option>`).join('');
     sel.value = actual;
   };
-  fill('crmFiltroMes',       f.meses,      'Todos los meses');
-  fill('crmFiltroEjecutivo', f.ejecutivos, 'Todos los ejecutivos');
-  fill('crmFiltroUnidad',    f.unidades,   'Todas las unidades');
+  fill('crmFiltroMes',     f.meses,     'Todos los meses');
+  fill('crmFiltroCliente', f.clientes,  'Todos los clientes');
+  fill('crmFiltroUnidad',  f.unidades,  'Todas las unidades');
   crmFiltrosCargados = true;
 }
 
-function renderFiltroResumen(mes, ejec, uni) {
+function renderFiltroResumen(mes, cli, uni) {
   const partes = [];
   if (mes)  partes.push(mes);
-  if (ejec) partes.push(ejec);
+  if (cli)  partes.push(cli);
   if (uni)  partes.push(uni);
   const el = document.getElementById('crmFiltroResumen');
   if (!el) return;
@@ -9924,7 +9924,7 @@ function renderFiltroResumen(mes, ejec, uni) {
 }
 
 function limpiarFiltrosClientes() {
-  ['crmFiltroMes','crmFiltroEjecutivo','crmFiltroUnidad'].forEach(id => {
+  ['crmFiltroMes','crmFiltroCliente','crmFiltroUnidad'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   cargarClientes();
