@@ -4159,14 +4159,16 @@ function pyPintarChart() {
   pyItems.forEach(it => { const m=it.mes; if(!m) return; porMes[m]=(porMes[m]||0)+it.valor; });
   const activos = PY_MESES.filter(m => porMes[m]);
   const max = Math.max(1, ...activos.map(m=>porMes[m]));
+  const H = 110; // alto máximo de barra en px (evita el problema de height en %)
   cont.innerHTML = activos.map(m => {
-    const v = porMes[m]; const h = Math.max(2, Math.round(v*100/max));
+    const v = porMes[m];
+    const px = Math.max(4, Math.round(v*H/max));
     const col = v >= max*0.6 ? '#E8641A' : '#5b6b8c';
-    const mm = v/1e6; const lbl = mm>=1000 ? (mm/1000).toFixed(1)+'B' : Math.round(mm).toLocaleString('es-CO');
-    return `<div style="flex:1;text-align:center;min-width:24px;">
+    const lbl = Math.round(v/1e6).toLocaleString('es-CO');  // siempre en millones
+    return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:24px;">
       <div style="font-size:9px;color:#6b7280;margin-bottom:3px;">${lbl}</div>
-      <div style="height:${h}%;background:${col};border-radius:4px 4px 0 0;" title="${m}: ${fmtCop(v)}"></div>
-      <div style="font-size:9px;color:#9ca3af;margin-top:4px;">${m.slice(0,3)}</div>
+      <div style="width:62%;max-width:34px;height:${px}px;background:${col};border-radius:4px 4px 0 0;" title="${m}: ${fmtCop(v)}"></div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:5px;">${m.slice(0,3)}</div>
     </div>`;
   }).join('') || '<div style="color:#9ca3af;font-size:12px;">Sin pendientes.</div>';
 }
