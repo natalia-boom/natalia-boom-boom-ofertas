@@ -1110,38 +1110,28 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns: repeat(4,1fr);">
-    <div class="kpi-card" style="border-left:none;">
-      <div class="kpi-icon" style="background:rgba(27,42,74,0.09);color:#1B2A4A;"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.6 13.2l2.3 2.3 4-4.6"/></svg></div>
-      <div class="kpi-label">Total Aprobadas</div>
-      <div class="kpi-value" id="aTotal">—</div>
+  <div style="display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:10px;margin-bottom:12px;">
+    <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;padding:12px 16px;box-shadow:0 2px 8px rgba(27,42,74,.05);">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;">Meta 2026</div>
+      <div class="kpi-value" id="aMeta" style="font-size:21px;margin-top:2px;">—</div>
+      <div id="aMetaSub" style="font-size:10.5px;color:var(--text-muted);margin-top:2px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:none;">
-      <div class="kpi-icon" style="background:rgba(232,100,26,0.12);color:var(--orange);"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg></div>
-      <div class="kpi-label">Valor Esperado (Meta 2026)</div>
-      <div class="kpi-value" id="aMeta" style="font-size:18px">—</div>
-      <div id="aMetaSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
+    <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;padding:12px 16px;box-shadow:0 2px 8px rgba(27,42,74,.05);">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;">Facturado 2026 · <span id="aTotal">—</span> aprobadas</div>
+      <div class="kpi-value" id="aValorConciliado" style="font-size:21px;color:#157a5b;margin-top:2px;">—</div>
+      <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:2px;"></div>
     </div>
-    <div class="kpi-card" style="border-left:none;">
-      <div class="kpi-icon" style="background:rgba(21,122,91,0.12);color:#157a5b;"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
-      <div class="kpi-label">Valor Facturado</div>
-      <div class="kpi-value" id="aValorConciliado" style="font-size:18px;color:#157a5b;">—</div>
-      <div id="aValorConciliadoSub" style="font-size:10.5px;color:var(--text-muted);margin-top:3px;"></div>
-    </div>
-    <div class="kpi-card" style="border-left:none;cursor:pointer;" onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()">
-      <div class="kpi-icon" style="background:rgba(178,58,46,0.12);color:#b23a2e;"><svg viewBox="0 0 24 24"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 16.8h.01"/></svg></div>
-      <div class="kpi-label" style="color:#b23a2e;">Sin facturar +15 días</div>
-      <div class="kpi-value" id="aVencidas" style="color:#b23a2e;">—</div>
+    <div onclick="document.getElementById('aFacturacion').value='vencida';filterAprobadas()" style="cursor:pointer;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;">
+      <div style="font-size:11px;font-weight:700;color:#b23a2e;text-transform:uppercase;letter-spacing:.3px;">Requieren acción</div>
+      <div class="kpi-value" id="aVencidas" style="font-size:21px;color:#b23a2e;margin-top:2px;">—</div>
+      <div style="font-size:10.5px;color:#b23a2e;margin-top:2px;">sin facturar +15 días</div>
     </div>
   </div>
 
-  <!-- Estado de Proyectos: lo que el jefe siempre pregunta (por ejecutar / en ejecución / ejecutado / facturado) -->
-  <div class="section-card" style="padding:14px 18px;margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:15px;font-weight:700;color:var(--petrol);display:inline-flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--orange);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><rect x="8" y="2.5" width="8" height="19" rx="4"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg>Control de Aprobadas</span>
-      <span style="font-size:11px;color:var(--text-muted);" id="epMesLbl">(clic en una tarjeta para filtrar)</span>
-    </div>
-    <div id="panelEstadoProyectos" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
+  <!-- Tira compacta de estados (filtra la tabla). Misma taxonomía que la tabla de abajo. -->
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;" id="epMesLbl">Filtrar por estado:</span>
+    <div id="panelEstadoProyectos" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
   </div>
 
   <!-- Alarma: ofertas ejecutadas pendientes por facturar (solo la ve el admin / Natalia) -->
@@ -4877,49 +4867,37 @@ function setSemFilter(v) {
 function renderPanelEstado() {
   const cont = document.getElementById('panelEstadoProyectos');
   if (!cont) return;
-  const lbl = document.getElementById('epMesLbl');
-  if (lbl) lbl.textContent = '(clic en una tarjeta para filtrar)';
+  // Tira compacta de estados — misma taxonomía que la tabla agrupada de abajo.
+  const ORDEN = ['Por ejecutar','En ejecución','Ejecutado','Facturada','Cancelado'];
+  const ESTILO = {
+    'Por ejecutar': {bg:'#FAEEDA', tx:'#854F0B'},
+    'En ejecución': {bg:'#E6F1FB', tx:'#0C447C'},
+    'Ejecutado':    {bg:'#EEEDFE', tx:'#3C3489'},
+    'Facturada':    {bg:'#E1F5EE', tx:'#0F6E56'},
+    'Cancelado':    {bg:'#F1EFE8', tx:'#444441'},
+  };
+  const norm = s => { const v=(s||'').trim(); return ORDEN.includes(v) ? v : 'Por ejecutar'; };
+  const todas = allOfertas.filter(o => (o.respuesta||'').toUpperCase() === 'ACEPTADA');
+  const cuenta = {}; ORDEN.forEach(e => cuenta[e]=0);
+  todas.forEach(o => { cuenta[norm(o.seguimiento)]++; });
 
-  // Universo: ofertas ACEPTADAS vivas (sin las canceladas).
-  const esCancelado = s => (s||'').toUpperCase().includes('CANCEL');
-  const todas = allOfertas.filter(o =>
-    (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !esCancelado(o.seguimiento));
+  const sel = document.getElementById('aSeguimiento');
+  const actual = sel ? sel.value : '';
+  const pill = e => {
+    const st = ESTILO[e];
+    const on = actual === e;
+    return `<span onclick="filtrarPorEstado('${e}')" title="Clic para filtrar la tabla" style="cursor:pointer;font-size:12px;font-weight:600;background:${st.bg};color:${st.tx};padding:5px 12px;border-radius:999px;${on?`box-shadow:0 0 0 2px ${st.tx};`:''}">${e} · ${cuenta[e]}</span>`;
+  };
+  let html = ORDEN.map(pill).join('');
+  if (actual) html += `<span onclick="filtrarPorEstado('')" title="Quitar filtro" style="cursor:pointer;font-size:12px;color:var(--text-muted);padding:5px 8px;">✕ ver todas</span>`;
+  cont.innerHTML = html;
+}
 
-  let rojo=0, amarillo=0, verde=0, contrato=0, alerta=0, sinSeg=0;
-  todas.forEach(o => {
-    const cls = semaforoDe(o).cls;
-    if (cls==='sem-rojo') rojo++;
-    else if (cls==='sem-amarillo') amarillo++;
-    else if (cls==='sem-verde') verde++;
-    else if (cls==='sem-contrato') contrato++;
-    if (esVencida(o) && !esContrato(o)) alerta++;
-    if (!(o.seguimiento||'').trim()) sinSeg++;
-  });
-
-  const metaOk = (rojo===0 && sinSeg===0);
-  const card = (v,emoji,label,n,color,bg) =>
-    `<div onclick="setSemFilter('${v}')" title="Clic para filtrar" style="cursor:pointer;flex:1;min-width:120px;background:#fff;border:1px solid #eef1f5;border-left:4px solid ${color};${semFilter===v?`box-shadow:0 0 0 3px ${color}33;`:'box-shadow:0 2px 8px rgba(27,42,74,.05);'}border-radius:12px;padding:12px 14px;text-align:center;transition:all .15s;">
-        <div style="width:10px;height:10px;border-radius:50%;background:${color};margin:0 auto 7px;"></div>
-        <div style="font-size:26px;font-weight:800;color:${color};line-height:1;">${n}</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:3px;">${label}</div>
-      </div>`;
-
-  cont.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      ${card('rojo','','Sin facturar',rojo,'#b23a2e','#fef2f2')}
-      ${card('amarillo','','Facturada parcial',amarillo,'#ca8a04','#fefce8')}
-      ${card('verde','','Facturada total',verde,'#157a5b','#f0fdf4')}
-      ${card('contrato','','Contrato',contrato,'#475569','#f8fafc')}
-      ${card('alerta','','Sin facturar +15 días',alerta,'#b91c1c','#fff1f2')}
-      ${card('sin_seg','','Sin seguimiento',sinSeg,'#7c3aed','#faf5ff')}
-    </div>
-    <div style="margin-top:10px;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:700;
-         background:${metaOk?'#f0fdf4':'#fef2f2'};color:${metaOk?'#166534':'#991b1b'};
-         border:1.5px solid ${metaOk?'#157a5b':'#b23a2e'};">
-      ${metaOk
-        ? '<svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-3px;margin-right:6px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Meta cumplida: no hay ofertas aprobadas sin facturar ni sin seguimiento.'
-        : `<svg viewBox="0 0 24 24" style="width:15px;height:15px;vertical-align:-3px;margin-right:6px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Meta: cero aprobadas sin facturar y sin seguimiento — faltan <b>${rojo}</b> sin facturar y <b>${sinSeg}</b> sin seguimiento.`}
-    </div>`;
+// Clic en una pastilla de estado -> filtra la tabla por ese estado (usa el filtro de Seguimiento).
+function filtrarPorEstado(e) {
+  const sel = document.getElementById('aSeguimiento');
+  if (sel) sel.value = e;
+  filterAprobadas();
 }
 
 // Importa el Excel diario "Ofertas Aprobadas" → deja la Proyección idéntica a
