@@ -1419,37 +1419,37 @@ body.rol-viewer .write-only { display:none !important; }
   </div>
 
   <!-- ============ Total pendiente ============ -->
-  <div style="background:#16233F;border-radius:12px;padding:14px 18px;margin:12px 0;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+  <div style="background:#16233F;border-radius:12px;padding:9px 16px;margin:7px 0;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
     <div>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;opacity:.8;">Pendiente por facturar</div>
-      <div id="pyTotalPend" style="font-size:28px;font-weight:800;line-height:1.05;">—</div>
+      <div id="pyTotalPend" style="font-size:21px;font-weight:800;line-height:1.05;">—</div>
     </div>
     <div id="pyTotalSub" style="font-size:12px;opacity:.85;">ofertas aprobadas + contratos</div>
   </div>
 
   <!-- ============ 3 tarjetas por estado (clic para filtrar) ============ -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-    <div onclick="pyFiltrarEstado('por_ejecutar')" id="pyCardpor_ejecutar" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #E8641A;border-radius:12px;padding:11px 14px;">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+    <div onclick="pyFiltrarEstado('por_ejecutar')" id="pyCardpor_ejecutar" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #E8641A;border-radius:12px;padding:8px 12px;">
       <div style="font-size:11px;color:#6b7280;">Por ejecutar</div>
-      <div id="pySegPorEjec" style="font-size:19px;font-weight:800;color:#E8641A;">—</div>
+      <div id="pySegPorEjec" style="font-size:16px;font-weight:800;color:#E8641A;">—</div>
       <div style="font-size:11px;color:#9ca3af;"><span id="pySegNpor_ejecutar">—</span> pendientes</div>
     </div>
-    <div onclick="pyFiltrarEstado('en_ejecucion')" id="pyCarden_ejecucion" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #1B2A4A;border-radius:12px;padding:11px 14px;">
+    <div onclick="pyFiltrarEstado('en_ejecucion')" id="pyCarden_ejecucion" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #1B2A4A;border-radius:12px;padding:8px 12px;">
       <div style="font-size:11px;color:#6b7280;">En ejecución</div>
-      <div id="pySegEnEjec" style="font-size:19px;font-weight:800;color:#1B2A4A;">—</div>
+      <div id="pySegEnEjec" style="font-size:16px;font-weight:800;color:#1B2A4A;">—</div>
       <div style="font-size:11px;color:#9ca3af;"><span id="pySegNen_ejecucion">—</span> pendientes</div>
     </div>
-    <div onclick="pyFiltrarEstado('ejecutado')" id="pyCardejecutado" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #534AB7;border-radius:12px;padding:11px 14px;">
+    <div onclick="pyFiltrarEstado('ejecutado')" id="pyCardejecutado" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #534AB7;border-radius:12px;padding:8px 12px;">
       <div style="font-size:11px;color:#6b7280;">Ejecutado</div>
-      <div id="pySegEjec" style="font-size:19px;font-weight:800;color:#534AB7;">—</div>
+      <div id="pySegEjec" style="font-size:16px;font-weight:800;color:#534AB7;">—</div>
       <div style="font-size:11px;color:#9ca3af;"><span id="pySegNejecutado">—</span> · falta facturar</div>
     </div>
   </div>
 
   <!-- ============ Gráfica por mes ============ -->
-  <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-    <div style="font-size:13px;font-weight:700;color:#1B2A4A;margin-bottom:12px;">Pendiente por facturar, por mes</div>
-    <div id="pyChart" style="display:flex;align-items:flex-end;gap:8px;height:150px;padding-bottom:20px;border-bottom:1px solid #eef1f5;"></div>
+  <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:700;color:#1B2A4A;margin-bottom:8px;">Pendiente por facturar, por mes</div>
+    <div id="pyChart" style="display:flex;align-items:flex-end;gap:8px;height:104px;padding-bottom:14px;border-bottom:1px solid #eef1f5;"></div>
     <div style="font-size:10px;color:#9ca3af;margin-top:8px;">Valores en millones de COP · por el mes de la oferta/contrato</div>
   </div>
 
@@ -4159,7 +4159,7 @@ function pyPintarChart() {
   pyItems.forEach(it => { const m=it.mes; if(!m) return; porMes[m]=(porMes[m]||0)+it.valor; });
   const activos = PY_MESES.filter(m => porMes[m]);
   const max = Math.max(1, ...activos.map(m=>porMes[m]));
-  const H = 110; // alto máximo de barra en px (evita el problema de height en %)
+  const H = 56; // alto máximo de barra en px (evita el problema de height en %)
   cont.innerHTML = activos.map(m => {
     const v = porMes[m];
     const px = Math.max(4, Math.round(v*H/max));
