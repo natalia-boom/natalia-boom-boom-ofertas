@@ -1418,72 +1418,49 @@ body.rol-viewer .write-only { display:none !important; }
     <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">Actualizar</button>
   </div>
 
-  <!-- ============ BLOQUE 1 — Facturado real (Vulcano) ============ -->
-  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #1e8e4e;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
-    <div style="font-size:17px;font-weight:800;color:#0a4f5c;">Facturado real por mes (Vulcano — todo incluido)</div>
-    <div style="font-size:12px;color:var(--text-muted);margin:2px 0 14px;">La cifra real que factura la empresa: tus ofertas 2026 + 2025 + contratos. Filtra abajo para ver solo lo tuyo.</div>
-
-    <div style="background:linear-gradient(135deg,var(--petrol-dark),var(--petrol));color:#fff;border-radius:14px;padding:16px 22px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;opacity:.85;" id="pyRealLbl">Facturado real 2026</div>
-        <div id="pyRealTotal" style="font-size:32px;font-weight:800;line-height:1.05;">—</div>
-      </div>
-      <div id="pyRealHint" style="font-size:12px;opacity:.85;">fuente: hoja «Facturación» de Vulcano</div>
+  <!-- ============ Total pendiente ============ -->
+  <div style="background:#16233F;border-radius:12px;padding:14px 18px;margin:12px 0;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+    <div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;opacity:.8;">Pendiente por facturar</div>
+      <div id="pyTotalPend" style="font-size:28px;font-weight:800;line-height:1.05;">—</div>
     </div>
-
-    <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-      <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
-      <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">Solo ofertas 2026</span>
-      <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
-      <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
-    </div>
-
-    <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-    <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
+    <div id="pyTotalSub" style="font-size:12px;opacity:.85;">ofertas aprobadas + contratos</div>
   </div>
 
-  <!-- ============ BLOQUE 2 — Seguimiento 2026 ============ -->
-  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #1565c0;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
-    <div style="font-size:17px;font-weight:800;color:#0a4f5c;">Seguimiento de tus ofertas 2026 (por facturar)</div>
-    <div style="font-size:12px;color:var(--text-muted);margin:2px 0 14px;">Solo lo tuyo del año que aún no factura Vulcano. Esto es lo que tú proyectas y controlas.</div>
-
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Haz clic en cada tarjeta para ver las ofertas de ese estado.</div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div onclick="pySegVer('por_ejecutar')" title="Ver ofertas por ejecutar" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #e8641a;box-shadow:0 2px 8px rgba(27,42,74,.05);">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Por ejecutar <span id="pySegCaretpor_ejecutar" style="float:right;color:#e8641a;">▸</span></div>
-        <div id="pySegPorEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#e8641a;">—</div>
-        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNpor_ejecutar">—</span> ofertas · confirmado, aún no arranca</div>
-      </div>
-      <div onclick="pySegVer('en_ejecucion')" title="Ver ofertas en ejecución" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #1B2A4A;box-shadow:0 2px 8px rgba(27,42,74,.05);">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">En ejecución <span id="pySegCareten_ejecucion" style="float:right;color:#1B2A4A;">▸</span></div>
-        <div id="pySegEnEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#1B2A4A;">—</div>
-        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNen_ejecucion">—</span> ofertas · en proceso</div>
-      </div>
-      <div onclick="pySegVer('ejecutado')" title="Ver ofertas ejecutadas" style="flex:1;min-width:170px;border-radius:12px;padding:15px 17px;cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #ca8a04;box-shadow:0 2px 8px rgba(27,42,74,.05);">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Ejecutado <span id="pySegCaretejecutado" style="float:right;color:#ca8a04;">▸</span></div>
-        <div id="pySegEjec" style="font-size:24px;font-weight:800;margin-top:4px;color:#ca8a04;">—</div>
-        <div style="font-size:11px;color:var(--text-muted);"><span id="pySegNejecutado">—</span> ofertas · terminado, falta facturar</div>
-      </div>
+  <!-- ============ 3 tarjetas por estado (clic para filtrar) ============ -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+    <div onclick="pyFiltrarEstado('por_ejecutar')" id="pyCardpor_ejecutar" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #E8641A;border-radius:12px;padding:11px 14px;">
+      <div style="font-size:11px;color:#6b7280;">Por ejecutar</div>
+      <div id="pySegPorEjec" style="font-size:19px;font-weight:800;color:#E8641A;">—</div>
+      <div style="font-size:11px;color:#9ca3af;"><span id="pySegNpor_ejecutar">—</span> pendientes</div>
     </div>
-    <!-- Detalle desplegable de ofertas por estado -->
-    <div id="pySegDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
-    <div style="margin-top:12px;padding:12px 16px;background:#eef4f6;border-radius:10px;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
-      <span>Total por facturar (proyección 2026)</span>
-      <b id="pySegTotal" style="color:#0a4f5c;font-size:19px;">—</b>
+    <div onclick="pyFiltrarEstado('en_ejecucion')" id="pyCarden_ejecucion" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #1B2A4A;border-radius:12px;padding:11px 14px;">
+      <div style="font-size:11px;color:#6b7280;">En ejecución</div>
+      <div id="pySegEnEjec" style="font-size:19px;font-weight:800;color:#1B2A4A;">—</div>
+      <div style="font-size:11px;color:#9ca3af;"><span id="pySegNen_ejecucion">—</span> pendientes</div>
+    </div>
+    <div onclick="pyFiltrarEstado('ejecutado')" id="pyCardejecutado" style="cursor:pointer;background:#fff;border:1px solid #eef1f5;border-left:4px solid #534AB7;border-radius:12px;padding:11px 14px;">
+      <div style="font-size:11px;color:#6b7280;">Ejecutado</div>
+      <div id="pySegEjec" style="font-size:19px;font-weight:800;color:#534AB7;">—</div>
+      <div style="font-size:11px;color:#9ca3af;"><span id="pySegNejecutado">—</span> · falta facturar</div>
     </div>
   </div>
 
-  <!-- ============ BLOQUE 3 — Contratos pendientes ============ -->
-  <div style="background:#fff;border:1px solid var(--border);border-left:6px solid #6d28d9;border-radius:16px;padding:18px 20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.05);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-size:17px;font-weight:800;color:#0a4f5c;">Contratos — pendiente por facturar</div>
-        <div style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">Lo que el equipo de proyectos confirma por WhatsApp y Vulcano aún no factura. Lo digitas tú.</div>
-      </div>
-      <button class="btn btn-primary btn-sm write-only" onclick="pyToggleForm()">Agregar pendiente de contrato</button>
+  <!-- ============ Gráfica por mes ============ -->
+  <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+    <div style="font-size:13px;font-weight:700;color:#1B2A4A;margin-bottom:12px;">Pendiente por facturar, por mes</div>
+    <div id="pyChart" style="display:flex;align-items:flex-end;gap:8px;height:150px;padding-bottom:20px;border-bottom:1px solid #eef1f5;"></div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:8px;">Valores en millones de COP · por el mes de la oferta/contrato</div>
+  </div>
+
+  <!-- ============ Lista única de pendientes (ofertas + contratos) ============ -->
+  <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef1f5;flex-wrap:wrap;gap:8px;">
+      <span id="pyListaTit" style="font-size:13px;font-weight:700;color:#1B2A4A;">Detalle de pendientes</span>
+      <button class="btn btn-sm btn-outline write-only" onclick="pyToggleForm()">+ Agregar contrato</button>
     </div>
 
-    <!-- Formulario (oculto por defecto) -->
+    <!-- Formulario de contrato (oculto por defecto) -->
     <div id="pyCpForm" style="display:none;background:#faf7ff;border:1px solid #e5d9ff;border-radius:12px;padding:14px 16px;margin-top:12px;">
       <input type="hidden" id="pyCpId" value="">
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1534,21 +1511,17 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
     </div>
 
-    <div style="margin-top:12px;padding:10px 14px;background:#f4ecff;border-radius:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
-      <span>Pendiente por facturar (contratos)</span>
-      <b id="pyCpTotal" style="color:#6d28d9;font-size:18px;">—</b>
-    </div>
-
-    <div style="overflow-x:auto;margin-top:10px;">
-      <table class="data-table" style="min-width:640px;">
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%;min-width:680px;">
         <thead>
-          <tr><th>Cliente</th><th>Servicio</th><th style="text-align:right;">Valor</th><th>Mes</th><th>Estado</th><th>Ref.</th><th></th></tr>
+          <tr><th>Ref.</th><th>Cliente</th><th>Servicio</th><th>Mes</th><th>Estado</th><th style="text-align:right;">Valor</th><th></th></tr>
         </thead>
-        <tbody id="pyCpBody">
+        <tbody id="pyListaBody">
           <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Cargando…</td></tr>
         </tbody>
       </table>
     </div>
+    <span id="pyCpTotal" style="display:none;"></span>
   </div>
 </section>
 
@@ -4118,11 +4091,120 @@ const PY_FILTRO_LBL = {
   contrato: 'Facturado — contratos y otros'
 };
 
+// ====== PROYECCIÓN = pendiente por facturar (ofertas aprobadas + contratos) ======
+let pyItems = [];
+let pyFiltroEstado = '';
+const PY_EST_META = {
+  por_ejecutar: {lbl:'Por ejecutar', bg:'#FAEEDA', tx:'#854F0B'},
+  en_ejecucion: {lbl:'En ejecución', bg:'#E6F1FB', tx:'#0C447C'},
+  ejecutado:    {lbl:'Ejecutado',    bg:'#EEEDFE', tx:'#3C3489'},
+};
+const PY_MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
 async function renderProyeccion() {
-  // Los tres bloques se cargan en paralelo; cada uno maneja su error.
-  pyRenderReal();
-  pyRenderSeguimiento();
-  pyRenderContratos();
+  try {
+    const [seg, con] = await Promise.all([
+      fetch('/api/facturacion/estado_proyecto').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/contratos_pendientes').then(r=>r.json()).catch(()=>({}))
+    ]);
+    const det = seg.detalle || {};
+    pyItems = [];
+    ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k => {
+      (det[k]||[]).forEach(it => pyItems.push({
+        ref: it.oferta_num || '—', cliente: it.cliente, desc: it.descripcion,
+        mes: (it.mes||'').toUpperCase(), valor: +it.valor||0, estado: k, tipo:'oferta'
+      }));
+    });
+    (con.items||[]).forEach(it => {
+      const e = (it.estado||'').toUpperCase();
+      if (e === 'FACTURADO') return;
+      const k = e === 'EN EJECUCION' ? 'en_ejecucion' : 'por_ejecutar';
+      pyItems.push({
+        ref:'Contrato', cliente: it.cliente, desc: it.descripcion,
+        mes:(it.mes||'').toUpperCase(), valor:+it.valor||0, estado:k, tipo:'contrato',
+        id: it.id, raw: it
+      });
+    });
+    pyPintarProyeccion();
+  } catch (e) {
+    const b = document.getElementById('pyListaBody');
+    if (b) b.innerHTML = `<tr><td colspan="7" style="color:var(--danger);padding:16px;text-align:center;">${e.message||e}</td></tr>`;
+  }
+}
+
+function pyPintarProyeccion() {
+  const porEstado = {por_ejecutar:{v:0,n:0}, en_ejecucion:{v:0,n:0}, ejecutado:{v:0,n:0}};
+  pyItems.forEach(it => { const b=porEstado[it.estado]; if(b){b.v+=it.valor;b.n++;} });
+  const total = pyItems.reduce((s,it)=>s+it.valor,0);
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
+  set('pyTotalPend', fmtCop(total));
+  set('pyTotalSub', pyItems.length + ' pendientes · ofertas + contratos');
+  set('pySegPorEjec', fmtCop(porEstado.por_ejecutar.v));
+  set('pySegEnEjec',  fmtCop(porEstado.en_ejecucion.v));
+  set('pySegEjec',    fmtCop(porEstado.ejecutado.v));
+  set('pySegNpor_ejecutar', porEstado.por_ejecutar.n);
+  set('pySegNen_ejecucion', porEstado.en_ejecucion.n);
+  set('pySegNejecutado',    porEstado.ejecutado.n);
+  ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k=>{
+    const c=document.getElementById('pyCard'+k);
+    if(c) c.style.boxShadow = (pyFiltroEstado===k) ? '0 0 0 2px '+PY_EST_META[k].tx : '';
+  });
+  pyPintarChart();
+  pyPintarLista();
+}
+
+function pyPintarChart() {
+  const cont = document.getElementById('pyChart'); if(!cont) return;
+  const porMes = {};
+  pyItems.forEach(it => { const m=it.mes; if(!m) return; porMes[m]=(porMes[m]||0)+it.valor; });
+  const activos = PY_MESES.filter(m => porMes[m]);
+  const max = Math.max(1, ...activos.map(m=>porMes[m]));
+  cont.innerHTML = activos.map(m => {
+    const v = porMes[m]; const h = Math.max(2, Math.round(v*100/max));
+    const col = v >= max*0.6 ? '#E8641A' : '#5b6b8c';
+    const mm = v/1e6; const lbl = mm>=1000 ? (mm/1000).toFixed(1)+'B' : Math.round(mm).toLocaleString('es-CO');
+    return `<div style="flex:1;text-align:center;min-width:24px;">
+      <div style="font-size:9px;color:#6b7280;margin-bottom:3px;">${lbl}</div>
+      <div style="height:${h}%;background:${col};border-radius:4px 4px 0 0;" title="${m}: ${fmtCop(v)}"></div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:4px;">${m.slice(0,3)}</div>
+    </div>`;
+  }).join('') || '<div style="color:#9ca3af;font-size:12px;">Sin pendientes.</div>';
+}
+
+function pyFiltrarEstado(k) {
+  pyFiltroEstado = (pyFiltroEstado===k) ? '' : k;
+  pyPintarProyeccion();
+}
+
+function pyPintarLista() {
+  const body = document.getElementById('pyListaBody'); if(!body) return;
+  let lista = pyItems.slice();
+  if (pyFiltroEstado) lista = lista.filter(it => it.estado===pyFiltroEstado);
+  const ord = {por_ejecutar:0, en_ejecucion:1, ejecutado:2};
+  lista.sort((a,b)=> (ord[a.estado]-ord[b.estado]) || (b.valor-a.valor));
+  const totF = lista.reduce((s,it)=>s+it.valor,0);
+  const tit = document.getElementById('pyListaTit');
+  if (tit) tit.textContent = (pyFiltroEstado ? PY_EST_META[pyFiltroEstado].lbl : 'Detalle de pendientes') + ' — ' + lista.length + ' · ' + fmtCop(totF);
+  if (!lista.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">Sin pendientes.</td></tr>'; return; }
+  body.innerHTML = lista.map(it => {
+    const m = PY_EST_META[it.estado] || PY_EST_META.por_ejecutar;
+    const refCell = it.tipo==='contrato'
+      ? '<span style="background:#f3e8ff;color:#6d28d9;border:1px solid #d8b4fe;border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;">Contrato</span>'
+      : `<span style="color:var(--text-muted);font-size:12px;">${pyEscape(it.ref)}</span>`;
+    const acc = it.tipo==='contrato'
+      ? `<span class="write-only" style="white-space:nowrap;"><span style="cursor:pointer;" title="Editar" onclick="pyEditarContrato('${encodeURIComponent(JSON.stringify(it.raw))}')">✏️</span><span style="cursor:pointer;margin-left:10px;" title="Eliminar" onclick="pyEliminarContrato(${it.id}, '${pyEscape(it.cliente)}')">🗑️</span></span>`
+      : '';
+    const mesCap = it.mes ? it.mes.charAt(0)+it.mes.slice(1).toLowerCase() : '';
+    return `<tr>
+      <td style="white-space:nowrap;">${refCell}</td>
+      <td style="font-weight:700;">${pyEscape(it.cliente)}</td>
+      <td style="font-size:12px;color:#556;">${pyEscape(it.desc||'')}</td>
+      <td style="font-size:12px;">${mesCap}</td>
+      <td><span style="background:${m.bg};color:${m.tx};font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;">${m.lbl}</span></td>
+      <td style="text-align:right;font-weight:700;white-space:nowrap;">${fmtCop(it.valor)}</td>
+      <td>${acc}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ---------- BLOQUE 1: Facturado real (Vulcano) ----------
@@ -4396,7 +4478,7 @@ async function pyGuardarContrato() {
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo guardar'); }
     showToast(id ? 'Actualizado' : 'Pendiente agregado', 'success');
     pyToggleForm(false);
-    pyRenderContratos();
+    renderProyeccion();
   } catch (e) {
     showToast('' + e.message, 'error');
   }
@@ -4430,7 +4512,7 @@ async function pyEliminarContrato(id, cliente) {
     const res = await fetch('/api/contratos_pendientes/' + id, { method: 'DELETE' });
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo eliminar'); }
     showToast('Eliminado', 'success');
-    pyRenderContratos();
+    renderProyeccion();
   } catch (e) {
     showToast('' + e.message, 'error');
   }
@@ -4938,7 +5020,7 @@ async function importarAprobadas() {
     if (!res2.ok) throw new Error(d2.detail || 'Error aplicando');
     showToast('Proyección actualizada desde tu Excel (' + d2.filas + ' filas)', 'success');
     try { if (typeof loadAll === 'function') await loadAll(); } catch (e) {}
-    try { if (typeof pyRenderSeguimiento === 'function') pyRenderSeguimiento(); } catch (e) {}
+    try { if (typeof renderProyeccion === 'function') renderProyeccion(); } catch (e) {}
   } catch (e) {
     showToast('' + (e.message || e), 'error');
   } finally { inp.value = ''; }
