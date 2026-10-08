@@ -2658,7 +2658,8 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg"}
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg",
+                "/manifest.webmanifest", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icon-192.png", "/icon-512.png", "/favicon.ico"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -3724,6 +3725,50 @@ def anexo_legal():
 @app.get("/api/logo")
 def get_logo():
     return {"src": _logo_src()}
+
+
+# ── Ícono de app + manifiesto (para "Agregar a pantalla de inicio" en celular/tablet) ──
+def _serve_icon(name):
+    ruta = os.path.join(os.path.dirname(__file__), "templates", name)
+    if not os.path.exists(ruta):
+        raise HTTPException(404, "icono no encontrado")
+    with open(ruta, "rb") as f:
+        return Response(content=f.read(), media_type="image/png")
+
+@app.get("/apple-touch-icon.png")
+@app.get("/apple-touch-icon-precomposed.png")
+def apple_touch_icon():
+    return _serve_icon("apple-touch-icon.png")
+
+@app.get("/icon-192.png")
+def icon_192():
+    return _serve_icon("icon-192.png")
+
+@app.get("/icon-512.png")
+def icon_512():
+    return _serve_icon("icon-512.png")
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    return _serve_icon("apple-touch-icon.png")
+
+@app.get("/manifest.webmanifest")
+def web_manifest():
+    data = {
+        "name": "BOOM — Control de Ofertas",
+        "short_name": "BOOM Ofertas",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#10192e",
+        "theme_color": "#10192e",
+        "icons": [
+            {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+            {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+        ],
+    }
+    return Response(content=json.dumps(data), media_type="application/manifest+json")
 
 
 @app.get("/api/login-bg")
