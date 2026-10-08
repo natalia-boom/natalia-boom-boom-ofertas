@@ -5,3 +5,12 @@ __pycache__/
 ~$*
 .claude/
 CORREO_BOOM_*.html
+
+# Scripts y respaldos de trabajo (NO subir: pueden contener credenciales)
+_*.py
+_*.json
+_*.txt
+_*.html
+_*.xlsx
+_*.csv
+*_backup_*.json

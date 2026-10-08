@@ -87,7 +87,7 @@ DB_HOST     = os.environ.get("DB_HOST",     "localhost")
 DB_PORT     = int(os.environ.get("DB_PORT", "5432"))
 DB_NAME     = os.environ.get("DB_NAME",     "boom_ofertas")
 DB_USER     = os.environ.get("DB_USER",     "postgres")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "natalia2281*")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")  # NUNCA poner la clave aquí: va en variable de entorno (Railway)
 
 # ── SMTP config ───────────────────────────────────────────────────────────────
 SMTP_HOST     = os.environ.get("SMTP_HOST",     "smtp.office365.com")
