@@ -1422,14 +1422,10 @@ body.rol-viewer .write-only { display:none !important; }
     <div>
       <h2>Proyección de facturación</h2>
       <p style="color:var(--text-muted);font-size:13px;margin:2px 0 0;">
-        Lo que tienes pendiente por facturar: ofertas aprobadas (por ejecutar / en ejecución / ejecutado) + contratos.
+        Lo pendiente por facturar — se actualiza solo: al aceptar una oferta entra, al cancelarla o facturarla sale.
       </p>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <input type="file" id="pyExcelArchivo" accept=".xlsx,.xls" style="display:none;" onchange="pyImportarExcel()">
-      <button class="btn btn-sm write-only" onclick="document.getElementById('pyExcelArchivo').click()" title="Sube tu Excel de Ofertas Aprobadas y la Proyección queda idéntica a tu hoja (solo la Proyección)" style="background:#e8641a;color:#fff;border:none;">Actualizar desde mi Excel</button>
-      <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">Refrescar</button>
-    </div>
+    <button class="btn btn-outline btn-sm" onclick="renderProyeccion()">Refrescar</button>
   </div>
 
   <!-- ============ Total pendiente ============ -->
@@ -1471,7 +1467,7 @@ body.rol-viewer .write-only { display:none !important; }
   <div style="background:#fff;border:1px solid #eef1f5;border-radius:12px;overflow:hidden;">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef1f5;flex-wrap:wrap;gap:8px;">
       <span id="pyListaTit" style="font-size:13px;font-weight:700;color:#1B2A4A;">Detalle de pendientes</span>
-      <span style="font-size:11px;color:#9ca3af;">Fuente: tu Excel de Ofertas Aprobadas</span>
+      <span style="font-size:11px;color:#9ca3af;">En vivo desde las ofertas aprobadas</span>
     </div>
 
     <!-- Barra de filtros (tipo Excel) -->
@@ -4170,29 +4166,28 @@ async function pyImportarExcel() {
   }
 }
 
-async function renderProyeccion() {
-  try {
-    // Fuente única = tu Excel (tabla `facturas`, nivel movimiento). Incluye los contratos
-    // (filas CONTRATO), así que NO se mezcla con la lista manual para no contar doble.
-    const seg = await fetch('/api/facturacion/estado_proyecto').then(r=>r.json()).catch(()=>({}));
-    const det = seg.detalle || {};
-    pyItems = [];
-    ['por_ejecutar','en_ejecucion','ejecutado'].forEach(k => {
-      (det[k]||[]).forEach(it => {
-        const refRaw = (it.oferta_num || it.ref_original || '').toString().trim();
-        const esContrato = /CONTRATO/i.test(it.ref_original || '') || /CONTRATO/i.test(it.oferta_num || '');
-        pyItems.push({
-          ref: refRaw, esContrato: esContrato,
-          cliente: it.cliente, desc: it.descripcion,
-          mes: (it.mes||'').toUpperCase(), valor: +it.valor||0, estado: k
-        });
-      });
+// Proyección EN VIVO: se arma desde las ofertas de la app (no del Excel). Así se
+// "concatena" solo: al ACEPTAR una oferta entra como "Por ejecutar"; al cancelarla
+// (estado Cancelado), anularla o facturarla, sale. Pendiente = valor − valor_facturado.
+// El Excel queda solo para conciliar aparte.
+function renderProyeccion() {
+  const MAP = {'POR EJECUTAR':'por_ejecutar','EN EJECUCION':'en_ejecucion','EJECUTADO':'ejecutado'};
+  pyItems = [];
+  (allOfertas || []).forEach(o => {
+    if ((o.respuesta||'').toUpperCase() !== 'ACEPTADA') return;
+    if (o.anulada) return;
+    const seg = (o.seguimiento||'').trim().toUpperCase().replace('Ó','O').replace('Í','I');
+    const k = MAP[seg];
+    if (!k) return;  // solo Por ejecutar / En ejecución / Ejecutado (pendientes por facturar)
+    const pend = Math.max(0, (parseInt(o.valor,10)||0) - (parseInt(o.valor_facturado,10)||0));
+    if (pend <= 0) return;
+    pyItems.push({
+      ref: o.num || '', esContrato: false,
+      cliente: o.cliente || '', desc: o._desc || '',
+      mes: (o.mes||'').toUpperCase(), valor: pend, estado: k
     });
-    pyPintarProyeccion();
-  } catch (e) {
-    const b = document.getElementById('pyListaBody');
-    if (b) b.innerHTML = `<tr><td colspan="7" style="color:var(--danger);padding:16px;text-align:center;">${e.message||e}</td></tr>`;
-  }
+  });
+  pyPintarProyeccion();
 }
 
 function pyPintarProyeccion() {
