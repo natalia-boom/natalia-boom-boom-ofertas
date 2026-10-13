@@ -4925,6 +4925,73 @@ def facturacion_real_mes(mes: str, clase: Optional[str] = Query(None)):
         raise HTTPException(500, str(e))
 
 
+@app.post("/api/facturacion/importar")
+async def facturacion_importar(request: Request, archivo: UploadFile = File(...),
+                               aplicar: str = Query("no")):
+    """Importador del módulo Facturación. (1) Reemplaza `vulcano_facturas` con la hoja
+    'Facturación' (facturado real por mes). (2) Fija el facturado REAL por oferta desde
+    la hoja 'Ofertas Aprobadas' (suma de movimientos FACTURADO) — reparto LIMPIO, sin
+    los líos de las referencias pegadas de Vulcano. aplicar='no' solo previsualiza.
+    Solo admin."""
+    u = getattr(request.state, "user", None) or {}
+    if u.get("rol") != "admin":
+        raise HTTPException(403, "Solo el administrador puede importar facturación.")
+    if not OPENPYXL_OK:
+        raise HTTPException(500, "openpyxl no está instalado en el servidor")
+    contenido = await archivo.read()
+    facs = _parse_facturacion(contenido)
+    filas = _parse_aprobadas(contenido)
+    if not facs and not filas:
+        raise HTTPException(400, "El Excel no trae las hojas 'Facturación' u 'Ofertas Aprobadas'.")
+    # Facturado por oferta = suma de los movimientos FACTURADO de 'Ofertas Aprobadas'.
+    fact_of = {}
+    nf_of = {}
+    for f in filas:
+        est = (f.get("estado_proyecto") or "").upper().replace("Ó", "O")
+        num = f.get("oferta_num")
+        if est.startswith("FACTURADO") and num and re.match(r"^2[56]\d{4}$", num):
+            fact_of[num] = fact_of.get(num, 0) + int(f.get("valor") or 0)
+            nf = f.get("no_factura")
+            if nf and str(nf).strip() not in ("#REF!", ""):
+                nf_of.setdefault(num, set()).add(str(nf).strip())
+    resumen = {"facturas": len(facs),
+               "total_facturado": int(sum(int(x["subtotal"]) for x in facs)),
+               "ofertas_con_facturado": len(fact_of)}
+    aplicado = False
+    if str(aplicar).strip().lower() in ("si", "sí", "true", "1", "yes"):
+        with get_conn() as conn:
+            cur = conn.cursor()
+            if facs:
+                cur.execute("SELECT factura FROM vulcano_facturas WHERE excluida = true")
+                manual_exc = {str(r[0]).strip() for r in cur.fetchall() if r[0]}
+                cur.execute("DELETE FROM vulcano_facturas")
+                for f in facs:
+                    ex = (f["factura"] in _VULCANO_EXCLUIDAS_DEFAULT) or (f["factura"] in manual_exc)
+                    cur.execute("""
+                        INSERT INTO vulcano_facturas
+                            (factura, fecha, mes, anio, estado, nit, cliente,
+                             subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
+                          f["nit"], f["cliente"], f["subtotal"], f["total"],
+                          f["valor_pagado"], f["saldo"], ex, f.get("oferta_ref")))
+            for num, val in fact_of.items():
+                nf = ", ".join(sorted(nf_of.get(num, set()))) or None
+                cur.execute("""
+                    UPDATE ofertas SET valor_facturado = %s,
+                        no_factura = COALESCE(%s, no_factura),
+                        seguimiento = CASE
+                            WHEN UPPER(COALESCE(respuesta,'')) = 'ACEPTADA' AND valor > 0
+                                 AND %s >= valor - 1000
+                                 AND UPPER(TRIM(COALESCE(seguimiento,''))) <> 'CANCELADO'
+                            THEN 'Facturada' ELSE seguimiento END
+                    WHERE num = %s
+                """, (val, nf, val, num))
+            conn.commit()
+        aplicado = True
+    return {"ok": True, "aplicado": aplicado, **resumen}
+
+
 class ContratoPendCreate(BaseModel):
     cliente: str
     descripcion: Optional[str] = ""

@@ -924,6 +924,7 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" onclick="switchTab('control')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Ofertas Aprobadas</button>
   <button class="tab-btn" onclick="switchTab('proyeccion')"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Proyección</button>
+  <button class="tab-btn" onclick="switchTab('facturacion')"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Facturación</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>Clientes</button>
   <button class="tab-btn" onclick="switchTab('tablero')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Tablero</button>
@@ -1558,6 +1559,46 @@ body.rol-viewer .write-only { display:none !important; }
       </table>
     </div>
     <span id="pyCpTotal" style="display:none;"></span>
+  </div>
+</section>
+
+<!-- ==================== FACTURACIÓN ==================== -->
+<section class="tab-panel" id="tab-facturacion">
+  <div class="approved-header">
+    <div>
+      <h2>Facturación</h2>
+      <p>Facturado real (Vulcano) por mes y por cliente. Sube tu Excel para actualizar.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="factArchivo" accept=".xlsx,.xls" style="display:none;" onchange="factImportar()">
+      <button class="btn btn-sm write-only" onclick="document.getElementById('factArchivo').click()" title="Sube tu Excel (hojas 'Facturación' y 'Ofertas Aprobadas'): actualiza el facturado por mes y reparte el facturado por oferta sin enredos." style="background:#e8641a;color:#fff;border:none;">Importar Excel</button>
+      <button class="btn btn-outline btn-sm" onclick="pyRenderReal()">Refrescar</button>
+    </div>
+  </div>
+
+  <!-- Facturado real por mes -->
+  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
+    <div style="background:#16233F;color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:11px;letter-spacing:.4px;text-transform:uppercase;opacity:.8;" id="pyRealLbl">Facturado real 2026</div>
+        <div id="pyRealTotal" style="font-size:28px;font-weight:800;line-height:1.05;">—</div>
+      </div>
+      <div id="pyRealHint" style="font-size:12px;opacity:.85;">fuente: hoja «Facturación» de Vulcano</div>
+    </div>
+    <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
+      <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">Solo ofertas 2026</span>
+      <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
+      <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
+    </div>
+    <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
+  </div>
+
+  <!-- Top clientes por facturación -->
+  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
+    <div style="font-size:15px;font-weight:700;color:var(--petrol);margin-bottom:12px;">Top clientes por facturación</div>
+    <div id="factTopClientes"><div class="empty-state">Cargando…</div></div>
   </div>
 </section>
 
@@ -3500,7 +3541,7 @@ function enterModulo(modulo) {
   const rol = currentUser ? currentUser.rol : 'viewer';
   const info = MODULO_INFO[modulo] || MODULO_INFO.comercial;
   // Tabs comerciales (dashboard, generar, control, aprobadas)
-  const tabIds = ['dashboard','generar','iaoferta','control','aprobadas','proyeccion'];
+  const tabIds = ['dashboard','generar','iaoferta','control','aprobadas','proyeccion','facturacion'];
   tabIds.forEach(t => {
     const btn = document.querySelector(`.tab-btn[onclick="switchTab('${t}')"]`);
     if (btn) btn.style.display = info.tabsComercial ? '' : 'none';
@@ -4074,6 +4115,7 @@ function switchTab(name) {
   if (name === 'aprobaciones') { cargarPresuPendientes(); cargarPresuAprobados(); }
   if (name === 'rentabilidad') initRentabilidad();
   if (name === 'proyeccion') renderProyeccion();
+  if (name === 'facturacion') { pyRenderReal(); loadTopClientes('factTopClientes'); }
   // Activa columnas ajustables cuando la tabla ya está visible (con datos).
   setTimeout(enableColResize, 60);
 }
@@ -4302,6 +4344,29 @@ function pyPintarLista() {
 }
 
 // ---------- BLOQUE 1: Facturado real (Vulcano) ----------
+// Importar Excel desde el módulo Facturación (facturación por mes + facturado por oferta).
+async function factImportar() {
+  const inp = document.getElementById('factArchivo');
+  const f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  try {
+    showToast('Leyendo tu Excel…', 'info');
+    const fd = new FormData(); fd.append('archivo', f);
+    const prev = await (await fetch('/api/facturacion/importar?aplicar=no', {method:'POST', body:fd})).json();
+    if (!prev.ok) throw new Error(prev.detail || 'No se pudo leer el Excel');
+    const msg = `Tu Excel trae ${prev.facturas} facturas (total ${fmtCop(prev.total_facturado||0)}) y ${prev.ofertas_con_facturado} ofertas con facturado.\n\nSe actualizará la facturación por mes y el facturado por oferta (reparto limpio).\n\n¿Aplico?`;
+    if (!confirm(msg)) { inp.value=''; return; }
+    const fd2 = new FormData(); fd2.append('archivo', f);
+    const res = await (await fetch('/api/facturacion/importar?aplicar=si', {method:'POST', body:fd2})).json();
+    if (!res.ok) throw new Error(res.detail || 'No se pudo aplicar');
+    showToast('Facturación actualizada (' + res.facturas + ' facturas)', 'success');
+    pyRenderReal(); loadTopClientes('factTopClientes');
+    if (typeof renderProyeccion === 'function') renderProyeccion();
+  } catch (e) {
+    showToast('' + (e.message || e), 'error');
+  } finally { if (inp) inp.value = ''; }
+}
+
 async function pyRenderReal() {
   const cont = document.getElementById('pyRealMeses');
   try {
