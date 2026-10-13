@@ -77,15 +77,19 @@ h1,h2,h3,h4 { font-family: 'Barlow Condensed', sans-serif; }
 /* TABS */
 .tabs-bar {
   background: #10192e;
-  display: flex; padding: 0 24px;
+  display: flex; flex-wrap: nowrap; padding: 0 24px;
   border-bottom: 2px solid rgba(232,100,26,0.3);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
+.tabs-bar::-webkit-scrollbar { height: 4px; }
+.tabs-bar::-webkit-scrollbar-thumb { background: rgba(232,100,26,0.4); border-radius: 4px; }
 .tab-btn {
   background: none; border: none; color: rgba(255,255,255,0.5);
   font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 600;
-  padding: 13px 22px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 13px 18px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.8px;
   border-bottom: 3px solid transparent; margin-bottom: -2px;
   transition: all 0.2s; position: relative;
+  white-space: nowrap; flex: 0 0 auto;
 }
 .tab-btn:hover { color: rgba(255,255,255,0.85); }
 .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
@@ -924,10 +928,10 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" onclick="switchTab('control')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>Control de Ofertas</button>
   <button class="tab-btn" onclick="switchTab('aprobadas')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.4 12.4l2.4 2.4 4.8-5.2"/></svg>Ofertas Aprobadas</button>
   <button class="tab-btn" onclick="switchTab('proyeccion')"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Proyección</button>
-  <button class="tab-btn" onclick="switchTab('facturacion')"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Facturación</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>Clientes</button>
   <button class="tab-btn" onclick="switchTab('tablero')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Tablero</button>
+  <button class="tab-btn" onclick="switchTab('facturacion')"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Facturación</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Notificaciones</button>
   <button class="tab-btn" id="tabOsiBtn" style="display:none;" onclick="switchTab('osi')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>OSI</button>
   <button class="tab-btn" id="tabEquiposBtn" style="display:none;" onclick="switchTab('equipos')"><svg viewBox="0 0 24 24"><path d="M3 17V6a1 1 0 0 1 1-1h10v12M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg>Equipos</button>
@@ -4221,7 +4225,12 @@ function renderProyeccion() {
     const seg = (o.seguimiento||'').trim().toUpperCase().replace('Ó','O').replace('Í','I');
     const k = MAP[seg];
     if (!k) return;  // solo Por ejecutar / En ejecución / Ejecutado (pendientes por facturar)
-    const pend = Math.max(0, (parseInt(o.valor,10)||0) - (parseInt(o.valor_facturado,10)||0));
+    // Aprobación PARCIAL: si el cliente solo aprobó una parte (valor_aprobado < valor),
+    // el pendiente se cuenta sobre lo aprobado, no sobre el valor total (ej. CEVA 26-1105).
+    const _val = parseInt(o.valor,10)||0;
+    const _apr = parseInt(o.valor_aprobado,10)||0;
+    const base = (_apr > 0 && _apr < _val) ? _apr : _val;
+    const pend = Math.max(0, base - (parseInt(o.valor_facturado,10)||0));
     if (pend <= 0) return;
     pyItems.push({
       ref: o.num || '', esContrato: false,
