@@ -1416,6 +1416,9 @@ body.rol-viewer .write-only { display:none !important; }
   <style>
     .py-chip{background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:#3a4a50;cursor:pointer;user-select:none;}
     .py-chip-on{background:var(--petrol);color:#fff;border-color:var(--petrol);}
+    .fact-seg{display:inline-flex;gap:4px;background:#eef2f7;border-radius:12px;padding:4px;margin-bottom:14px;}
+    .fact-seg-btn{border:none;background:transparent;border-radius:9px;padding:8px 18px;font-size:13px;font-weight:700;color:#5b6b78;cursor:pointer;transition:all .15s ease;white-space:nowrap;}
+    .fact-seg-btn.fact-seg-on{background:#fff;color:var(--petrol);box-shadow:0 1px 4px rgba(27,42,74,.12);}
     .py-mes{flex:1;min-width:150px;background:#f7fbfc;border:1px solid var(--border);border-radius:11px;padding:11px 14px;}
     .py-mes .m{font-size:11px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;}
     .py-mes .v{font-size:15px;font-weight:800;margin-top:4px;white-space:nowrap;color:var(--petrol);font-variant-numeric:tabular-nums;}
@@ -1580,8 +1583,8 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
 
-  <!-- Facturado real por mes -->
-  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
+  <!-- Facturado real -->
+  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
     <div style="background:#16233F;color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-size:11px;letter-spacing:.4px;text-transform:uppercase;opacity:.8;" id="pyRealLbl">Facturado real 2026</div>
@@ -1589,20 +1592,29 @@ body.rol-viewer .write-only { display:none !important; }
       </div>
       <div id="pyRealHint" style="font-size:12px;opacity:.85;">fuente: hoja «Facturación» de Vulcano</div>
     </div>
-    <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-      <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
-      <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">Solo ofertas 2026</span>
-      <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
-      <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
-    </div>
-    <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-    <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
-  </div>
 
-  <!-- Top clientes por facturación -->
-  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
-    <div style="font-size:15px;font-weight:700;color:var(--petrol);margin-bottom:12px;">Top clientes por facturación</div>
-    <div id="factTopClientes"><div class="empty-state">Cargando…</div></div>
+    <!-- Interruptor de vista -->
+    <div class="fact-seg">
+      <button class="fact-seg-btn fact-seg-on" data-v="mes" onclick="factVista('mes')">📅 Por mes</button>
+      <button class="fact-seg-btn" data-v="cliente" onclick="factVista('cliente')">🏆 Por cliente</button>
+    </div>
+
+    <!-- Vista: por mes -->
+    <div id="factVistaMes">
+      <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+        <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
+        <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">Solo ofertas 2026</span>
+        <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
+        <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
+      </div>
+      <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
+    </div>
+
+    <!-- Vista: por cliente -->
+    <div id="factVistaCliente" style="display:none;">
+      <div id="factTopClientes"><div class="empty-state">Cargando…</div></div>
+    </div>
   </div>
 </section>
 
@@ -4119,7 +4131,7 @@ function switchTab(name) {
   if (name === 'aprobaciones') { cargarPresuPendientes(); cargarPresuAprobados(); }
   if (name === 'rentabilidad') initRentabilidad();
   if (name === 'proyeccion') renderProyeccion();
-  if (name === 'facturacion') { pyRenderReal(); loadTopClientes('factTopClientes'); }
+  if (name === 'facturacion') { factVista('mes'); pyRenderReal(); }
   // Activa columnas ajustables cuando la tabla ya está visible (con datos).
   setTimeout(enableColResize, 60);
 }
@@ -4369,11 +4381,22 @@ async function factImportar() {
     const res = await (await fetch('/api/facturacion/importar?aplicar=si', {method:'POST', body:fd2})).json();
     if (!res.ok) throw new Error(res.detail || 'No se pudo aplicar');
     showToast('Facturación actualizada (' + res.facturas + ' facturas)', 'success');
-    pyRenderReal(); loadTopClientes('factTopClientes');
+    pyRenderReal(); factTopCargado = true; loadTopClientes('factTopClientes');
     if (typeof renderProyeccion === 'function') renderProyeccion();
   } catch (e) {
     showToast('' + (e.message || e), 'error');
   } finally { if (inp) inp.value = ''; }
+}
+
+let factTopCargado = false;
+function factVista(v) {
+  document.querySelectorAll('.fact-seg-btn').forEach(b =>
+    b.classList.toggle('fact-seg-on', b.dataset.v === v));
+  const mes = document.getElementById('factVistaMes');
+  const cli = document.getElementById('factVistaCliente');
+  if (mes) mes.style.display = (v === 'mes') ? 'block' : 'none';
+  if (cli) cli.style.display = (v === 'cliente') ? 'block' : 'none';
+  if (v === 'cliente' && !factTopCargado) { factTopCargado = true; loadTopClientes('factTopClientes'); }
 }
 
 async function pyRenderReal() {
