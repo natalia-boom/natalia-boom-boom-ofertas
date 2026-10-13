@@ -9020,7 +9020,7 @@ def reporte_top_clientes(limit: int = Query(10)):
     sociales se suman como un único cliente. Hoy: COLOMBIAN NATURAL RESOURCES
     agrupa CNR II (900333493), CNR III (900268901) y TRANSFERPORT (900519515)."""
     try:
-        limit = max(1, min(limit, 50))
+        limit = max(1, min(limit, 500))
         with get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""

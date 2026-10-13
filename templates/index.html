@@ -1623,6 +1623,7 @@ body.rol-viewer .write-only { display:none !important; }
 
     <!-- Vista: por cliente -->
     <div id="factVistaCliente" style="display:none;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Todos los clientes, ordenados por lo facturado (mayor a menor).</div>
       <div id="factTopClientes"><div class="empty-state">Cargando…</div></div>
     </div>
   </div>
@@ -4391,7 +4392,7 @@ async function factImportar() {
     const res = await (await fetch('/api/facturacion/importar?aplicar=si', {method:'POST', body:fd2})).json();
     if (!res.ok) throw new Error(res.detail || 'No se pudo aplicar');
     showToast('Facturación actualizada (' + res.facturas + ' facturas)', 'success');
-    pyRenderReal(); factTopCargado = true; loadTopClientes('factTopClientes');
+    pyRenderReal(); factTopCargado = true; loadTopClientes('factTopClientes', 500);
     if (typeof renderProyeccion === 'function') renderProyeccion();
   } catch (e) {
     showToast('' + (e.message || e), 'error');
@@ -4406,7 +4407,7 @@ function factVista(v) {
   const cli = document.getElementById('factVistaCliente');
   if (mes) mes.style.display = (v === 'mes') ? 'block' : 'none';
   if (cli) cli.style.display = (v === 'cliente') ? 'block' : 'none';
-  if (v === 'cliente' && !factTopCargado) { factTopCargado = true; loadTopClientes('factTopClientes'); }
+  if (v === 'cliente' && !factTopCargado) { factTopCargado = true; loadTopClientes('factTopClientes', 500); }
 }
 
 async function pyRenderReal() {
@@ -5513,11 +5514,11 @@ async function loadResumenFacturacion() {
 }
 
 // ========== TOP CLIENTES ==========
-async function loadTopClientes(wrapId) {
+async function loadTopClientes(wrapId, limit) {
   const wrap = document.getElementById(wrapId || 'topClientesWrap');
   if (!wrap) return;
   try {
-    const data = await fetch('/api/reportes/top-clientes?limit=10').then(r => r.json());
+    const data = await fetch('/api/reportes/top-clientes?limit=' + (limit || 10)).then(r => r.json());
     const cli = (data && data.clientes) || [];
     if (!cli.length) {
       wrap.innerHTML = '<div class="empty-state">Aún no hay datos. Importa el Excel de Vulcano para ver el top de clientes.</div>';
