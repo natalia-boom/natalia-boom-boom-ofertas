@@ -4472,6 +4472,7 @@ async function pyVerMes(mes) {
   pyMesAbierto = mes;
   det.style.display = 'block';
   det.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;">Cargando facturas de ' + mes + '…</div>';
+  try { det.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
   try {
     const res = await fetch('/api/facturacion/real/mes/' + encodeURIComponent(mes) + '?clase=' + encodeURIComponent(pyFiltro || 'total'));
     const d = await res.json();
