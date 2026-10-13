@@ -4445,7 +4445,7 @@ function pyPintarReal() {
     '<table class="fact-tabla"><tbody>' + meses.map(m => {
       const v = m[key] || 0;
       const pct = Math.max(2, Math.round(v * 100 / maxV));
-      return `<tr onclick="pyVerMes('${m.mes}')" title="Ver facturas de ${m.mes}">
+      return `<tr data-mes="${m.mes}" title="Ver facturas de ${m.mes}">
          <td class="mes">${m.mes}<span class="cr" id="pyCaret-${m.mes}">▸</span></td>
          <td class="bar"><div class="track"><div class="fill" style="width:${pct}%"></div></div></td>
          <td class="val">${fmtCop(v)}</td>
@@ -4453,6 +4453,14 @@ function pyPintarReal() {
        </tr>`;
     }).join('') + '</tbody></table>'
   ) : '<span style="color:var(--text-muted);">Sin datos aún.</span>';
+  // Detector de clics robusto (delegación): no depende del onclick en línea.
+  if (!cont.dataset.clickBound) {
+    cont.dataset.clickBound = '1';
+    cont.addEventListener('click', function (ev) {
+      const tr = ev.target.closest('tr[data-mes]');
+      if (tr && cont.contains(tr)) pyVerMes(tr.getAttribute('data-mes'));
+    });
+  }
   const det = document.getElementById('pyRealDetalle');
   if (det) { det.style.display = 'none'; det.innerHTML = ''; pyMesAbierto = null; }
 }
