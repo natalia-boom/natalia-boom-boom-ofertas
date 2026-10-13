@@ -1423,6 +1423,16 @@ body.rol-viewer .write-only { display:none !important; }
     .py-mes .m{font-size:11px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;}
     .py-mes .v{font-size:15px;font-weight:800;margin-top:4px;white-space:nowrap;color:var(--petrol);font-variant-numeric:tabular-nums;}
     .py-mes .c{font-size:10px;color:var(--text-muted);margin-top:2px;}
+    .fact-tabla{width:100%;border-collapse:collapse;}
+    .fact-tabla tr{border-bottom:1px solid #eef2f7;cursor:pointer;}
+    .fact-tabla tbody tr:hover{background:#f7fbfc;}
+    .fact-tabla td{padding:10px 12px;vertical-align:middle;}
+    .fact-tabla .mes{font-size:12px;font-weight:700;color:var(--petrol);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;width:120px;}
+    .fact-tabla .mes .cr{float:right;color:var(--text-muted);margin-left:8px;}
+    .fact-tabla .bar .track{height:10px;background:#eef2f7;border-radius:6px;overflow:hidden;min-width:60px;}
+    .fact-tabla .bar .fill{height:100%;background:linear-gradient(90deg,#1B2A4A,#3b82f6);border-radius:6px;transition:width .4s ease;}
+    .fact-tabla .val{text-align:right;font-weight:800;font-size:14px;color:var(--petrol);font-variant-numeric:tabular-nums;white-space:nowrap;width:150px;}
+    .fact-tabla .cnt{text-align:right;font-size:11px;color:var(--text-muted);white-space:nowrap;width:70px;}
     .py-est{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;display:inline-block;white-space:nowrap;}
     .py-e-conf{background:#fff3e0;color:#c8620f;} .py-e-ejec{background:#e3f0ff;color:#1565c0;} .py-e-fact{background:#e6f7ec;color:#1e8e4e;}
   </style>
@@ -1607,7 +1617,7 @@ body.rol-viewer .write-only { display:none !important; }
         <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
         <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
       </div>
-      <div id="pyRealMeses" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <div id="pyRealMeses"></div>
       <div id="pyRealDetalle" style="display:none;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;"></div>
     </div>
 
@@ -4429,12 +4439,19 @@ function pyPintarReal() {
     (tot.n || 0) + ' facturas · fuente: hoja «Facturación» de Vulcano';
 
   const cont = document.getElementById('pyRealMeses');
-  cont.innerHTML = meses.map(m =>
-    `<div class="py-mes" onclick="pyVerMes('${m.mes}')" title="Ver facturas de ${m.mes}" style="cursor:pointer;">
-       <div class="m">${m.mes} <span id="pyCaret-${m.mes}" style="float:right;color:var(--text-muted);">▸</span></div>
-       <div class="v">${fmtCop(m[key] || 0)}</div>
-       <div class="c">${m.n} fac</div>
-     </div>`).join('') || '<span style="color:var(--text-muted);">Sin datos aún.</span>';
+  const maxV = Math.max(1, ...meses.map(m => m[key] || 0));
+  cont.innerHTML = meses.length ? (
+    '<table class="fact-tabla"><tbody>' + meses.map(m => {
+      const v = m[key] || 0;
+      const pct = Math.max(2, Math.round(v * 100 / maxV));
+      return `<tr onclick="pyVerMes('${m.mes}')" title="Ver facturas de ${m.mes}">
+         <td class="mes">${m.mes}<span class="cr" id="pyCaret-${m.mes}">▸</span></td>
+         <td class="bar"><div class="track"><div class="fill" style="width:${pct}%"></div></div></td>
+         <td class="val">${fmtCop(v)}</td>
+         <td class="cnt">${m.n} fac</td>
+       </tr>`;
+    }).join('') + '</tbody></table>'
+  ) : '<span style="color:var(--text-muted);">Sin datos aún.</span>';
   const det = document.getElementById('pyRealDetalle');
   if (det) { det.style.display = 'none'; det.innerHTML = ''; pyMesAbierto = null; }
 }
