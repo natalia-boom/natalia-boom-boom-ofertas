@@ -4524,8 +4524,8 @@ function tarPintar() {
     return `<tr style="border-bottom:1px solid #eef2f7;">
       <td style="padding:8px 10px;white-space:nowrap;color:var(--text-muted);">${(o.fecha || '').slice(0,10) || '—'}</td>
       <td style="padding:8px 10px;font-weight:600;color:var(--petrol);">${o.num || ''}</td>
-      <td style="padding:8px 10px;">${o.cliente || '—'}</td>
-      <td style="padding:8px 10px;max-width:260px;">${o.carga || '<span style="color:#c4ccd6;">—</span>'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;">${o.cliente || '—'}</td>
+      <td style="padding:8px 10px;min-width:260px;max-width:420px;color:#0f2f4a;font-weight:600;line-height:1.35;" title="${(o.carga || '').replace(/"/g,'&quot;')}">${o.carga || '<span style="color:#c4ccd6;font-weight:400;">(sin descripción)</span>'}</td>
       <td style="padding:8px 10px;white-space:nowrap;">${ruta}</td>
       <td style="padding:8px 10px;white-space:nowrap;">${o.equipo || '—'}</td>
       <td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--petrol);white-space:nowrap;font-variant-numeric:tabular-nums;">${fmtCop(o.valor || 0)}${(o.moneda && o.moneda !== 'COP') ? ' <span style=\"font-size:10px;color:#64748b;\">'+o.moneda+'</span>' : ''}</td>
