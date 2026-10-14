@@ -921,6 +921,28 @@ body.rol-viewer .write-only { display:none !important; }
   </div>
 </header>
 
+<!-- ====== AVISO DE ACTUALIZACIÓN (alarma con sonido para todos los usuarios) ====== -->
+<div id="avisoUpdateOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,16,30,.72);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:18px;max-width:460px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden;animation:avisoPop .35s cubic-bezier(.2,.9,.3,1.2);">
+    <div style="background:linear-gradient(90deg,#E8601C,#f3923f);padding:24px;text-align:center;">
+      <div id="avisoUpdateCampana" style="font-size:44px;line-height:1;margin-bottom:6px;">🔔</div>
+      <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:.3px;">Actualizaciones realizadas</div>
+    </div>
+    <div style="padding:22px 24px 24px;text-align:center;">
+      <div id="avisoUpdateMensaje" style="font-size:14.5px;color:#334155;line-height:1.65;"></div>
+      <div style="display:flex;gap:10px;margin-top:22px;">
+        <button onclick="recargarAhora()" style="flex:1;background:#E8601C;color:#fff;border:none;border-radius:10px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">🔄 Reiniciar ahora</button>
+        <button onclick="cerrarAvisoUpdate()" style="flex:0 0 auto;background:#eef2f7;color:#475569;border:none;border-radius:10px;padding:13px 16px;font-weight:700;font-size:14px;cursor:pointer;">Más tarde</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes avisoPop { from { opacity:0; transform:scale(.88) translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes campanaShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(16deg)} 40%{transform:rotate(-14deg)} 60%{transform:rotate(10deg)} 80%{transform:rotate(-6deg)} }
+#avisoUpdateCampana { display:inline-block; animation:campanaShake .7s ease 2; transform-origin:50% 0; }
+</style>
+
 <!-- TABS -->
 <nav class="tabs-bar" id="appNav" style="display:none;">
   <button class="tab-btn active" onclick="switchTab('dashboard')"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>Dashboard</button>
@@ -3654,6 +3676,55 @@ function mostrarApp() {
   document.getElementById('appHeader').style.display = '';
   document.getElementById('appNav').style.display = '';
   document.getElementById('appMain').style.display = '';
+  mostrarAvisoUpdate();
+}
+
+// ========= AVISO DE ACTUALIZACIÓN (alarma con sonido para todos) =========
+// Para una nueva actualización: cambia `version` (fecha) y `mensaje`. Al desplegar,
+// a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
+const AVISO_UPDATE = {
+  activo:  true,
+  version: '2026-10-14',
+  mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
+};
+let _avisoUpdateMostrado = false;
+function sonarAlarmaUpdate() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    [880, 1175, 880, 1319].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.2;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.28, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+      o.start(t); o.stop(t + 0.2);
+    });
+  } catch (e) {}
+}
+function mostrarAvisoUpdate() {
+  try {
+    if (!AVISO_UPDATE.activo || _avisoUpdateMostrado) return;
+    if (localStorage.getItem('aviso_update_visto') === AVISO_UPDATE.version) return;
+    const msg = document.getElementById('avisoUpdateMensaje');
+    const ov  = document.getElementById('avisoUpdateOverlay');
+    if (!msg || !ov) return;
+    msg.innerHTML = AVISO_UPDATE.mensaje;
+    ov.style.display = 'flex';
+    _avisoUpdateMostrado = true;
+    sonarAlarmaUpdate();
+  } catch (e) {}
+}
+function cerrarAvisoUpdate() {
+  try { localStorage.setItem('aviso_update_visto', AVISO_UPDATE.version); } catch (e) {}
+  const ov = document.getElementById('avisoUpdateOverlay'); if (ov) ov.style.display = 'none';
+}
+function recargarAhora() {
+  try { localStorage.setItem('aviso_update_visto', AVISO_UPDATE.version); } catch (e) {}
+  location.reload(true);
 }
 
 function ocultarApp() {
