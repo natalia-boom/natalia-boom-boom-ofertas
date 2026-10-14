@@ -4612,21 +4612,37 @@ def tarifario():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
+            # Incluye TODAS las ofertas. Origen/destino/carga salen del contenido de
+            # la oferta (pdf_data); si falta ahí, se RELLENAN desde la hoja "Ofertas
+            # Aprobadas" (tabla `facturas`, que sí trae origen/destino/descripción
+            # por oferta). Así cubrimos el máximo posible de rutas.
             cur.execute("""
-                SELECT num, fecha, cliente,
-                       COALESCE(NULLIF(TRIM(pdf_data->>'origen'),''), '')       AS origen,
-                       COALESCE(NULLIF(TRIM(pdf_data->>'destino'),''), '')      AS destino,
-                       COALESCE(NULLIF(TRIM(pdf_data->>'descripcion'),''), '')  AS carga,
-                       COALESCE(unidad,'')  AS equipo,
-                       COALESCE(tipo,'')    AS tipo,
-                       COALESCE(valor,0)    AS valor,
-                       COALESCE(NULLIF(moneda,''),'COP') AS moneda,
-                       COALESCE(respuesta,'') AS respuesta,
-                       COALESCE(seguimiento,'') AS seguimiento
-                FROM ofertas
-                WHERE anulada IS NOT TRUE AND es_prueba IS NOT TRUE
-                  AND COALESCE(valor,0) > 0
-                ORDER BY fecha DESC NULLS LAST, CAST(num AS INTEGER) DESC
+                SELECT o.num, o.fecha, o.cliente,
+                       COALESCE(NULLIF(TRIM(o.pdf_data->>'origen'),''),  fa.origen, '')      AS origen,
+                       COALESCE(NULLIF(TRIM(o.pdf_data->>'destino'),''), fa.destino, '')     AS destino,
+                       COALESCE(NULLIF(TRIM(o.pdf_data->>'descripcion'),''), fa.descripcion, '') AS carga,
+                       COALESCE(o.unidad,'')  AS equipo,
+                       COALESCE(o.tipo,'')    AS tipo,
+                       COALESCE(o.valor,0)    AS valor,
+                       COALESCE(NULLIF(o.moneda,''),'COP') AS moneda,
+                       COALESCE(o.respuesta,'') AS respuesta,
+                       COALESCE(o.seguimiento,'') AS seguimiento
+                FROM ofertas o
+                LEFT JOIN LATERAL (
+                    SELECT NULLIF(TRIM(f.origen),'')      AS origen,
+                           NULLIF(TRIM(f.destino),'')     AS destino,
+                           NULLIF(TRIM(f.descripcion),'') AS descripcion
+                    FROM facturas f
+                    WHERE f.oferta_num = o.num
+                      AND (NULLIF(TRIM(f.origen),'') IS NOT NULL
+                           OR NULLIF(TRIM(f.destino),'') IS NOT NULL
+                           OR NULLIF(TRIM(f.descripcion),'') IS NOT NULL)
+                    ORDER BY f.id
+                    LIMIT 1
+                ) fa ON TRUE
+                WHERE o.anulada IS NOT TRUE AND o.es_prueba IS NOT TRUE
+                  AND COALESCE(o.valor,0) > 0
+                ORDER BY o.fecha DESC NULLS LAST, CAST(o.num AS INTEGER) DESC
             """)
             filas = fetchall(cur)
         for f in filas:

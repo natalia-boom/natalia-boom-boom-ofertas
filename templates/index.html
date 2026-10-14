@@ -2440,9 +2440,6 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
       <label style="font-size:12px;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
         <input id="tarSoloRuta" type="checkbox" onchange="tarPintar()"> con ruta
       </label>
-      <label style="font-size:12px;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
-        <input id="tarSoloAceptada" type="checkbox" onchange="tarPintar()"> solo aceptadas
-      </label>
     </div>
 
     <!-- Vista: DETALLE -->
@@ -2457,11 +2454,10 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
             <th style="padding:8px 10px;text-align:left;">Origen → Destino</th>
             <th data-k="equipo"  onclick="tarSort('equipo')"  style="padding:8px 10px;text-align:left;cursor:pointer;">Equipo ⇅</th>
             <th data-k="valor"   onclick="tarSort('valor')"   style="padding:8px 10px;text-align:right;cursor:pointer;white-space:nowrap;">Valor ⇅</th>
-            <th style="padding:8px 10px;text-align:center;">Estado</th>
           </tr>
         </thead>
         <tbody id="tarBody">
-          <tr><td colspan="8" style="text-align:center;padding:24px;color:#9aa3b0;">Cargando…</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:24px;color:#9aa3b0;">Cargando…</td></tr>
         </tbody>
       </table>
     </div>
@@ -4521,13 +4517,11 @@ function tarFiltradas() {
   const fd = document.getElementById('tarDestino').value;
   const fe = document.getElementById('tarEquipo').value;
   const soloRuta = document.getElementById('tarSoloRuta').checked;
-  const soloAcep = document.getElementById('tarSoloAceptada').checked;
   return tarData.filter(o => {
     if (fo && (o.origen || '') !== fo) return false;
     if (fd && (o.destino || '') !== fd) return false;
     if (fe && (o.equipo || '') !== fe) return false;
     if (soloRuta && !o.con_ruta) return false;
-    if (soloAcep && (o.respuesta || '').toUpperCase() !== 'ACEPTADA') return false;
     if (q) {
       const blob = [o.carga, o.cliente, o.origen, o.destino, o.equipo, o.num].join(' ').toUpperCase();
       if (!blob.includes(q)) return false;
@@ -4549,19 +4543,11 @@ function tarPintar() {
 
   const body = document.getElementById('tarBody');
   if (!filas.length) {
-    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#9aa3b0;">Sin resultados con esos filtros.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#9aa3b0;">Sin resultados con esos filtros.</td></tr>';
     const rs = document.getElementById('tarResumen');
     if (rs) rs.textContent = `0 de ${tarData.length} ofertas`;
     return;
   }
-  const estadoPill = (o) => {
-    const r = (o.respuesta || '').toUpperCase();
-    let c = '#64748b', t = r || '—';
-    if (r === 'ACEPTADA') { c = '#157a5b'; t = 'Aceptada'; }
-    else if (r === 'RECHAZADA' || r === 'NO ACEPTADA') { c = '#c0392b'; t = 'No aceptada'; }
-    else if (r === 'RECIBIDO' || r === 'PENDIENTE' || r === 'ENVIADA') { c = '#b45309'; t = 'Pendiente'; }
-    return `<span style="background:${c}1a;color:${c};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap;">${t}</span>`;
-  };
   body.innerHTML = filas.map(o => {
     const ruta = (o.origen || o.destino)
       ? `${o.origen || '—'} <span style="color:#9aa3b0;">→</span> ${o.destino || '—'}`
@@ -4574,7 +4560,6 @@ function tarPintar() {
       <td style="padding:8px 10px;white-space:nowrap;">${ruta}</td>
       <td style="padding:8px 10px;white-space:nowrap;">${o.equipo || '—'}</td>
       <td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--petrol);white-space:nowrap;font-variant-numeric:tabular-nums;">${fmtCop(o.valor || 0)}${(o.moneda && o.moneda !== 'COP') ? ' <span style=\"font-size:10px;color:#64748b;\">'+o.moneda+'</span>' : ''}</td>
-      <td style="padding:8px 10px;text-align:center;">${estadoPill(o)}</td>
     </tr>`;
   }).join('');
   const rs = document.getElementById('tarResumen');
