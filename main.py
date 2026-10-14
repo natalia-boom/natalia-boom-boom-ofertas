@@ -4602,6 +4602,44 @@ def list_ofertas():
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/tarifario")
+def tarifario():
+    """Tarifario automático: histórico de TODAS las ofertas realizadas con su
+    carga (descripción), origen, destino, equipo (unidad) y valor. Origen/destino/
+    carga se leen del contenido de la oferta (pdf_data); valor/unidad/tipo/cliente
+    salen de columnas. Sirve como referencia de precios al cotizar algo parecido.
+    No incluye anuladas ni pruebas."""
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT num, fecha, cliente,
+                       COALESCE(NULLIF(TRIM(pdf_data->>'origen'),''), '')       AS origen,
+                       COALESCE(NULLIF(TRIM(pdf_data->>'destino'),''), '')      AS destino,
+                       COALESCE(NULLIF(TRIM(pdf_data->>'descripcion'),''), '')  AS carga,
+                       COALESCE(unidad,'')  AS equipo,
+                       COALESCE(tipo,'')    AS tipo,
+                       COALESCE(valor,0)    AS valor,
+                       COALESCE(NULLIF(moneda,''),'COP') AS moneda,
+                       COALESCE(respuesta,'') AS respuesta,
+                       COALESCE(seguimiento,'') AS seguimiento
+                FROM ofertas
+                WHERE anulada IS NOT TRUE AND es_prueba IS NOT TRUE
+                  AND COALESCE(valor,0) > 0
+                ORDER BY fecha DESC NULLS LAST, CAST(num AS INTEGER) DESC
+            """)
+            filas = fetchall(cur)
+        for f in filas:
+            fe = f.get("fecha")
+            f["fecha"] = fe.isoformat() if hasattr(fe, "isoformat") else (fe or "")
+            f["con_ruta"] = bool((f.get("origen") or "").strip() or (f.get("destino") or "").strip())
+        con_ruta = sum(1 for f in filas if f["con_ruta"])
+        return {"ofertas": filas, "total": len(filas), "con_ruta": con_ruta}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 # Facturación de CONTRATOS (sin número de oferta) según hoja "Facturación"
 # del Excel de agosto. Es una línea resumen; el detalle se cargará después.
 CONTRATOS_FACTURADO_2026 = 2_623_851_133

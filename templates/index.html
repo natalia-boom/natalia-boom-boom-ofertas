@@ -870,11 +870,11 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="modulo-desc">Alertas de proyectos aceptados y gestión de Órdenes de Servicio Internas (OSI)</div>
       <div class="modulo-tag">Ingresar</div>
     </div>
-    <div class="modulo-card pronto-card" id="cardTarifario" onclick="enterModulo('tarifario')">
+    <div class="modulo-card" id="cardTarifario" onclick="enterModulo('tarifario')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M4 20V11M9.3 20V4M14.6 20v-6M20 20V8M3 20h18"/></svg></div>
       <div class="modulo-title">Tarifario Automático</div>
-      <div class="modulo-desc">Consulta de tarifas inteligente basada en el historial de ofertas realizadas</div>
-      <div class="modulo-tag pronto">Próximamente</div>
+      <div class="modulo-desc">Consulta de tarifas basada en el historial de ofertas realizadas</div>
+      <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardTi" onclick="enterModulo('ti')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></div>
@@ -2412,28 +2412,50 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
 <!-- ==================== TARIFARIO ==================== -->
 <section class="tab-panel" id="tab-tarifario">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:420px;text-align:center;padding:40px 20px;">
-    <div style="font-size:72px;margin-bottom:20px;"></div>
-    <div style="font-size:24px;font-weight:700;color:var(--petrol);margin-bottom:10px;">Tarifario Automático</div>
-    <div style="font-size:15px;color:var(--text-muted);max-width:500px;line-height:1.65;">
-      Este módulo analizará el historial de ofertas de BOOM Logistics para generar tarifas de referencia automáticas por ruta, tipo de equipo y cliente.
+  <div class="approved-header">
+    <div>
+      <h2>Tarifario Automático</h2>
+      <p>Histórico de tus ofertas: carga, origen, destino y valor. Filtra como en Excel para ver qué has cobrado antes.</p>
     </div>
-    <div style="margin-top:32px;display:inline-flex;gap:14px;flex-wrap:wrap;justify-content:center;">
-      <div style="background:#fff;border-radius:14px;padding:20px 28px;box-shadow:var(--shadow);min-width:160px;">
-        <div style="font-size:28px;margin-bottom:6px;"></div>
-        <div style="font-size:12px;font-weight:700;color:var(--petrol);">Consulta por Ruta</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Próximamente</div>
-      </div>
-      <div style="background:#fff;border-radius:14px;padding:20px 28px;box-shadow:var(--shadow);min-width:160px;">
-        <div style="font-size:28px;margin-bottom:6px;"></div>
-        <div style="font-size:12px;font-weight:700;color:var(--petrol);">Análisis de Precios</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Próximamente</div>
-      </div>
-      <div style="background:#fff;border-radius:14px;padding:20px 28px;box-shadow:var(--shadow);min-width:160px;">
-        <div style="font-size:28px;margin-bottom:6px;"></div>
-        <div style="font-size:12px;font-weight:700;color:var(--petrol);">Sugerencia con IA</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Próximamente</div>
-      </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <span id="tarResumen" style="font-size:12px;color:var(--text-muted);"></span>
+      <button class="btn btn-outline btn-sm" onclick="cargarTarifario()">Actualizar</button>
+    </div>
+  </div>
+
+  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+      <input id="tarBuscar" type="text" placeholder="Buscar carga, cliente, origen, destino…" oninput="tarPintar()"
+             style="flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-size:13px;">
+      <select id="tarOrigen" onchange="tarPintar()" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;"><option value="">Origen: todos</option></select>
+      <select id="tarDestino" onchange="tarPintar()" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;"><option value="">Destino: todos</option></select>
+      <select id="tarEquipo" onchange="tarPintar()" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;"><option value="">Equipo: todos</option></select>
+      <label style="font-size:12px;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+        <input id="tarSoloRuta" type="checkbox" onchange="tarPintar()"> con ruta
+      </label>
+      <label style="font-size:12px;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+        <input id="tarSoloAceptada" type="checkbox" onchange="tarPintar()"> solo aceptadas
+      </label>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tar-tabla" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="background:var(--petrol);color:#fff;">
+            <th data-k="fecha"   onclick="tarSort('fecha')"   style="padding:8px 10px;text-align:left;cursor:pointer;white-space:nowrap;">Fecha ⇅</th>
+            <th data-k="num"     onclick="tarSort('num')"     style="padding:8px 10px;text-align:left;cursor:pointer;">N° ⇅</th>
+            <th data-k="cliente" onclick="tarSort('cliente')" style="padding:8px 10px;text-align:left;cursor:pointer;">Cliente ⇅</th>
+            <th data-k="carga"   onclick="tarSort('carga')"   style="padding:8px 10px;text-align:left;cursor:pointer;">Carga ⇅</th>
+            <th style="padding:8px 10px;text-align:left;">Origen → Destino</th>
+            <th data-k="equipo"  onclick="tarSort('equipo')"  style="padding:8px 10px;text-align:left;cursor:pointer;">Equipo ⇅</th>
+            <th data-k="valor"   onclick="tarSort('valor')"   style="padding:8px 10px;text-align:right;cursor:pointer;white-space:nowrap;">Valor ⇅</th>
+            <th style="padding:8px 10px;text-align:center;">Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tarBody">
+          <tr><td colspan="8" style="text-align:center;padding:24px;color:#9aa3b0;">Cargando…</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -4141,6 +4163,7 @@ function switchTab(name) {
   if (name === 'tablero')    loadTablero();
   if (name === 'aprobaciones') { cargarPresuPendientes(); cargarPresuAprobados(); }
   if (name === 'rentabilidad') initRentabilidad();
+  if (name === 'tarifario')  cargarTarifario();
   if (name === 'proyeccion') renderProyeccion();
   if (name === 'facturacion') { factVista('mes'); pyRenderReal(); }
   // Activa columnas ajustables cuando la tabla ya está visible (con datos).
@@ -4408,6 +4431,109 @@ function factVista(v) {
   if (mes) mes.style.display = (v === 'mes') ? 'block' : 'none';
   if (cli) cli.style.display = (v === 'cliente') ? 'block' : 'none';
   if (v === 'cliente' && !factTopCargado) { factTopCargado = true; loadTopClientes('factTopClientes', 500); }
+}
+
+// ================== TARIFARIO AUTOMÁTICO ==================
+let tarData = [];
+let tarSortKey = 'fecha';
+let tarSortDir = -1;   // -1 desc, 1 asc
+
+async function cargarTarifario() {
+  const body = document.getElementById('tarBody');
+  try {
+    const res = await fetch('/api/tarifario');
+    if (!res.ok) throw new Error('No se pudo cargar el tarifario');
+    const d = await res.json();
+    tarData = d.ofertas || [];
+    const rs = document.getElementById('tarResumen');
+    if (rs) rs.textContent = `${d.total || 0} ofertas · ${d.con_ruta || 0} con ruta`;
+    tarLlenarFiltros();
+    tarPintar();
+  } catch (e) {
+    if (body) body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger);">${e.message}</td></tr>`;
+  }
+}
+
+function tarLlenarFiltros() {
+  const uniq = (k) => [...new Set(tarData.map(o => (o[k] || '').trim()).filter(Boolean))].sort();
+  const fill = (id, vals, label) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const actual = sel.value;
+    sel.innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${v}</option>`).join('');
+    sel.value = actual;
+  };
+  fill('tarOrigen', uniq('origen'), 'Origen: todos');
+  fill('tarDestino', uniq('destino'), 'Destino: todos');
+  fill('tarEquipo', uniq('equipo'), 'Equipo: todos');
+}
+
+function tarSort(k) {
+  if (tarSortKey === k) tarSortDir *= -1; else { tarSortKey = k; tarSortDir = (k === 'valor' || k === 'fecha') ? -1 : 1; }
+  tarPintar();
+}
+
+function tarPintar() {
+  const q = (document.getElementById('tarBuscar').value || '').trim().toUpperCase();
+  const fo = document.getElementById('tarOrigen').value;
+  const fd = document.getElementById('tarDestino').value;
+  const fe = document.getElementById('tarEquipo').value;
+  const soloRuta = document.getElementById('tarSoloRuta').checked;
+  const soloAcep = document.getElementById('tarSoloAceptada').checked;
+
+  let filas = tarData.filter(o => {
+    if (fo && (o.origen || '') !== fo) return false;
+    if (fd && (o.destino || '') !== fd) return false;
+    if (fe && (o.equipo || '') !== fe) return false;
+    if (soloRuta && !o.con_ruta) return false;
+    if (soloAcep && (o.respuesta || '').toUpperCase() !== 'ACEPTADA') return false;
+    if (q) {
+      const blob = [o.carga, o.cliente, o.origen, o.destino, o.equipo, o.num].join(' ').toUpperCase();
+      if (!blob.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const k = tarSortKey;
+  filas.sort((a, b) => {
+    let va = a[k], vb = b[k];
+    if (k === 'valor') { va = +va || 0; vb = +vb || 0; return (va - vb) * tarSortDir; }
+    va = (va || '').toString().toUpperCase(); vb = (vb || '').toString().toUpperCase();
+    return va < vb ? -tarSortDir : (va > vb ? tarSortDir : 0);
+  });
+
+  const body = document.getElementById('tarBody');
+  if (!filas.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#9aa3b0;">Sin resultados con esos filtros.</td></tr>';
+    const rs = document.getElementById('tarResumen');
+    if (rs) rs.textContent = `0 de ${tarData.length} ofertas`;
+    return;
+  }
+  const estadoPill = (o) => {
+    const r = (o.respuesta || '').toUpperCase();
+    let c = '#64748b', t = r || '—';
+    if (r === 'ACEPTADA') { c = '#157a5b'; t = 'Aceptada'; }
+    else if (r === 'RECHAZADA' || r === 'NO ACEPTADA') { c = '#c0392b'; t = 'No aceptada'; }
+    else if (r === 'RECIBIDO' || r === 'PENDIENTE' || r === 'ENVIADA') { c = '#b45309'; t = 'Pendiente'; }
+    return `<span style="background:${c}1a;color:${c};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap;">${t}</span>`;
+  };
+  body.innerHTML = filas.map(o => {
+    const ruta = (o.origen || o.destino)
+      ? `${o.origen || '—'} <span style="color:#9aa3b0;">→</span> ${o.destino || '—'}`
+      : '<span style="color:#c4ccd6;">—</span>';
+    return `<tr style="border-bottom:1px solid #eef2f7;">
+      <td style="padding:8px 10px;white-space:nowrap;color:var(--text-muted);">${(o.fecha || '').slice(0,10) || '—'}</td>
+      <td style="padding:8px 10px;font-weight:600;color:var(--petrol);">${o.num || ''}</td>
+      <td style="padding:8px 10px;">${o.cliente || '—'}</td>
+      <td style="padding:8px 10px;max-width:260px;">${o.carga || '<span style="color:#c4ccd6;">—</span>'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;">${ruta}</td>
+      <td style="padding:8px 10px;white-space:nowrap;">${o.equipo || '—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--petrol);white-space:nowrap;font-variant-numeric:tabular-nums;">${fmtCop(o.valor || 0)}${(o.moneda && o.moneda !== 'COP') ? ' <span style=\"font-size:10px;color:#64748b;\">'+o.moneda+'</span>' : ''}</td>
+      <td style="padding:8px 10px;text-align:center;">${estadoPill(o)}</td>
+    </tr>`;
+  }).join('');
+  const rs = document.getElementById('tarResumen');
+  if (rs) rs.textContent = `${filas.length} de ${tarData.length} ofertas`;
 }
 
 async function pyRenderReal() {
