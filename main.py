@@ -8256,11 +8256,26 @@ def _parse_facturacion(contenido: bytes):
     return filas
 
 
+def _clase_por_ref(ref):
+    """Clasifica una factura por su N° de oferta (columna 'Oferta No.'):
+    26-xxxx -> '2026', 25-xxxx -> '2025', cualquier otra cosa (CONTRATO, texto,
+    vacío) -> None = 'Contratos y otros'. Así las facturas con oferta real NO caen
+    en el bloque de contratos."""
+    s = str(ref or "")
+    if re.search(r"26-?\d{3,4}", s):
+        return "2026"
+    if re.search(r"25-?\d{3,4}", s):
+        return "2025"
+    return None
+
+
 def _upsert_facturacion(cur, facs):
     """UPSERT de facturas por número (misma lógica que el import de Vulcano):
-    conserva la exclusión manual y pre-excluye las de la lista por defecto."""
+    conserva la exclusión manual y pre-excluye las de la lista por defecto.
+    Clasifica cada factura por su N° de oferta (2026 / 2025 / contratos)."""
     nuevas = actualizadas = 0
     for f in facs:
+        clase = _clase_por_ref(f.get("oferta_ref"))
         cur.execute("SELECT excluida FROM vulcano_facturas WHERE factura=%s", (f["factura"],))
         prev = fetchone(cur)
         if prev is None:
@@ -8268,21 +8283,22 @@ def _upsert_facturacion(cur, facs):
             cur.execute("""
                 INSERT INTO vulcano_facturas
                     (factura, fecha, mes, anio, estado, nit, cliente,
-                     subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                     subtotal, total, valor_pagado, saldo, excluida, oferta_ref, clase)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, (f["factura"], f["fecha"], f["mes"], f["anio"], f["estado"],
                   f["nit"], f["cliente"], f["subtotal"], f["total"],
-                  f["valor_pagado"], f["saldo"], excluida, f.get("oferta_ref")))
+                  f["valor_pagado"], f["saldo"], excluida, f.get("oferta_ref"), clase))
             nuevas += 1
         else:
             cur.execute("""
                 UPDATE vulcano_facturas SET
                     fecha=%s, mes=%s, anio=%s, estado=%s, nit=%s, cliente=%s,
                     subtotal=%s, total=%s, oferta_ref=COALESCE(%s, oferta_ref),
-                    importado_at=now()
+                    clase=COALESCE(%s, clase), importado_at=now()
                 WHERE factura=%s
             """, (f["fecha"], f["mes"], f["anio"], f["estado"], f["nit"],
-                  f["cliente"], f["subtotal"], f["total"], f.get("oferta_ref"), f["factura"]))
+                  f["cliente"], f["subtotal"], f["total"], f.get("oferta_ref"),
+                  clase, f["factura"]))
             actualizadas += 1
     return {"nuevas": nuevas, "actualizadas": actualizadas}
 
