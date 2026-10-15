@@ -2806,6 +2806,23 @@ def _canon_cliente(nombre):
     return _CLIENTES_CANON.get(n, n)
 
 
+def _misma_persona(a, b):
+    """¿El nombre a y el nombre b son la misma persona? Tolerante a nombre corto vs
+    completo y a mayúsculas/acentos (ej. 'BORIS BORREGO' ≈ 'BORIS BORREGO JIMÉNEZ').
+    Se usa para el candado de editar/anular (dueño de la oferta)."""
+    import unicodedata
+    def norm(s):
+        s = unicodedata.normalize("NFD", str(s or "")).encode("ascii", "ignore").decode().upper()
+        return re.sub(r"\s+", " ", s).strip()
+    a, b = norm(a), norm(b)
+    if not a or not b:
+        return False
+    if a == b or a in b or b in a:
+        return True
+    pa, pb = a.split(" "), b.split(" ")
+    return len(pa) >= 2 and len(pb) >= 2 and pa[0] == pb[0] and pa[1] == pb[1]
+
+
 # Tablas con columna 'cliente' que se renombran al propagar un cambio de nombre.
 _TABLAS_CLIENTE = ["ofertas", "ofertas_2025", "contratos", "facturacion_cat",
                    "notificaciones", "osi"]
@@ -5327,9 +5344,7 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         if any(k in fields for k in _PROTEGIDOS):
             _u = getattr(request.state, "user", None) or {}
             if _u.get("rol") != "admin":
-                _mi = re.sub(r"\s+", " ", str(_u.get("nombre") or "").strip()).upper()
-                _dueno = re.sub(r"\s+", " ", str(prev.get("realizada") or "").strip()).upper()
-                if not _dueno or _mi != _dueno:
+                if not _misma_persona(_u.get("nombre"), prev.get("realizada")):
                     raise HTTPException(403, "Solo el administrador o quien creó la oferta puede editarla.")
 
         if "pdf_data" in fields and isinstance(fields["pdf_data"], dict):
@@ -5473,9 +5488,7 @@ def anular_oferta(oferta_id: int, body: AnularBody, request: Request):
             # SEGURIDAD: solo admin o el dueño (realizada) puede anular su oferta.
             _u = getattr(request.state, "user", None) or {}
             if _u.get("rol") != "admin":
-                _mi = re.sub(r"\s+", " ", str(_u.get("nombre") or "").strip()).upper()
-                _dueno = re.sub(r"\s+", " ", str(prev.get("realizada") or "").strip()).upper()
-                if not _dueno or _mi != _dueno:
+                if not _misma_persona(_u.get("nombre"), prev.get("realizada")):
                     raise HTTPException(403, "Solo el administrador o quien creó la oferta puede anularla.")
             cur.execute("""
                 UPDATE ofertas
@@ -5597,9 +5610,7 @@ def _oferta_dueno_o_admin(cur, oferta_id: int, request: Request):
     u = getattr(request.state, "user", None) or {}
     if u.get("rol") == "admin":
         return
-    mi = re.sub(r"\s+", " ", str(u.get("nombre") or "").strip()).upper()
-    dueno = re.sub(r"\s+", " ", str(r.get("realizada") or "").strip()).upper()
-    if not dueno or mi != dueno:
+    if not _misma_persona(u.get("nombre"), r.get("realizada")):
         raise HTTPException(403, "Solo el administrador o quien creó la oferta puede adjuntar el packing list.")
 
 

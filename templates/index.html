@@ -5257,6 +5257,19 @@ function filterControl() {
   renderControlTable();
 }
 
+// ¿El nombre de la oferta (realizada) y el del usuario son la misma persona?
+// Tolerante a nombre corto vs completo y a mayúsculas/acentos.
+function mismaPersona(a, b) {
+  const norm = s => (s || '').toString().trim().toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  a = norm(a); b = norm(b);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;   // "BORIS BORREGO" ⊂ "BORIS BORREGO JIMENEZ"
+  const pa = a.split(/\s+/), pb = b.split(/\s+/);     // o coinciden nombre + primer apellido
+  return pa.length >= 2 && pb.length >= 2 && pa[0] === pb[0] && pa[1] === pb[1];
+}
+
 function renderControlTable() {
   const start = (controlPage - 1) * PAGE_SIZE;
   const page = controlFiltered.slice(start, start + PAGE_SIZE);
@@ -5277,7 +5290,9 @@ function renderControlTable() {
         : '';
       const esAdmin = currentUser && currentUser.rol === 'admin';
       // SEGURIDAD: solo admin o el dueño (quien la realizó) puede editar/anular su oferta.
-      const esDueno = currentUser && ((o.realizada||'').trim().toUpperCase() === ((currentUser.nombre||'').trim().toUpperCase()));
+      // Tolerante: reconoce al dueño aunque el nombre esté corto o completo
+      // (ej. "BORIS BORREGO" ≈ "BORIS BORREGO JIMÉNEZ").
+      const esDueno = currentUser && mismaPersona(o.realizada, currentUser.nombre);
       const puedeEditar = esAdmin || esDueno;
       const nEsc = (o.num||'').replace(/'/g,"\\'");
       const cEsc = (o.cliente||'').replace(/'/g,"\\'");
