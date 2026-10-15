@@ -2659,7 +2659,7 @@ def _serialize(d: dict) -> dict:
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
 _AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg",
-                "/manifest.webmanifest", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icon-192.png", "/icon-512.png", "/favicon.ico"}
+                "/manifest.webmanifest", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icon-192.png", "/icon-512.png", "/favicon.ico", "/api/version"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
 # 'viewer' que tenga el módulo 'operaciones' puede ESCRIBIR sólo aquí (crear/editar
@@ -3729,6 +3729,23 @@ def index():
         "Pragma": "no-cache",
         "Expires": "0",
     })
+
+
+# Versión de la app para avisar a todos los usuarios cuando hay una actualización,
+# AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
+# muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
+# (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
+APP_VERSION = "2026-10-15.1"
+APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
+                  "(cierra sesión y vuelve a entrar, o presiona "
+                  "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
+
+
+@app.get("/api/version")
+def api_version():
+    """Versión desplegada. El front la consulta para disparar la alarma de
+    actualización a quien tenga la plataforma abierta con una versión vieja."""
+    return {"version": APP_VERSION, "mensaje": APP_UPDATE_MSG}
 
 
 @app.get("/manual", response_class=HTMLResponse)

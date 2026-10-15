@@ -3685,9 +3685,22 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-14.2',
+  version: '2026-10-15.1',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
+// Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
+// navegador, muestra la alarma AUNQUE el usuario tenga la pestaña abierta todo el día.
+async function revisarVersionServidor() {
+  try {
+    const sv = await (await fetch('/api/version', { cache: 'no-store' })).json();
+    if (sv && sv.version && sv.version !== AVISO_UPDATE.version) {
+      if (sv.mensaje) AVISO_UPDATE.mensaje = sv.mensaje;
+      _avisoUpdateMostrado = false;
+      try { localStorage.removeItem('aviso_update_visto'); } catch (e) {}
+      mostrarAvisoUpdate();
+    }
+  } catch (e) {}
+}
 let _avisoUpdateMostrado = false;
 let _alarmaCtx = null;
 function _reproducirChime() {
@@ -4238,6 +4251,7 @@ async function loadAll() {
       if (_id === 'tab-proyeccion' && typeof renderProyeccion === 'function') renderProyeccion();
     } catch(e) {}
     setSyncState('ok');
+    revisarVersionServidor();   // ¿hay una versión nueva desplegada? -> alarma
   } catch(e) {
     setSyncState('error');
     showToast('Error cargando datos: ' + e.message, 'error');
