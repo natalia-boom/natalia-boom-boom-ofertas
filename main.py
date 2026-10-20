@@ -5280,6 +5280,17 @@ def create_oferta(oferta: OfertaCreate):
                 if not oferta.num or intento > 0:
                     cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS next FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
                     oferta.num = str(fetchone(cur)["next"])
+                # BLOQUEO ANTI-DESFASE: sella el número REAL dentro del contenido de
+                # la oferta (ref + HTML) ANTES de guardar. Así el PDF/HTML impreso
+                # muestra SIEMPRE el mismo número que queda en Control, desde la
+                # PRIMERA descarga, aunque el número se haya corrido por crear dos
+                # ofertas casi al tiempo. (Antes solo se corregía al re-descargar.)
+                if oferta.pdf_data:
+                    _ref_fmt = f"{oferta.num[:2]}-{oferta.num[2:]}"
+                    oferta.pdf_data["ref"] = _ref_fmt
+                    if oferta.pdf_data.get("ia_html"):
+                        oferta.pdf_data["ia_html"] = _forzar_ref_en_html(oferta.pdf_data["ia_html"], _ref_fmt)
+                    pdf_json = json.dumps(oferta.pdf_data)
                 cur.execute(
                     """INSERT INTO ofertas
                        (num,mes,fecha,cliente,realizada,formalizada,unidad,tipo,sector,
