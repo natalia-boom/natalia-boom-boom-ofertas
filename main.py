@@ -3719,6 +3719,22 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
         html = _inject_anexo(html)
         html, aviso_sb = _asegurar_standby(html)
 
+    # RED DE SEGURIDAD DEL VALOR: a veces el modelo arma bien la tabla pero deja el
+    # `valor` del meta vacío o en 0, y entonces la oferta no se deja guardar ("sin
+    # valor"). Si hay un total impreso en la oferta, lo tomamos de ahí para que el
+    # CHAT siempre entregue el valor. No toca el prompt.
+    try:
+        if html:
+            _vmeta = int((meta or {}).get("valor") or 0) if meta else 0
+            if _vmeta <= 0:
+                _tot = _total_desde_html(html)
+                if _tot > 0:
+                    if meta is None:
+                        meta = {}
+                    meta["valor"] = _tot
+    except Exception:
+        pass
+
     avisos = [a for a in (aviso_trunc, aviso_sb) if a]
     if avisos:
         _av = "\n\n".join(avisos)
@@ -6049,6 +6065,24 @@ def _forzar_ref_en_html(html: str, ref_fmt: str) -> str:
         # puntos para no confundir con la clase CSS "ref-bar".
         html = re.sub(r'(REF\s*:\s*)', r'\g<1>' + ref_fmt + ' ', html, count=1)
     return html
+
+
+def _total_desde_html(html):
+    """Lee el VALOR TOTAL impreso en la oferta (para cuando el chat no puso el valor
+    en el meta). Toma las líneas "TOTAL … $X" (ignora SUBTOTAL) y devuelve el mayor
+    (el gran total). Devuelve 0 si no encuentra nada confiable."""
+    if not html:
+        return 0
+    txt = re.sub(r'<[^>]+>', ' ', html).replace('&nbsp;', ' ')
+    vals = []
+    for m in re.finditer(r'\bTOTAL\b[^$]{0,45}?\$\s*([\d][\d\.\,]{3,})', txt, re.I):
+        pre = txt[max(0, m.start() - 8):m.start()].upper()
+        if 'SUB' in pre:
+            continue
+        n = m.group(1).replace('.', '').replace(',', '')
+        if n.isdigit():
+            vals.append(int(n))
+    return max(vals) if vals else 0
 
 
 def _verificar_suma_oferta(html):
