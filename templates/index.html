@@ -533,12 +533,12 @@ body.rol-viewer .write-only { display:none !important; }
 .user-avatar.admin { background:var(--orange); }
 
 /* CHAT IA PASO 1 */
-.chat-historia { background:#fff; border:1.5px solid var(--border); border-radius:8px 8px 0 0; padding:14px 16px; min-height:200px; max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
-.chat-msg { display:flex; gap:10px; align-items:flex-start; }
+.chat-historia { background:#fff; border:1.5px solid var(--border); border-radius:8px 8px 0 0; padding:14px 16px; min-height:200px; max-height:360px; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:12px; }
+.chat-msg { display:flex; gap:10px; align-items:flex-start; min-width:0; max-width:100%; }
 .chat-msg.user { flex-direction:row-reverse; }
 .chat-avatar { background:var(--petrol); color:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
 .chat-msg.user .chat-avatar { background:var(--orange); }
-.chat-burbuja { border-radius:0 10px 10px 10px; padding:10px 14px; font-size:13px; color:var(--text); max-width:88%; line-height:1.55; white-space:pre-wrap; background:#eaf4f7; }
+.chat-burbuja { border-radius:0 10px 10px 10px; padding:10px 14px; font-size:13px; color:var(--text); max-width:88%; min-width:0; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; background:#eaf4f7; }
 .chat-msg.user .chat-burbuja { border-radius:10px 0 10px 10px; background:#fff3ec; text-align:right; }
 .chat-input-row { background:#fff; border:1.5px solid var(--border); border-top:none; border-radius:0 0 8px 8px; display:flex; align-items:flex-end; gap:8px; padding:10px 12px; }
 .chat-clip-btn { background:none; border:1.5px solid var(--border); border-radius:6px; padding:7px 10px; cursor:pointer; color:var(--petrol); font-size:17px; flex-shrink:0; transition:background 0.15s; line-height:1; }
@@ -3685,7 +3685,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-15.1',
+  version: '2026-10-22',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
