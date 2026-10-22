@@ -5290,6 +5290,11 @@ def create_oferta(oferta: OfertaCreate):
                     oferta.pdf_data["ref"] = _ref_fmt
                     if oferta.pdf_data.get("ia_html"):
                         oferta.pdf_data["ia_html"] = _forzar_ref_en_html(oferta.pdf_data["ia_html"], _ref_fmt)
+                        # BLOQUEO DE SUMA: corrige el total si la IA lo sumó mal.
+                        _suma_ok, _html_fix = _verificar_suma_oferta(oferta.pdf_data["ia_html"])
+                        if _suma_ok is not None:
+                            oferta.pdf_data["ia_html"] = _html_fix
+                            oferta.valor = _suma_ok
                     pdf_json = json.dumps(oferta.pdf_data)
                 cur.execute(
                     """INSERT INTO ofertas
@@ -6046,6 +6051,65 @@ def _forzar_ref_en_html(html: str, ref_fmt: str) -> str:
     return html
 
 
+def _verificar_suma_oferta(html):
+    """BLOQUEO DE SUMA: en ofertas multi-sección con subtotales REALES y SIN
+    opciones/alternativas, el TOTAL del proyecto debe ser la suma de los subtotales.
+    Si el total impreso no cuadra, lo corrige y devuelve (total_correcto, html_corregido).
+    Si no aplica o ya está bien, devuelve (None, html).
+
+    MUY CONSERVADOR a propósito (probado contra 297 ofertas, 0 falsos positivos):
+    - Solo actúa si la tabla económica tiene filas `subtotal-row` (>=2).
+    - NUNCA toca ofertas de OPCIONES/ALTERNATIVAS/ESCENARIOS (ahí los subtotales
+      son escenarios que el cliente elige, no se suman).
+    - Solo corrige el monto del TOTAL; no inventa ni reordena ítems."""
+    if not html:
+        return None, html
+    tablas = re.findall(r'<table[^>]*>.*?</table>', html, re.I | re.S)
+    tabla = None
+    for t in tablas:
+        if re.search(r'Valor\s*Total', t, re.I) and 'subtotal-row' in t.lower():
+            tabla = t
+            break
+    if not tabla:
+        return None, html
+    U = re.sub(r'<[^>]+>', ' ', tabla).upper()
+    if re.search(r'OPCI[OÓ]N\s+[AB1-9]|ALTERNATIVA|ESCENARIO\s+[AB1-9]', U):
+        return None, html
+
+    def _montos(s):
+        out = []
+        for mm in re.findall(r'\$\s*([\d][\d\.\,]*)', s or ""):
+            n = mm.replace('.', '').replace(',', '')
+            if n.isdigit():
+                out.append(int(n))
+        return out
+
+    filas = re.findall(r'<tr\b[^>]*>.*?</tr>', tabla, re.I | re.S)
+    subtot = []
+    total_row = None
+    for fr in filas:
+        u = re.sub(r'<[^>]+>', ' ', fr).upper()
+        montos = _montos(fr)
+        if 'subtotal-row' in fr.lower():
+            if montos:
+                subtot.append(montos[-1])
+        elif (u.strip().startswith('TOTAL') or re.search(
+                r'TOTAL\s+(PROYECTO|GENERAL|DE\s+LA\s+OPERACI)|VALOR\s+TOTAL\s+DE\s+LA', u)) and 'SUBTOTAL' not in u:
+            total_row = (fr, montos[-1] if montos else None)
+    if len(subtot) < 2 or not total_row or total_row[1] is None:
+        return None, html
+    suma = sum(subtot)
+    if total_row[1] == suma:
+        return None, html
+    fr = total_row[0]
+    ms = list(re.finditer(r'(\$\s*)([\d\.\,]+)', fr))
+    if not ms:
+        return None, html
+    last = ms[-1]
+    fr_new = fr[:last.start(2)] + format(suma, ",").replace(",", ".") + fr[last.end(2):]
+    return suma, html.replace(total_row[0], fr_new, 1)
+
+
 def _bloque_packing_html(oferta_id: int, nombre: str = "") -> str:
     """Recuadro con el enlace de descarga del Packing List adjunto de la oferta."""
     url = f"https://web-production-73608.up.railway.app/api/ofertas/{oferta_id}/packing-list"
@@ -6267,6 +6331,13 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                 # aquí para que documento y registro nunca se descuadren.
                 if pdf_data.get("ia_html"):
                     pdf_data["ia_html"] = _forzar_ref_en_html(pdf_data["ia_html"], _fmt_ref(num))
+                    # BLOQUEO DE SUMA: si la IA sumó mal el TOTAL (multi-sección con
+                    # subtotales), se corrige el total impreso y el valor guardado.
+                    _suma_ok, _html_fix = _verificar_suma_oferta(pdf_data["ia_html"])
+                    if _suma_ok is not None:
+                        pdf_data["ia_html"] = _html_fix
+                        nuevo_valor = _suma_ok
+                        print(f"[SUMA] Oferta {num}: total corregido a {_suma_ok}")
                 if ex:
                     oferta_id = ex["id"]
                     valor_ant = int(ex.get("valor") or 0)
