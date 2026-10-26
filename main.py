@@ -2829,11 +2829,7 @@ def _misma_persona(a, b):
     if a == b or a in b or b in a:
         return True
     pa, pb = a.split(" "), b.split(" ")
-    # Mismo primer nombre + al menos un apellido en común.
-    # Tolera segundos nombres: "BORIS ANDRES BORREGO JIMENEZ" ≈ "BORIS BORREGO".
-    if len(pa) < 2 or len(pb) < 2 or pa[0] != pb[0]:
-        return False
-    return bool(set(pa[1:]) & set(pb[1:]))
+    return len(pa) >= 2 and len(pb) >= 2 and pa[0] == pb[0] and pa[1] == pb[1]
 
 
 # Tablas con columna 'cliente' que se renombran al propagar un cambio de nombre.
