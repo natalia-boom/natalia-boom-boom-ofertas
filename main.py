@@ -3625,6 +3625,40 @@ def _inyectar_recursos_oferta(html: str, ref_fmt: str, fotos: list) -> str:
     return html
 
 
+def _asegurar_fotos(html: str, fotos: list) -> str:
+    """Red de seguridad para las fotos de referencia: si el usuario adjuntó fotos
+    pero el modelo NO las puso en la oferta (a veces olvida los marcadores
+    {{FOTO_n}}), las inyectamos en su propia sección con la misma estructura y
+    clases que usa el prompt. NO toca el prompt. Idempotente: si las fotos ya
+    quedaron embebidas, no hace nada."""
+    valid = [f for f in (fotos or [])
+             if isinstance(f, str) and f.strip().startswith("data:image")]
+    if not valid:
+        return html
+    # Si alguna de las fotos ya está en el HTML, el modelo sí las puso: no tocar.
+    if any(src in html for src in valid):
+        return html
+    grid_cls = "foto-grid una" if len(valid) == 1 else "foto-grid"
+    cards = "".join(
+        f'<div class="foto-card"><img src="{src}" alt="Foto de referencia de la carga"/>'
+        f'<p class="foto-cap">Imagen de referencia (operación similar, no '
+        f'necesariamente la carga real).</p></div>'
+        for src in valid
+    )
+    seccion = (f'<div class="section-title">FOTOS DE REFERENCIA DE LA CARGA</div>'
+               f'<div class="{grid_cls}">{cards}</div>')
+    # Preferimos insertarla ANTES de la propuesta económica (como en la estructura normal).
+    m = re.search(r'<div class="section-title"[^>]*>[^<]*(ECON|BUDGETAR|PROPOSAL|PROPUESTA)',
+                  html, re.I)
+    if m:
+        return html[:m.start()] + seccion + html[m.start():]
+    # Si no hay sección económica identificable, la ponemos antes del footer.
+    m2 = re.search(r'<footer', html, re.I)
+    if m2:
+        return html[:m2.start()] + seccion + html[m2.start():]
+    return html + seccion
+
+
 # Datos legales REALES de la empresa (únicos y verdaderos).
 _PIE_LEGAL_BOOM = ("BOOM LOGISTICS COLOMBIA S.A.S. | NIT 900.548.985-7 | "
                    "Vía 40 No. 73-290 Oficina 401, Barranquilla, Colombia")
@@ -3718,6 +3752,7 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
     aviso_sb = None
     if html:
         html = _inyectar_recursos_oferta(html, ref_fmt, fotos)
+        html = _asegurar_fotos(html, fotos)   # red de seguridad: pega las fotos si el modelo las olvidó
         html = _normalizar_pie_legal(html)
         html = _limpiar_oferta_html(html)
         html = _inject_anexo(html)
