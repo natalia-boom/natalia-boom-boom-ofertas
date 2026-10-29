@@ -3697,7 +3697,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-29',
+  version: '2026-10-29b',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5459,7 +5459,9 @@ function _estrellaTitle(o) {
 }
 
 function _estrellaSvg(on) {
-  return `<svg width="19" height="19" viewBox="0 0 24 24" fill="${on ? '#FFC61A' : '#D3D9E2'}" stroke="${on ? '#E8A800' : '#B4BDCA'}" stroke-width="1.2" stroke-linejoin="round"><path d="M12 2.6c.38 0 .72.21.89.55l2.36 4.78 5.27.77c.37.05.68.31.8.67.11.36.02.75-.25 1.02l-3.82 3.72.9 5.25c.06.37-.09.75-.4.97-.3.22-.71.25-1.04.07L12 17.92l-4.71 2.48c-.33.18-.74.15-1.04-.07-.31-.22-.46-.6-.4-.97l.9-5.25-3.82-3.72c-.27-.27-.36-.66-.25-1.02.12-.36.43-.62.8-.67l5.27-.77 2.36-4.78c.17-.34.51-.55.89-.55z"/></svg>`;
+  const defs = on ? '<defs><linearGradient id="estrellaOro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE57A"/><stop offset=".55" stop-color="#FFC61A"/><stop offset="1" stop-color="#F5A300"/></linearGradient></defs>' : '';
+  const brillo = on ? '<path d="M9.3 8.9l1.9-3.8" stroke="#FFF6CC" stroke-width="1.3" stroke-linecap="round" fill="none" opacity=".9"/>' : '';
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="${on ? 'url(#estrellaOro)' : '#D3D9E2'}" stroke="${on ? '#E09A00' : '#B4BDCA'}" stroke-width="1.2" stroke-linejoin="round">${defs}<path d="M12 2.6c.38 0 .72.21.89.55l2.36 4.78 5.27.77c.37.05.68.31.8.67.11.36.02.75-.25 1.02l-3.82 3.72.9 5.25c.06.37-.09.75-.4.97-.3.22-.71.25-1.04.07L12 17.92l-4.71 2.48c-.33.18-.74.15-1.04-.07-.31-.22-.46-.6-.4-.97l.9-5.25-3.82-3.72c-.27-.27-.36-.66-.25-1.02.12-.36.43-.62.8-.67l5.27-.77 2.36-4.78c.17-.34.51-.55.89-.55z"/>${brillo}</svg>`;
 }
 
 function _pintarEstrella(btn, o) {
