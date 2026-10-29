@@ -2424,7 +2424,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
           <button class="btn btn-primary" id="iaBtnGuardar" onclick="iaGenerarOferta()" disabled style="padding:10px 20px;background:var(--petrol);">Generar oferta (guardar)</button>
         </div>
         <p style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;">
-          <b>Descargar PDF/HTML</b>: solo descarga, no guarda. &nbsp;|&nbsp; <b>Generar oferta</b>: guarda el registro en el Control de Ofertas con el consecutivo <span id="iaRefInline">—</span>.
+          <b>Descargar PDF/HTML</b>: primero guarda la oferta en Control y descarga con el consecutivo definitivo. &nbsp;|&nbsp; <b>Generar oferta</b>: guarda en Control con el consecutivo <span id="iaRefInline">—</span> y cierra el generador. Si ya descargaste, respeta ese mismo número.
         </p>
       </div>
 
@@ -3685,7 +3685,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-22',
+  version: '2026-10-29',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -6801,6 +6801,7 @@ let iaCambiosDirectos = []; // Trazabilidad: lista de cambios directos aplicados
 let iaRefAssigned = false; // ¿ya se pidió consecutivo?
 let iaEditingId = null;    // id de oferta que se versiona (o null)
 let iaRefManual = false;   // el usuario escribió el N° a mano (para versionar una existente)
+let iaGuardadoHuella = null; // huella (documento + registro) tal como quedó en Control la última vez (null = sin guardar)
 let iaDropBound = false;
 
 async function iaInit() {
@@ -7398,6 +7399,7 @@ async function iaDescargarPDF() {
   if (!iaHtml) return;
   if (iaClienteFalta()) return;
   const btn = document.getElementById('iaBtnPDF');
+  if (!(await iaAsegurarGuardada(btn))) return;
   const old = btn.textContent;
   btn.disabled = true; btn.textContent = 'Generando PDF...';
   try {
@@ -7425,9 +7427,10 @@ async function iaDescargarPDF() {
   }
 }
 
-function iaDescargarHTML() {
+async function iaDescargarHTML() {
   if (!iaHtml) return;
   if (iaClienteFalta()) return;
+  if (!(await iaAsegurarGuardada(document.getElementById('iaBtnHTML')))) return;
   const blob = new Blob([iaHtml], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -7530,8 +7533,67 @@ function iaToggleMasDet(force) {
   if (chev) chev.textContent = abrir ? '▾' : '▸';
 }
 
+// Sella el consecutivo DEFINITIVO en el documento (mismo criterio que
+// _forzar_ref_en_html del servidor): corrige el N° tras "REF:" y cualquier otra
+// aparición del número provisional, y el enlace del Packing List por número.
+function _iaSellarRef(html, refFmt) {
+  if (!html || !refFmt) return html;
+  const m = /(REF\s*:?\s*)(\d{2}\s*-\s*\d{3,4})/i.exec(html);
+  if (m) {
+    const impreso = m[2];
+    const norm = impreso.replace(/\s+/g, '');
+    if (norm !== refFmt) {
+      const ini = m.index + m[1].length;
+      html = html.slice(0, ini) + refFmt + html.slice(ini + impreso.length);
+      if (html.includes(impreso)) html = html.split(impreso).join(refFmt);
+      if (norm !== impreso && html.includes(norm)) html = html.split(norm).join(refFmt);
+    }
+  } else {
+    html = html.replace(/(REF\s*:\s*)/i, '$1' + refFmt + ' ');
+  }
+  return html.replace(/(\/api\/ofertas\/by-num\/)\d+(\/packing-list)/g, '$1' + refFmt.replace(/\D/g, '') + '$2');
+}
+
+// Huella de lo que se guardaría: documento + campos del registro. Si cambia
+// cualquiera (p. ej. el Estado o la Respuesta), hay algo nuevo por guardar.
+function iaHuella() {
+  const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const m = iaMeta || {};
+  return JSON.stringify([iaHtml, m.cliente, m.valor, m.moneda, m.descripcion,
+    v('iaFormaPago'), v('iaTipo'), v('iaSector'), v('iaUnidad'), v('iaEstado'),
+    v('iaRespuesta'), v('iaSeguimiento'), v('iaOrigen'), v('iaDestino'),
+    iaPackingFile ? iaPackingFile.nombre : '']);
+}
+
+// ¿Lo que está en pantalla ya está guardado en Control tal cual?
+function iaYaGuardada() {
+  return iaGuardadoHuella !== null && iaGuardadoHuella === iaHuella();
+}
+
+// Botón "Generar oferta (guardar)": guarda (si hay algo nuevo) y cierra el generador.
 async function iaGenerarOferta() {
-  if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return; }
+  if (iaYaGuardada()) {
+    showToast('Oferta ' + document.getElementById('iaRefDisplay').textContent + ' ya está guardada en Control', 'success');
+  } else {
+    const g = await iaGuardarRegistro(document.getElementById('iaBtnGuardar'));
+    if (!g) return;
+  }
+  iaResetChat(true);   // limpia el generador y toma el próximo consecutivo automáticamente
+  switchTab('control');
+}
+
+// Antes de descargar: si el documento aún no está en Control, se guarda primero,
+// así el archivo que sale para el cliente lleva el consecutivo DEFINITIVO.
+async function iaAsegurarGuardada(btn) {
+  if (iaYaGuardada()) return true;
+  return !!(await iaGuardarRegistro(btn));
+}
+
+// Guarda en Control (crea la oferta o una nueva versión) y deja el generador
+// amarrado a ese número: lo que se guarde o descargue después respeta el mismo
+// consecutivo. Devuelve la respuesta del servidor, o null si no se pudo.
+async function iaGuardarRegistro(btn) {
+  if (!iaHtml || !iaMeta) { showToast('Primero genera una oferta en el chat', 'warning'); return null; }
   // Malla de seguridad: no dejar guardar ofertas incompletas (ensucian el Control)
   const _cli  = (iaMeta.cliente || '').trim();
   const _val  = parseInt(iaMeta.valor) || 0;
@@ -7541,11 +7603,11 @@ async function iaGenerarOferta() {
   if (_val <= 0) _faltan.push('Valor de la oferta');
   if (!_tipo) _faltan.push('Tipo de Negocio');
   if (_faltan.length) {
-    showToast('Antes de guardar completa: ' + _faltan.join(', '), 'warning');
-    return;
+    showToast('Antes de guardar o descargar completa: ' + _faltan.join(', '), 'warning');
+    return null;
   }
-  const btn = document.getElementById('iaBtnGuardar');
-  btn.disabled = true; btn.textContent = 'Guardando...';
+  const btnTexto = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando en Control...';
   const numRaw = document.getElementById('iaRefNum').value.replace(/\D/g, '');
   const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
   const now = new Date();
@@ -7619,24 +7681,46 @@ async function iaGenerarOferta() {
         else { const e = await rp.json().catch(()=>({})); showToast('Oferta guardada, pero el Packing List no: ' + (e.detail||''), 'warning'); }
       } catch (e) { showToast('Oferta guardada, pero falló el adjunto', 'warning'); }
     }
-    const msg = g.creada
-      ? ('Oferta ' + g.num_fmt + ' guardada (versión 1)')
-      : ('Oferta ' + g.num_fmt + ' actualizada — versión ' + g.version);
-    showToast(msg, 'success');
+    // Amarra el generador al número DEFINITIVO: pantalla, documento y nombre del
+    // archivo quedan con el consecutivo real; lo siguiente se guarda como versión.
+    const cambioNum = numRaw && String(g.num) !== String(numRaw);
+    iaEditingId = g.oferta_id;
+    document.getElementById('iaRefDisplay').textContent = g.num_fmt;
+    document.getElementById('iaRefNum').value = g.num;
+    const inline = document.getElementById('iaRefInline'); if (inline) inline.textContent = g.num_fmt;
+    iaHtml = _iaSellarRef(iaHtml, g.num_fmt);
+    iaGuardadoHuella = iaHuella();
+    iaCambiosDirectos = [];
+    iaRenderCambiosAuto();
+    { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }
+    iaRenderPreview();
+    if (cambioNum) {
+      showToast('El ' + _fmtRefNum(numRaw) + ' ya lo tomó otra oferta. Esta quedó con el ' + g.num_fmt + ' (el documento ya dice ' + g.num_fmt + ')', 'warning');
+    } else {
+      showToast(g.creada
+        ? ('Oferta ' + g.num_fmt + ' guardada en Control (versión 1)')
+        : ('Oferta ' + g.num_fmt + ' actualizada — versión ' + g.version), 'success');
+    }
     await loadAll();
-    iaResetChat(true);   // limpia el generador y toma el próximo consecutivo automáticamente
-    switchTab('control');
+    return g;
   } catch (e) {
     showToast('' + e.message, 'error');
+    return null;
   } finally {
-    btn.disabled = false; btn.textContent = 'Generar oferta (guardar)';
+    btn.disabled = false; btn.textContent = btnTexto;
   }
+}
+
+function _fmtRefNum(num) {
+  const p = String(num).replace(/\D/g, '').padStart(6, '0');
+  return p.slice(0, 2) + '-' + p.slice(2);
 }
 
 function iaResetChat(silent) {
   if (!silent && iaHistory.length && !confirm('¿Empezar una conversación nueva? Se perderá la oferta actual si no la has guardado.')) return;
   iaHistory = []; iaFotos = []; iaHtml = ''; iaMeta = null; iaEditingId = null;
   iaRefManual = false;
+  iaGuardadoHuella = null;
   iaImgMap = {};
   iaCambiosDirectos = [];
   try { iaQuitarPacking(); } catch(e) {}
@@ -7707,6 +7791,8 @@ function iaCargarOferta() {
   iaAppendMsg('assistant', ctx);
   iaHistory.push({ role: 'assistant', content: ctx });
   iaRenderResumen();
+  // Recién cargada = igual a lo que hay en Control: re-descargarla no crea versión.
+  if (iaVersionHtml) iaGuardadoHuella = iaHuella();
   showToast('Oferta ' + fmt + ' cargada para versionar', 'success');
 }
 

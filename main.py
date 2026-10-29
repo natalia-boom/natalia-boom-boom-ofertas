@@ -3799,7 +3799,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-10-22"
+APP_VERSION = "2026-10-29"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -6106,6 +6106,16 @@ def _forzar_ref_en_html(html: str, ref_fmt: str) -> str:
     return html
 
 
+def _sellar_num_en_html(html: str, num) -> str:
+    """Deja el documento con el consecutivo DEFINITIVO: número impreso (REF) y
+    enlace del Packing List por número. Se aplica también a la copia que queda en
+    el historial de versiones, para que ninguna copia conserve el provisional."""
+    if not html:
+        return html
+    html = _forzar_ref_en_html(html, _fmt_ref(num))
+    return re.sub(r'(/api/ofertas/by-num/)\d+(/packing-list)', r'\g<1>' + str(num) + r'\g<2>', html)
+
+
 def _total_desde_html(html):
     """Lee el VALOR TOTAL impreso en la oferta (para cuando el chat no puso el valor
     en el meta). Toma las líneas "TOTAL … $X" (ignora SUBTOTAL) y devuelve el mayor
@@ -6403,7 +6413,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                 # Control. Si al guardar se reasignó el consecutivo, se corrige
                 # aquí para que documento y registro nunca se descuadren.
                 if pdf_data.get("ia_html"):
-                    pdf_data["ia_html"] = _forzar_ref_en_html(pdf_data["ia_html"], _fmt_ref(num))
+                    pdf_data["ia_html"] = _sellar_num_en_html(pdf_data["ia_html"], num)
                     # BLOQUEO DE SUMA: si la IA sumó mal el TOTAL (multi-sección con
                     # subtotales), se corrige el total impreso y el valor guardado.
                     _suma_ok, _html_fix = _verificar_suma_oferta(pdf_data["ia_html"])
@@ -6475,7 +6485,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, true)
                        RETURNING id, version, created_at""",
                     (oferta_id, num, vnum, nuevo_valor, body.moneda or "COP", body.descripcion,
-                     body.forma_pago, body.html or "", body.pdf_original, resumen, usuario),
+                     body.forma_pago, _sellar_num_en_html(body.html or "", num), body.pdf_original, resumen, usuario),
                 )
                 vrow = fetchone(cur)
 
