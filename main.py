@@ -1643,6 +1643,11 @@ def _ensure_db():
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_motivo text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_por text")
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS anulada_fecha timestamptz")
+        # Estrellita de seguimiento (Control → Acciones): ofertas a las que el
+        # equipo comercial les tiene buen pronóstico y quiere hacerles seguimiento.
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS estrella boolean DEFAULT false")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS estrella_por text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS estrella_fecha timestamptz")
         # Ofertas de PRUEBA: no gastan consecutivo real ni afectan la numeración
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS es_prueba boolean DEFAULT false")
         # Fecha en que la oferta se marcó ACEPTADA. Sirve para que el módulo de
@@ -5400,6 +5405,41 @@ def create_oferta(oferta: OfertaCreate):
             traceback.print_exc()
             raise HTTPException(500, str(e))
     raise HTTPException(409, "No se pudo asignar un consecutivo único; intenta guardar de nuevo")
+
+
+class EstrellaBody(BaseModel):
+    estrella: bool
+
+
+@app.post("/api/ofertas/{oferta_id}/estrella")
+def marcar_estrella(oferta_id: int, body: EstrellaBody, request: Request):
+    """Marca/desmarca la estrellita de seguimiento. Es una marca del equipo (la
+    ve todo el mundo); no cambia la oferta ni su versión, solo quién y cuándo."""
+    usuario = ""
+    try:
+        usuario = request.state.user.get("nombre", "") if hasattr(request.state, "user") else ""
+    except Exception:
+        pass
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """UPDATE ofertas SET estrella = %s,
+                     estrella_por = CASE WHEN %s THEN %s ELSE NULL END,
+                     estrella_fecha = CASE WHEN %s THEN now() ELSE NULL END
+                   WHERE id = %s
+                   RETURNING id, estrella, estrella_por, estrella_fecha""",
+                (body.estrella, body.estrella, usuario or None, body.estrella, oferta_id),
+            )
+            fila = fetchone(cur)
+            if not fila:
+                raise HTTPException(404, "Oferta no encontrada")
+            return fila
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
 
 
 @app.patch("/api/ofertas/{oferta_id}")

@@ -1103,6 +1103,13 @@ body.rol-viewer .write-only { display:none !important; }
           <option>Willington Ortiz</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Seguimiento</label>
+        <select id="fEstrella" onchange="filterControl()">
+          <option value="">Todas</option>
+          <option value="1">★ Con estrella</option>
+        </select>
+      </div>
       <div style="display:flex;gap:8px;align-items:flex-end;">
         <button class="btn btn-secondary btn-sm" onclick="exportExcel('control')">Excel</button>
         <button class="btn btn-outline btn-sm" onclick="clearFilters()">Limpiar</button>
@@ -5251,8 +5258,10 @@ function filterControl() {
   const mes = document.getElementById('fMes').value;
   const respuesta = document.getElementById('fRespuesta').value;
   const comercial = document.getElementById('fComercial').value;
+  const soloEstrella = document.getElementById('fEstrella').value === '1';
 
   controlFiltered = allOfertas.filter(o => {
+    if (soloEstrella && !o.estrella) return false;
     if (buscar) {
       // Busca por número, cliente y DESCRIPCIÓN de la carga (para ubicar rápido la
       // oferta al hacer una mejora). o._desc ya viene precalculado al cargar.
@@ -5341,6 +5350,7 @@ function renderControlTable() {
         <td>${badgeEstado(o.estado)}</td>
         <td>${badgeRespuesta(o.respuesta)}</td>
         <td style="white-space:nowrap;">
+          <button class="action-btn write-only" onclick="toggleEstrella(${o.id}, this)" title="${_estrellaTitle(o).replace(/"/g,'&quot;')}">${_estrellaSvg(!!o.estrella)}</button>
           ${puedeEditar ? `<button class="action-btn write-only" onclick="openEdit(${o.id})" title="Editar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>` : '<span title="Solo el administrador o quien creó la oferta puede editarla" style="opacity:.35;font-size:15px;"></span>'}
@@ -5409,7 +5419,48 @@ function clearFilters() {
   document.getElementById('fMes').value = '';
   document.getElementById('fRespuesta').value = '';
   document.getElementById('fComercial').value = '';
+  document.getElementById('fEstrella').value = '';
   filterControl();
+}
+
+// Estrellita de seguimiento: marca/desmarca al instante y la guarda en Control.
+async function toggleEstrella(id, btn) {
+  const o = allOfertas.find(x => x.id === id);
+  if (!o) return;
+  const nuevo = !o.estrella;
+  o.estrella = nuevo;
+  _pintarEstrella(btn, o);
+  try {
+    const res = await fetch('/api/ofertas/' + id + '/estrella', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estrella: nuevo })
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo guardar la estrella'); }
+    const r = await res.json();
+    o.estrella_por = r.estrella_por; o.estrella_fecha = r.estrella_fecha;
+    _pintarEstrella(btn, o);
+    if (document.getElementById('fEstrella').value === '1' && !nuevo) filterControl();
+  } catch (e) {
+    o.estrella = !nuevo;   // vuelve como estaba
+    _pintarEstrella(btn, o);
+    showToast('' + e.message, 'error');
+  }
+}
+
+function _estrellaTitle(o) {
+  if (!o.estrella) return 'Marcar con estrella para seguimiento';
+  const f = o.estrella_fecha ? ' · ' + String(o.estrella_fecha).slice(0, 10) : '';
+  return 'En seguimiento' + (o.estrella_por ? ' · marcada por ' + o.estrella_por : '') + f + ' (clic para quitar)';
+}
+
+function _estrellaSvg(on) {
+  return `<svg width="17" height="17" viewBox="0 0 24 24" fill="${on ? '#F28C28' : 'none'}" stroke="${on ? '#F28C28' : '#9aa5b5'}" stroke-width="2" stroke-linejoin="round"><polygon points="12 2.8 14.9 8.7 21.4 9.6 16.7 14.2 17.8 20.7 12 17.6 6.2 20.7 7.3 14.2 2.6 9.6 9.1 8.7"/></svg>`;
+}
+
+function _pintarEstrella(btn, o) {
+  if (!btn) return;
+  btn.innerHTML = _estrellaSvg(!!o.estrella);
+  btn.title = _estrellaTitle(o);
 }
 
 // ========== ALERTAS ==========
