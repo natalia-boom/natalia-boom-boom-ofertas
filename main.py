@@ -3804,7 +3804,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-10-30e"
+APP_VERSION = "2026-10-30f"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -5622,11 +5622,10 @@ def anular_oferta(oferta_id: int, body: AnularBody, request: Request):
                 raise HTTPException(404, "Oferta no encontrada")
             if prev.get("anulada"):
                 raise HTTPException(409, "La oferta ya está anulada")
-            # SEGURIDAD: solo admin o el dueño (realizada) puede anular su oferta.
+            # SEGURIDAD: SOLO el administrador puede anular (Natalia, 2026-10-30).
             _u = getattr(request.state, "user", None) or {}
             if _u.get("rol") != "admin":
-                if not _misma_persona(_u.get("nombre"), prev.get("realizada")):
-                    raise HTTPException(403, "Solo el administrador o quien creó la oferta puede anularla.")
+                raise HTTPException(403, "Solo el administrador puede anular ofertas.")
             cur.execute("""
                 UPDATE ofertas
                    SET anulada = true, estado = 'ANULADA',
