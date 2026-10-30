@@ -3701,7 +3701,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-30',
+  version: '2026-10-30b',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5377,6 +5377,18 @@ function renderControlTable() {
   renderPagination();
 }
 
+// Descarga un archivo generado en el navegador. El enlace temporal se mantiene
+// vivo 2 minutos: si se libera antes de que el navegador termine de escribirlo
+// (p. ej. mientras está abierta la ventana "Guardar como"), el archivo queda en
+// 0 bytes y no se puede abrir (casos CMA 26-1447 y Boris, 2026-10-30).
+function descargarArchivo(blob, nombre) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+
 async function downloadPdfOferta(id, num, cliente) {
   try {
     showToast('Generando PDF...', 'info');
@@ -5386,12 +5398,7 @@ async function downloadPdfOferta(id, num, cliente) {
       throw new Error(err.detail || 'Error al generar PDF');
     }
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Oferta_${num}_${(cliente||'BOOM').replace(/\s+/g,'_').toUpperCase()}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    descargarArchivo(blob, `Oferta_${num}_${(cliente||'BOOM').replace(/\s+/g,'_').toUpperCase()}.pdf`);
     showToast('PDF descargado', 'success');
   } catch(e) {
     showToast('' + e.message, 'error');
@@ -7477,11 +7484,7 @@ async function iaDescargarPDF() {
       throw new Error(msg);
     }
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = iaFilename('pdf');
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    descargarArchivo(blob, iaFilename('pdf'));
     showToast('PDF descargado', 'success');
   } catch (e) {
     showToast('' + e.message, 'error');
@@ -7494,12 +7497,7 @@ async function iaDescargarHTML() {
   if (!iaHtml) return;
   if (iaClienteFalta()) return;
   if (!(await iaAsegurarGuardada(document.getElementById('iaBtnHTML')))) return;
-  const blob = new Blob([iaHtml], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = iaFilename('html');
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  descargarArchivo(new Blob([iaHtml], { type: 'text/html;charset=utf-8' }), iaFilename('html'));
   showToast('HTML descargado — ábrelo, Ctrl+A, y pégalo en Outlook', 'success');
 }
 
@@ -8269,15 +8267,8 @@ async function generarPDF() {
       throw new Error(msg);
     }
     const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
     const ref  = document.getElementById('gRefDisplay').textContent;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Oferta_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    descargarArchivo(blob, `Oferta_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.pdf`);
     showToast('PDF descargado', 'success');
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
@@ -8498,13 +8489,8 @@ async function generarCorreo() {
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const ref = document.getElementById('gRefDisplay').textContent;
-    a.download = `CORREO_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    descargarArchivo(blob, `CORREO_BOOM_${ref}_${cliente.replace(/\s+/g,'_').toUpperCase()}.html`);
     showToast('HTML para Outlook descargado — abrelo, selecciona todo y pega en el correo', 'success');
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
@@ -10775,11 +10761,7 @@ async function exportarInformeExcel() {
       throw new Error(msg);
     }
     const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `Informe_Facturacion_${anio}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    descargarArchivo(blob, `Informe_Facturacion_${anio}.xlsx`);
     showToast('Excel exportado', 'success');
   } catch(e) {
     showToast('' + e.message, 'error');
