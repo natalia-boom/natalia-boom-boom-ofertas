@@ -3701,7 +3701,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-30b',
+  version: '2026-10-30c',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -7633,10 +7633,11 @@ function iaYaGuardada() {
 
 // Botón "Generar oferta (guardar)": guarda (si hay algo nuevo) y cierra el generador.
 async function iaGenerarOferta() {
+  if (iaGuardandoProm) await iaGuardandoProm;
   if (iaYaGuardada()) {
     showToast('Oferta ' + document.getElementById('iaRefDisplay').textContent + ' ya está guardada en Control', 'success');
   } else {
-    const g = await iaGuardarRegistro(document.getElementById('iaBtnGuardar'));
+    const g = await iaGuardarUnaVez(document.getElementById('iaBtnGuardar'));
     if (!g) return;
   }
   iaResetChat(true);   // limpia el generador y toma el próximo consecutivo automáticamente
@@ -7646,8 +7647,26 @@ async function iaGenerarOferta() {
 // Antes de descargar: si el documento aún no está en Control, se guarda primero,
 // así el archivo que sale para el cliente lleva el consecutivo DEFINITIVO.
 async function iaAsegurarGuardada(btn) {
+  if (iaGuardandoProm) await iaGuardandoProm;
   if (iaYaGuardada()) return true;
-  return !!(await iaGuardarRegistro(btn));
+  return !!(await iaGuardarUnaVez(btn));
+}
+
+// UN SOLO guardado a la vez. Si mientras se guarda se presiona otro botón
+// (p. ej. Descargar HTML y enseguida Descargar PDF), ese clic espera a que
+// termine el guardado en curso en vez de crear OTRA oferta con el número
+// siguiente (casos 26-1448/1449 FRACHT y 26-1450/1451 FCL, 2026-10-30).
+let iaGuardandoProm = null;
+function iaGuardarUnaVez(btn) {
+  if (iaGuardandoProm) return iaGuardandoProm;
+  const ids = ['iaBtnPDF', 'iaBtnHTML', 'iaBtnGuardar'];
+  const otros = ids.map(id => document.getElementById(id)).filter(b => b && b !== btn && !b.disabled);
+  otros.forEach(b => { b.disabled = true; });
+  iaGuardandoProm = (async () => {
+    try { return await iaGuardarRegistro(btn); }
+    finally { otros.forEach(b => { b.disabled = false; }); iaGuardandoProm = null; }
+  })();
+  return iaGuardandoProm;
 }
 
 // Resalta en rojo los campos que faltan (con una nota debajo), lleva la pantalla
