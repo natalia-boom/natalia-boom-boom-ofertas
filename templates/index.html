@@ -3701,7 +3701,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-10-30c',
+  version: '2026-10-30d',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -7449,9 +7449,28 @@ function iaCambioDirecto() {
   showToast('Cambio directo aplicado — la estructura quedó igual', 'success');
 }
 
-function iaFilename(ext) {
+// Nombre del cliente de la oferta en pantalla, buscándolo en todas las fuentes
+// (registro, casilla editable, oferta guardada y la barra REF del documento)
+// para que el archivo descargado NUNCA salga como "CLIENTE".
+function iaClienteNombre() {
+  const valido = s => { s = (s || '').trim(); return s && !/^(SIN\s+)?CLIENTE$/i.test(s) ? s : ''; };
+  let c = valido(iaMeta && iaMeta.cliente) || valido(document.getElementById('iaClienteEdit')?.value);
+  if (!c && iaEditingId) {
+    const o = (allOfertas || []).find(x => x.id === iaEditingId);
+    c = valido(o && o.cliente);
+  }
+  if (!c) {
+    const txt = (iaHtml || '').replace(/<[^>]+>/g, '  ').replace(/&nbsp;/gi, ' ');
+    const m = /REF\s*:?\s*\d{2}\s*-\s*\d{3,4}\s*\|\s*([^|]{2,80}?)(?=\s*\||\s{2,}|$)/i.exec(txt);
+    c = valido(m && m[1]);
+  }
+  return c;
+}
+
+function iaFilename(ext, cliente) {
   const ref = document.getElementById('iaRefDisplay').textContent.replace(/[^0-9\-]/g, '') || 'BOOM';
-  const cli = (iaMeta && iaMeta.cliente ? iaMeta.cliente : 'CLIENTE').replace(/\s+/g, '_').toUpperCase();
+  const cli = ((cliente || iaClienteNombre() || 'CLIENTE')
+    .replace(/[\\/:*?"<>|]+/g, ' ').trim().replace(/\s+/g, '_').toUpperCase());
   return `Oferta_BOOM_${ref}_${cli}.${ext}`;
 }
 
@@ -7469,14 +7488,20 @@ async function iaDescargarPDF() {
   if (!iaHtml) return;
   if (iaClienteFalta()) return;
   const btn = document.getElementById('iaBtnPDF');
+  const cliente = iaClienteNombre();
   if (!(await iaAsegurarGuardada(btn))) return;
+  // Documento y nombre se toman YA (con el número definitivo): si mientras se
+  // genera el PDF se cierra el generador, el archivo igual sale completo y con
+  // el nombre del cliente.
+  const html = iaHtml, nombre = iaFilename('pdf', cliente);
+  if (!html) { showToast('La oferta se cerró antes de descargar. Descárgala desde Control de Ofertas.', 'error'); return; }
   const old = btn.textContent;
   btn.disabled = true; btn.textContent = 'Generando PDF...';
   try {
     const res = await fetch('/api/html-a-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html: iaHtml, filename: iaFilename('pdf') })
+      body: JSON.stringify({ html, filename: nombre })
     });
     if (!res.ok) {
       let msg = 'Error generando el PDF';
@@ -7484,7 +7509,7 @@ async function iaDescargarPDF() {
       throw new Error(msg);
     }
     const blob = await res.blob();
-    descargarArchivo(blob, iaFilename('pdf'));
+    descargarArchivo(blob, nombre);
     showToast('PDF descargado', 'success');
   } catch (e) {
     showToast('' + e.message, 'error');
@@ -7496,8 +7521,10 @@ async function iaDescargarPDF() {
 async function iaDescargarHTML() {
   if (!iaHtml) return;
   if (iaClienteFalta()) return;
+  const cliente = iaClienteNombre();
   if (!(await iaAsegurarGuardada(document.getElementById('iaBtnHTML')))) return;
-  descargarArchivo(new Blob([iaHtml], { type: 'text/html;charset=utf-8' }), iaFilename('html'));
+  if (!iaHtml) { showToast('La oferta se cerró antes de descargar. Descárgala desde Control de Ofertas.', 'error'); return; }
+  descargarArchivo(new Blob([iaHtml], { type: 'text/html;charset=utf-8' }), iaFilename('html', cliente));
   showToast('HTML descargado — ábrelo, Ctrl+A, y pégalo en Outlook', 'success');
 }
 
