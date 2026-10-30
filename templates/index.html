@@ -339,6 +339,10 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 /* TABLE ACTIONS */
 .action-btn { background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
 .action-btn:hover { background: #f1f5f9; }
+/* Campo obligatorio que falta para guardar/descargar en el generador IA. */
+.campo-falta { border: 2px solid #dc2626 !important; background: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(220,38,38,.18) !important; animation: campoFalta .45s ease 2; }
+@keyframes campoFalta { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.campo-falta-nota { color: #b91c1c; font-size: 11.5px; font-weight: 700; margin-top: 4px; }
 /* Estrellita de seguimiento: gris apagada, amarilla al marcarla (con un pequeño "pop"). */
 .estrella-btn svg { display: block; transition: transform .15s ease; }
 .estrella-btn:hover svg { transform: scale(1.18); }
@@ -7648,6 +7652,34 @@ async function iaAsegurarGuardada(btn) {
   return !!(await iaGuardarRegistro(btn));
 }
 
+// Resalta en rojo los campos que faltan (con una nota debajo), lleva la pantalla
+// al primero y lo deja listo para escribir. La marca se quita sola al llenarlo.
+function iaMarcarFaltantes(faltan) {
+  faltan.forEach((f, i) => {
+    const el = document.getElementById(f.id);
+    if (!el) return;
+    el.classList.remove('campo-falta'); void el.offsetWidth;   // reinicia la animación
+    el.classList.add('campo-falta');
+    // Si el campo va en una fila (p. ej. la caja del chat con el botón Enviar),
+    // la nota va debajo de la fila completa para no aplastar el campo.
+    const ancla = getComputedStyle(el.parentElement).display.includes('flex') ? el.parentElement : el;
+    let nota = document.querySelector('.campo-falta-nota[data-para="' + f.id + '"]');
+    if (!nota) {
+      nota = document.createElement('div');
+      nota.className = 'campo-falta-nota';
+      nota.dataset.para = f.id;
+      ancla.insertAdjacentElement('afterend', nota);
+    }
+    nota.textContent = '⚠ ' + f.nota;
+    const limpiar = () => { el.classList.remove('campo-falta'); nota.remove(); };
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', limpiar, { once: true });
+    if (i === 0) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { try { el.focus({ preventScroll: true }); } catch (e) {} }, 350);
+    }
+  });
+}
+
 // Guarda en Control (crea la oferta o una nueva versión) y deja el generador
 // amarrado a ese número: lo que se guarde o descargue después respeta el mismo
 // consecutivo. Devuelve la respuesta del servidor, o null si no se pudo.
@@ -7658,11 +7690,12 @@ async function iaGuardarRegistro(btn) {
   const _val  = parseInt(iaMeta.valor) || 0;
   const _tipo = (document.getElementById('iaTipo').value || iaMeta.tipo || '').trim();
   const _faltan = [];
-  if (!_cli || _cli.toUpperCase() === 'SIN CLIENTE') _faltan.push('Cliente');
-  if (_val <= 0) _faltan.push('Valor de la oferta');
-  if (!_tipo) _faltan.push('Tipo de Negocio');
+  if (!_cli || _cli.toUpperCase() === 'SIN CLIENTE') _faltan.push({ txt: 'Cliente', id: 'iaClienteEdit', nota: 'Escribe aquí el nombre del cliente' });
+  if (_val <= 0) _faltan.push({ txt: 'Valor de la oferta', id: 'iaChatInput', nota: 'Falta el valor: pídele al chat que ponga el valor total de la oferta' });
+  if (!_tipo) _faltan.push({ txt: 'Tipo de Negocio', id: 'iaTipo', nota: 'Elige el Tipo de Negocio' });
   if (_faltan.length) {
-    showToast('Antes de guardar o descargar completa: ' + _faltan.join(', '), 'warning');
+    showToast('Para guardar o descargar falta: ' + _faltan.map(f => f.txt).join(', ') + '. Te lo marqué en rojo.', 'warning');
+    iaMarcarFaltantes(_faltan);
     return null;
   }
   const btnTexto = btn.textContent;
