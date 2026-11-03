@@ -3811,7 +3811,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-03"
+APP_VERSION = "2026-11-03b"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -4707,8 +4707,29 @@ def list_ofertas():
     try:
         with get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
-            return fetchall(cur)
+            # LISTA LIVIANA: esta ruta la consulta cada pantalla abierta cada 60 s.
+            # Antes enviaba el documento completo de cada oferta del generador
+            # (pdf_data.ia_html con fotos ≈ 99,9 % del peso, ~55 MB por consulta):
+            # era casi todo el tráfico de salida que cobra Railway y picos de RAM.
+            # El documento completo se pide solo al abrir una oferta (/api/ofertas/{id}).
+            try:
+                cur.execute("SELECT column_name FROM information_schema.columns "
+                            "WHERE table_name='ofertas' ORDER BY ordinal_position")
+                cols = [r[0] for r in cur.fetchall()]
+                _pd = "NULLIF(pdf_data::text, '')::jsonb"
+                sel = ", ".join(
+                    (f"(CASE WHEN jsonb_typeof({_pd}) = 'object' THEN {_pd} - 'ia_html' "
+                     f"ELSE {_pd} END) AS pdf_data") if c == "pdf_data" else c
+                    for c in cols)
+                cur.execute(f"SELECT {sel} FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
+                return fetchall(cur)
+            except Exception:
+                # Red de seguridad: si la versión liviana fallara, la lista completa
+                # (como antes) para que la plataforma nunca quede en blanco.
+                traceback.print_exc()
+                conn.rollback()
+                cur.execute("SELECT * FROM ofertas ORDER BY CAST(num AS INTEGER) DESC")
+                return fetchall(cur)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

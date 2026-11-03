@@ -3701,7 +3701,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-03',
+  version: '2026-11-03b',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -7887,11 +7887,19 @@ function iaToggleCargarPanel() {
   if (!vis) setTimeout(() => document.getElementById('iaCargarNum').focus(), 50);
 }
 
-function iaCargarOferta() {
+async function iaCargarOferta() {
   const num = document.getElementById('iaCargarNum').value.trim();
   if (!num) { showToast('Ingresa el número de oferta', 'warning'); return; }
-  const o = allOfertas.find(x => String(x.num) === String(num));
-  if (!o) { showToast('No se encontró la oferta #' + num, 'error'); return; }
+  const o0 = allOfertas.find(x => String(x.num) === String(num));
+  if (!o0) { showToast('No se encontró la oferta #' + num, 'error'); return; }
+  // La lista general viene LIVIANA (sin el documento de la oferta, que pesa
+  // mucho). El documento completo se pide aquí, solo para la oferta que se abre.
+  let o = o0;
+  try {
+    const r = await fetch('/api/ofertas/' + o0.id);
+    if (r.ok) o = await r.json();
+  } catch (e) {}
+  if (typeof o.pdf_data === 'string') { try { o.pdf_data = JSON.parse(o.pdf_data); } catch (e) { o.pdf_data = null; } }
   iaEditingId = o.id;
   const numPad = String(o.num).padStart(6, '0');
   const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
