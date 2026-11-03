@@ -5190,11 +5190,13 @@ def facturacion_historico(request: Request):
                 "WHERE excluida = false AND COALESCE(anio, %s) = %s GROUP BY 1",
                 (str(hoy.year), str(hoy.year)))
             vivo = {r["m"]: int(r["v"] or 0) for r in fetchall(cur)}
+            cur.execute("SELECT COALESCE(SUM(monto),0) t FROM presupuesto WHERE anio=%s", (hoy.year,))
+            presu = int(fetchone(cur)["t"] or 0)
         anios = [{"anio": a, "meses": m, "total": sum(m), "en_curso": False}
                  for a, m in sorted(_HIST_FACTURACION.items()) if a < hoy.year]
         m_act = [vivo.get(m, 0) for m in _MES_ORDER]
         anios.append({"anio": hoy.year, "meses": m_act, "total": sum(m_act), "en_curso": True})
-        return {"anios": anios, "meses_cerrados": hoy.month - 1}
+        return {"anios": anios, "meses_cerrados": hoy.month - 1, "presupuesto_actual": presu}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))

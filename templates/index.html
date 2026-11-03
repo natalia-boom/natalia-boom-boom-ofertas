@@ -1724,9 +1724,15 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="fm-legend"><span><i style="background:#4E6496"></i>Años anteriores</span><span><i style="background:#FFB37A"></i>Mejor año</span><span><i style="background:#4FD1A5"></i>Año en curso</span></div>
       <div id="fhChart"></div>
     </div>
-    <div class="fm-card fm-block">
-      <div class="fm-lbl" style="margin-bottom:6px;">Total por año</div>
-      <div id="fhTabla"></div>
+    <div class="fm-card fm-block" id="fhRankCard">
+      <div class="fm-lbl">¿Cómo vamos frente a otros años, a la misma fecha?</div>
+      <div id="fhRankFrase" style="font-size:15px;margin:6px 0 10px;"></div>
+      <div id="fhRank"></div>
+    </div>
+    <div class="fm-card fm-block" id="fhCierreCard">
+      <div class="fm-lbl" id="fhCierreLbl">¿Es realista cerrar la meta en los meses que faltan?</div>
+      <div id="fhCierreFrase" style="font-size:15px;margin:6px 0 10px;line-height:1.5;"></div>
+      <div id="fhCierre"></div>
     </div>
   </div>
 
@@ -4489,7 +4495,7 @@ async function factHistRender() {
     if (!r.ok) throw new Error('http ' + r.status);
     d = await r.json();
   } catch (e) {
-    document.getElementById('fhTabla').innerHTML = '<div class="fm-sub">No se pudo cargar el histórico. Intenta Refrescar.</div>';
+    document.getElementById('fhRank').innerHTML = '<div class="fm-sub">No se pudo cargar el histórico. Intenta Refrescar.</div>';
     return;
   }
   const $ = id => document.getElementById(id);
@@ -4524,18 +4530,43 @@ async function factHistRender() {
       + '<text x="' + (x0 + bw / 2) + '" y="' + (H - 7) + '" font-size="11.5" class="fm-mx" text-anchor="middle">' + x.anio + (x.en_curso ? '*' : '') + '</text>';
   });
   $('fhChart').innerHTML = svg + '</svg><div class="fm-sub">* ' + act.anio + ' en curso: va hasta hoy.</div>';
-  // Tabla: año, total y variación frente al año anterior (el año en curso no se compara completo).
-  let t = '<table class="fh-tab"><tr><th>Año</th><th>Facturado</th><th>vs año anterior</th></tr>';
-  A.slice().reverse().forEach((x, j, arr) => {
-    const prev = arr[j + 1];
-    let v = '—';
-    if (prev && !x.en_curso) {
-      const p = (x.total / prev.total - 1) * 100;
-      v = '<span style="color:' + (p >= 0 ? '#4FD1A5' : '#FF8A4C') + ';font-weight:700;">' + (p >= 0 ? '+' : '−') + Math.abs(p).toFixed(1).replace('.', ',') + ' %</span>';
-    } else if (x.en_curso) { v = '<span style="color:#A9B6D3;">en curso</span>'; }
-    t += '<tr><td><b>' + x.anio + '</b>' + (x.total === mejor ? ' <span class="fm-pill" style="background:rgba(255,179,122,.18);color:#FFB37A;">mejor año</span>' : '') + '</td><td>' + _fmMil(x.total) + '</td><td>' + v + '</td></tr>';
-  });
-  $('fhTabla').innerHTML = t + '</table>';
+  // Barra horizontal reutilizable: etiqueta · barra · valor.
+  const fila = (lbl, v, maxB, col, destacar) => '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px;">'
+    + '<span style="width:82px;' + (destacar ? 'color:' + col + ';font-weight:700;' : '') + '">' + lbl + '</span>'
+    + '<div style="flex:1;background:#1A2848;border-radius:4px;height:16px;"><div style="width:' + Math.max(0.5, v / maxB * 100).toFixed(1) + '%;height:100%;background:' + col + ';border-radius:4px;"></div></div>'
+    + '<span style="width:80px;text-align:right;' + (destacar ? 'color:' + col + ';font-weight:700;' : '') + '">' + _fmMil(v) + '</span></div>';
+  const ultimo = cer > 0 ? MESES_NOMBRE_FH[cer - 1] : '';
+  // 1) Ranking: enero → último mes cerrado, de cada año (comparación justa a la misma fecha).
+  if (cer > 0) {
+    const R = A.map(x => ({ anio: x.anio, v: x.meses.slice(0, cer).reduce((a, b) => a + b, 0), act: x.en_curso }))
+      .sort((a, b) => b.v - a.v);
+    const pos = R.findIndex(x => x.act) + 1;
+    $('fhRankCard').style.display = '';
+    $('fhRankFrase').innerHTML = 'De enero a ' + ultimo + ', <b style="color:#4FD1A5;">' + act.anio + ' es el ' + pos + '.º mejor de ' + R.length + ' años</b>.';
+    const mR = Math.max(...R.map(x => x.v));
+    $('fhRank').innerHTML = R.map((x, i) => fila((i + 1) + '.º · ' + x.anio, x.v, mR, x.act ? '#4FD1A5' : '#4E6496', x.act)).join('');
+  } else { $('fhRankCard').style.display = 'none'; }
+  // 2) ¿Es realista? Lo que falta para la meta vs lo que históricamente se factura en los meses que quedan.
+  const rest = 12 - cer, falta = Math.max(0, (d.presupuesto_actual || 0) - act.total);
+  if (rest > 0 && d.presupuesto_actual) {
+    const cerrados = A.filter(x => !x.en_curso).map(x => ({ anio: x.anio, v: x.meses.slice(cer).reduce((a, b) => a + b, 0) }));
+    const prom = cerrados.reduce((a, b) => a + b.v, 0) / cerrados.length;
+    const top = cerrados.reduce((a, b) => b.v > a.v ? b : a);
+    const nm = MESES_NOMBRE_FH.slice(cer), tramo = nm.length > 1 ? nm[0] + ' a ' + nm[nm.length - 1] : nm[0];
+    $('fhCierreLbl').textContent = '¿Es realista cerrar la meta de ' + tramo + '?';
+    let veredicto, col;
+    if (falta <= 0) { veredicto = 'La meta del año ya está cumplida.'; col = '#4FD1A5'; }
+    else if (falta > top.v) { veredicto = 'Cumplirla exigiría el mejor cierre de año de la historia, y superarlo en ' + _fmMil(falta - top.v) + '.'; col = '#FF8A4C'; }
+    else if (falta > prom) { veredicto = 'Es posible, pero exige un cierre por encima del promedio.'; col = '#FFD08A'; }
+    else { veredicto = 'Es alcanzable: está dentro de lo que se factura normalmente en esos meses.'; col = '#4FD1A5'; }
+    $('fhCierreFrase').innerHTML = 'Para la meta hay que facturar <b style="color:#FF8A4C;">' + _fmMil(falta) + '</b> de ' + tramo + '. '
+      + 'Históricamente esos meses suman <b>' + _fmMil(prom) + '</b> en promedio, y el mejor año (' + top.anio + ') llegó a <b>' + _fmMil(top.v) + '</b>. '
+      + '<b style="color:' + col + ';">' + veredicto + '</b>';
+    const mC = Math.max(falta, ...cerrados.map(x => x.v));
+    $('fhCierre').innerHTML = cerrados.map(x => fila(String(x.anio), x.v, mC, '#4E6496', false)).join('')
+      + '<div style="height:4px;"></div>' + fila('Meta ' + act.anio, falta, mC, '#FF8A4C', true);
+    $('fhCierreCard').style.display = '';
+  } else { $('fhCierreCard').style.display = 'none'; }
 }
 
 async function factMetaRender() {
