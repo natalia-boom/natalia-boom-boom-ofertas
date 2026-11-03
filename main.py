@@ -5161,6 +5161,45 @@ def facturacion_meta(request: Request, anio: Optional[int] = Query(None)):
         raise HTTPException(500, str(e))
 
 
+# Facturación histórica por mes (ENE..DIC), años cerrados. Fuente: dashboard de
+# facturación de Natalia (dashboard_facturacion_1.html, 2026-11-03). El año en
+# curso NO va aquí: sale en vivo de vulcano_facturas.
+_HIST_FACTURACION = {
+    2019: [1186958044, 1085131666, 1504797000, 1291648755, 1612250308, 2213348539, 1806461528, 1135681649, 1737623832, 1577753759, 844218945, 1659564561],
+    2020: [1172338768, 1379063757, 1233932774, 1069826690, 878439822, 239177000, 671089376, 691050110, 819242140, 1207467648, 587000000, 709054755],
+    2021: [841388869, 850944700, 794828247, 669903414, 1070375000, 951272285, 1151347000, 1045078180, 1120060929, 1355009599, 1280809001, 1437044537],
+    2022: [1137985615, 1155697829, 1372279787, 1297855324, 1223878807, 1263434253, 1378344293, 1039977250, 1606571801, 1607961521, 2517381097, 1541570166],
+    2023: [2149095131, 1807367559, 1712962591, 2081381050, 1682625031, 1332615796, 1417422065, 850386082, 995651198, 672318791, 791171566, 1583439531],
+    2024: [1010807626, 1152057608, 1247479498, 1299953001, 1949429231, 2175601585, 1235461100, 1951838958, 1421009082, 929649342, 1092747500, 1890450098],
+    2025: [794765980, 2000963180, 943031818, 1190930000, 2011603333, 2467495327, 1633809786, 1671869077, 1569645776, 1517884327, 1027652507, 1101582044],
+}
+
+
+@app.get("/api/facturacion/historico")
+def facturacion_historico(request: Request):
+    """Histórico anual (2019→hoy) para la sub-pestaña Histórico de Facturación:
+    años cerrados desde _HIST_FACTURACION + año en curso en vivo (vulcano_facturas)."""
+    if not _puede_ver_meta(getattr(request.state, "user", None)):
+        raise HTTPException(403, "Este informe solo lo ven Natalia, Boris, Willington y los administradores.")
+    hoy = datetime.now()
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT UPPER(TRIM(COALESCE(mes,''))) m, COALESCE(SUM(subtotal),0) v FROM vulcano_facturas "
+                "WHERE excluida = false AND COALESCE(anio, %s) = %s GROUP BY 1",
+                (str(hoy.year), str(hoy.year)))
+            vivo = {r["m"]: int(r["v"] or 0) for r in fetchall(cur)}
+        anios = [{"anio": a, "meses": m, "total": sum(m), "en_curso": False}
+                 for a, m in sorted(_HIST_FACTURACION.items()) if a < hoy.year]
+        m_act = [vivo.get(m, 0) for m in _MES_ORDER]
+        anios.append({"anio": hoy.year, "meses": m_act, "total": sum(m_act), "en_curso": True})
+        return {"anios": anios, "meses_cerrados": hoy.month - 1}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/facturacion/real/mes/{mes}")
 def facturacion_real_mes(mes: str, clase: Optional[str] = Query(None)):
     """Detalle: facturas (no excluidas) de un mes, para desplegar al hacer clic en

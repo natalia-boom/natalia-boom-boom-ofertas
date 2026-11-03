@@ -345,7 +345,12 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 .fm-tab.on { border-bottom-color:#E8601C; color:#1B2A4A; font-weight:700; }
 .fm-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
 /* Estilo B "ejecutivo oscuro" (elegido por Natalia 2026-11-03); el PDF sale en versión clara. */
-#factMetaView { background:#16233F; border-radius:14px; padding:18px; color:#fff; }
+#factMetaView, #factHistView { background:#16233F; border-radius:14px; padding:18px; color:#fff; }
+.fh-tab { width:100%; border-collapse:collapse; font-size:13px; }
+.fh-tab th { text-align:right; color:#A9B6D3; font-size:11px; letter-spacing:.04em; text-transform:uppercase; padding:6px 10px; border-bottom:1px solid #2C3F69; }
+.fh-tab th:first-child, .fh-tab td:first-child { text-align:left; }
+.fh-tab td { text-align:right; padding:7px 10px; border-bottom:1px solid #26385F; color:#fff; }
+#factHistView .fh-tab tr, #factHistView .fh-tab tr td, #factHistView .fh-tab tr th { background:transparent !important; border-left:none !important; border-right:none !important; border-top:none !important; }
 .fm-title { font-size:17px; font-weight:800; color:#fff; }
 .fm-live { background:rgba(79,209,165,.18); color:#4FD1A5; border-radius:999px; padding:2px 8px; font-size:11px; font-weight:700; }
 .fm-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
@@ -1675,6 +1680,7 @@ body.rol-viewer .write-only { display:none !important; }
   <div class="fm-tabs">
     <button class="fm-tab on" id="fmTabMeta" onclick="factSubtab('meta')">Meta <span id="fmTabAnio">2026</span></button>
     <button class="fm-tab" id="fmTabDet" onclick="factSubtab('detalle')">Por mes y clientes</button>
+    <button class="fm-tab" id="fmTabHist" onclick="factSubtab('historico')">Histórico</button>
   </div>
 
   <!-- ===== META (Fase 1) ===== -->
@@ -1701,6 +1707,26 @@ body.rol-viewer .write-only { display:none !important; }
     <div class="fm-card fm-block">
       <div class="fm-lbl">Cumplimiento mensual</div>
       <div id="fmCumpMes" class="fm-chips"></div>
+    </div>
+  </div>
+
+  <!-- ===== HISTÓRICO (versión sencilla: frase + barras por año + tabla) ===== -->
+  <div id="factHistView" style="display:none;">
+    <div class="fm-head">
+      <div>
+        <div class="fm-title">Histórico de facturación <span id="fhRango">2019–2026</span></div>
+        <div class="fm-sub">Años cerrados según tu dashboard de facturación · año en curso en vivo</div>
+      </div>
+    </div>
+    <div class="fm-alert" id="fhFrase" style="display:none;"></div>
+    <div class="fm-card fm-block">
+      <div class="fm-lbl">Facturación por año</div>
+      <div class="fm-legend"><span><i style="background:#4E6496"></i>Años anteriores</span><span><i style="background:#FFB37A"></i>Mejor año</span><span><i style="background:#4FD1A5"></i>Año en curso</span></div>
+      <div id="fhChart"></div>
+    </div>
+    <div class="fm-card fm-block">
+      <div class="fm-lbl" style="margin-bottom:6px;">Total por año</div>
+      <div id="fhTabla"></div>
     </div>
   </div>
 
@@ -4442,13 +4468,74 @@ function puedeVerMeta() {
 function factSubtab(cual) {
   const permitido = puedeVerMeta();
   document.getElementById('fmTabMeta').style.display = permitido ? '' : 'none';
+  document.getElementById('fmTabHist').style.display = permitido ? '' : 'none';
   if (!permitido) cual = 'detalle';
-  const meta = cual === 'meta';
-  document.getElementById('factMetaView').style.display = meta ? '' : 'none';
-  document.getElementById('factDetalleView').style.display = meta ? 'none' : '';
-  document.getElementById('fmTabMeta').classList.toggle('on', meta);
-  document.getElementById('fmTabDet').classList.toggle('on', !meta);
-  if (meta) factMetaRender();
+  const vistas = { meta: ['factMetaView', 'fmTabMeta'], detalle: ['factDetalleView', 'fmTabDet'], historico: ['factHistView', 'fmTabHist'] };
+  Object.entries(vistas).forEach(([k, [vista, tab]]) => {
+    document.getElementById(vista).style.display = k === cual ? '' : 'none';
+    document.getElementById(tab).classList.toggle('on', k === cual);
+  });
+  if (cual === 'meta') factMetaRender();
+  if (cual === 'historico') factHistRender();
+}
+
+const MESES_NOMBRE_FH = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+// Histórico sencillo: frase de comparación + barras por año + tabla de totales.
+async function factHistRender() {
+  let d;
+  try {
+    const r = await fetch('/api/facturacion/historico');
+    if (!r.ok) throw new Error('http ' + r.status);
+    d = await r.json();
+  } catch (e) {
+    document.getElementById('fhTabla').innerHTML = '<div class="fm-sub">No se pudo cargar el histórico. Intenta Refrescar.</div>';
+    return;
+  }
+  const $ = id => document.getElementById(id);
+  const A = d.anios, act = A[A.length - 1], ant = A[A.length - 2], cer = d.meses_cerrados;
+  $('fhRango').textContent = A[0].anio + '–' + act.anio;
+  // Frase: año en curso vs mismo periodo del año anterior (meses cerrados).
+  const fr = $('fhFrase');
+  if (ant && cer > 0) {
+    const a1 = act.meses.slice(0, cer).reduce((x, y) => x + y, 0), a0 = ant.meses.slice(0, cer).reduce((x, y) => x + y, 0);
+    const pct = a0 ? (a1 / a0 - 1) * 100 : 0, sube = pct >= 0;
+    fr.style.cssText = 'display:block;margin-top:0;margin-bottom:12px;' + (sube
+      ? 'background:rgba(79,209,165,.12);border:1px solid rgba(79,209,165,.45);color:#A8F0D6;'
+      : 'background:rgba(255,138,76,.12);border:1px solid rgba(255,138,76,.45);color:#FFC9A8;');
+    fr.innerHTML = 'De enero a ' + MESES_NOMBRE_FH[cer - 1] + ', ' + act.anio + ' lleva <b>' + _fmMil(a1) + '</b>: '
+      + '<b>' + (sube ? '+' : '−') + Math.abs(pct).toFixed(1).replace('.', ',') + ' %</b> frente al mismo periodo de ' + ant.anio + ' (' + _fmMil(a0) + ').';
+  } else { fr.style.display = 'none'; }
+  // Barras por año.
+  const W = 760, H = 230, pl = 54, pb = 24, pt = 18, cw = (W - pl) / A.length, paso = 5e9;
+  const mejor = Math.max(...A.filter(x => !x.en_curso).map(x => x.total));
+  const maxV = Math.ceil(Math.max(...A.map(x => x.total)) / paso) * paso;
+  const y = v => pt + (H - pt - pb) * (1 - v / maxV);
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="Facturación por año">';
+  for (let v = 0; v <= maxV; v += paso) {
+    svg += '<line x1="' + pl + '" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" class="fm-grid"/>'
+      + '<text x="' + (pl - 6) + '" y="' + (y(v) + 4) + '" font-size="10" class="fm-ax" text-anchor="end">' + _fmMil(v) + '</text>';
+  }
+  A.forEach((x, i) => {
+    const bw = cw * 0.56, x0 = pl + i * cw + (cw - bw) / 2;
+    const col = x.en_curso ? '#4FD1A5' : (x.total === mejor ? '#FFB37A' : '#4E6496');
+    svg += '<rect x="' + x0 + '" y="' + y(x.total) + '" width="' + bw + '" height="' + (H - pb - y(x.total)) + '" rx="3" fill="' + col + '"><title>' + x.anio + ' · ' + _fmMil(x.total) + '</title></rect>'
+      + '<text x="' + (x0 + bw / 2) + '" y="' + (y(x.total) - 5) + '" font-size="10.5" class="fm-mx" text-anchor="middle">' + _fmMil(x.total) + '</text>'
+      + '<text x="' + (x0 + bw / 2) + '" y="' + (H - 7) + '" font-size="11.5" class="fm-mx" text-anchor="middle">' + x.anio + (x.en_curso ? '*' : '') + '</text>';
+  });
+  $('fhChart').innerHTML = svg + '</svg><div class="fm-sub">* ' + act.anio + ' en curso: va hasta hoy.</div>';
+  // Tabla: año, total y variación frente al año anterior (el año en curso no se compara completo).
+  let t = '<table class="fh-tab"><tr><th>Año</th><th>Facturado</th><th>vs año anterior</th></tr>';
+  A.slice().reverse().forEach((x, j, arr) => {
+    const prev = arr[j + 1];
+    let v = '—';
+    if (prev && !x.en_curso) {
+      const p = (x.total / prev.total - 1) * 100;
+      v = '<span style="color:' + (p >= 0 ? '#4FD1A5' : '#FF8A4C') + ';font-weight:700;">' + (p >= 0 ? '+' : '−') + Math.abs(p).toFixed(1).replace('.', ',') + ' %</span>';
+    } else if (x.en_curso) { v = '<span style="color:#A9B6D3;">en curso</span>'; }
+    t += '<tr><td><b>' + x.anio + '</b>' + (x.total === mejor ? ' <span class="fm-pill" style="background:rgba(255,179,122,.18);color:#FFB37A;">mejor año</span>' : '') + '</td><td>' + _fmMil(x.total) + '</td><td>' + v + '</td></tr>';
+  });
+  $('fhTabla').innerHTML = t + '</table>';
 }
 
 async function factMetaRender() {
