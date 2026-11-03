@@ -5092,12 +5092,24 @@ def facturacion_real():
         raise HTTPException(500, str(e))
 
 
+# Quiénes ven el informe Meta (Natalia, 2026-11-03: "Willy, Boris y yo").
+# Mismo listado en index.html (META_FACT_PERSONAS).
+_META_FACT_PERSONAS = ["NATALIA VARGAS", "BORIS BORREGO", "WILLINGTON ORTIZ"]
+
+
+def _puede_ver_meta(user) -> bool:
+    nombre = (user or {}).get("nombre", "")
+    return any(_misma_persona(nombre, p) for p in _META_FACT_PERSONAS)
+
+
 @app.get("/api/facturacion/meta")
-def facturacion_meta(anio: Optional[int] = Query(None)):
+def facturacion_meta(request: Request, anio: Optional[int] = Query(None)):
     """Informe META del año (pestaña Facturación › Meta): presupuesto vs facturado
     real por mes. Facturado = vulcano_facturas NO excluidas del año. Meses
     'cerrados' = los anteriores al mes en curso (para el año actual); el
     cumplimiento acumulado compara solo meses cerrados, como el dashboard de Natalia."""
+    if not _puede_ver_meta(getattr(request.state, "user", None)):
+        raise HTTPException(403, "Este informe solo lo ven Natalia, Boris y Willington.")
     hoy = datetime.now()
     anio_val = anio or hoy.year
     try:

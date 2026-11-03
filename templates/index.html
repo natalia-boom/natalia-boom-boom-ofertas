@@ -4422,7 +4422,16 @@ const _fmMil = v => '$' + Math.round((v || 0) / 1e6).toLocaleString('es-CO') + '
 const _fmPct = v => (v * 100).toFixed(1).replace('.', ',') + ' %';
 const _fmMes = m => m.charAt(0) + m.slice(1, 3).toLowerCase();
 
+// Quiénes ven el informe Meta (mismo listado que _META_FACT_PERSONAS en main.py).
+const META_FACT_PERSONAS = ['NATALIA VARGAS', 'BORIS BORREGO', 'WILLINGTON ORTIZ'];
+function puedeVerMeta() {
+  return !!(currentUser && META_FACT_PERSONAS.some(p => mismaPersona(currentUser.nombre, p)));
+}
+
 function factSubtab(cual) {
+  const permitido = puedeVerMeta();
+  document.getElementById('fmTabMeta').style.display = permitido ? '' : 'none';
+  if (!permitido) cual = 'detalle';
   const meta = cual === 'meta';
   document.getElementById('factMetaView').style.display = meta ? '' : 'none';
   document.getElementById('factDetalleView').style.display = meta ? 'none' : '';
