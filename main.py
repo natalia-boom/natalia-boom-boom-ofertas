@@ -3444,7 +3444,7 @@ FORMATO DE CIFRAS: separador de miles con PUNTO estilo Colombia SIEMPRE, incluso
 1. DETALLE TÉCNICO DE LA CARGA / ACLARACIÓN TÉCNICA
 2. ALCANCE DEL SERVICIO  (usa .spec-grid con 3 tarjetas para datos clave: peso, equipo, soportes…)
 3. FOTOS DE REFERENCIA  (SOLO si hay fotos adjuntas; ver instrucción de fotos)
-4. PROPUESTA ECONÓMICA / BUDGETARY PROPOSAL  (table.det: Concepto | Cant | Valor unit | Valor total; fila final class="total-row")
+4. PROPUESTA ECONÓMICA / BUDGETARY PROPOSAL  (table.det: Concepto | Cant | Valor unit | Valor total; fila final class="total-row", salvo la regla SUBTOTALES POR SECCIÓN)
 5. NOTAS TÉCNICAS
 6. CONDICIONES COMERCIALES  (table.cond)
 7. EXCLUSIONES  (ul.notas)
@@ -3463,6 +3463,13 @@ Renumera según las secciones que realmente incluyas. Cierra con footer + firma.
 - Cargos mínimos (ej. mínimo 3 turnos): refléjalos en la columna Cantidad (no "1") y explícalos en Notas.
 - Cuota de reserva / disponibilidad: línea propia, independiente de los turnos operativos.
 - Opciones alternativas A/B: preséntalas etiquetadas, sin asumir cuál elige el cliente.
+- SUBTOTALES POR SECCIÓN (solo cuando el usuario lo pida: "total/subtotal por sección", "total por grúa",
+  etc.): al final de CADA sección de la tabla económica agrega una fila <tr class="subtotal-row"> con
+  "SUBTOTAL <NOMBRE DE LA SECCIÓN>" y el monto de esa sección. Si el usuario dice que son tarifas
+  independientes o que NO quiere total general, NO incluyas la fila total-row (no inventes un total
+  general). Si no lo aclara, deja además la fila total-row con la SUMA exacta de los subtotales.
+  Este pedido SIEMPRE se aplica sobre la oferta: devuélvela COMPLETA entre <<<HTML>>> y <<<FINHTML>>>;
+  NUNCA respondas con fragmentos de código, filas sueltas ni instrucciones para que el usuario edite.
 - STAND-BY 2026 (tarifas FIJAS preestablecidas — úsalas SIEMPRE, salvo que quien realiza la oferta
   indique en el chat otro valor). Toda oferta debe llevar la nota de stand-by con la tarifa del equipo:
     · Cama Alta 3 ejes: $1.500.000/día
@@ -3804,7 +3811,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-10-30f"
+APP_VERSION = "2026-11-03"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
