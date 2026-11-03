@@ -1726,8 +1726,6 @@ body.rol-viewer .write-only { display:none !important; }
     <div id="factVistaMes">
       <div id="pyRealChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
         <span class="py-chip py-chip-on" data-f="total" onclick="pyFiltrar('total')">Todo</span>
-        <span class="py-chip" data-f="of2026" onclick="pyFiltrar('of2026')">Solo ofertas 2026</span>
-        <span class="py-chip" data-f="of2025" onclick="pyFiltrar('of2025')">2025 / año pasado</span>
         <span class="py-chip" data-f="contrato" onclick="pyFiltrar('contrato')">Contratos y otros</span>
       </div>
       <div id="pyRealMeses"></div>
@@ -3777,7 +3775,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-03e',
+  version: '2026-11-03f',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
