@@ -1000,7 +1000,8 @@ body.rol-viewer .write-only { display:none !important; }
   <button class="tab-btn" onclick="switchTab('proyeccion')"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Proyección</button>
   <button class="tab-btn" id="tabUsuariosBtn" style="display:none;" onclick="switchTab('usuarios')" hidden></button>
   <button class="tab-btn" id="tabClientesBtn" style="display:none;" onclick="switchTab('clientes')"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>Clientes</button>
-  <button class="tab-btn" onclick="switchTab('tablero')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Tablero</button>
+  <!-- Tablero oculto (2026-11-03, Natalia): lo mismo está en Dashboard, Ofertas Aprobadas y Facturación. Para volver a mostrarlo, quitar hidden/style. -->
+  <button class="tab-btn" onclick="switchTab('tablero')" hidden style="display:none;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>Tablero</button>
   <button class="tab-btn" onclick="switchTab('facturacion')"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Facturación</button>
   <button class="tab-btn" id="tabOperacionesBtn" style="display:none;" onclick="switchTab('operaciones')"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Notificaciones</button>
   <button class="tab-btn" id="tabOsiBtn" style="display:none;" onclick="switchTab('osi')"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.5 12h7M8.5 16h5"/></svg>OSI</button>
@@ -3775,7 +3776,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-03f',
+  version: '2026-11-03g',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
