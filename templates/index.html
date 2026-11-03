@@ -362,6 +362,10 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 .fm-sub { font-size:12px; color:#A9B6D3; margin-top:2px; }
 .fm-pill { font-size:11px; border-radius:999px; padding:2px 8px; font-weight:700; vertical-align:middle; }
 .fm-alert { margin-top:12px; border-radius:10px; padding:10px 14px; font-size:13px; }
+/* Muñequito corriendo en el aviso de atraso (Natalia): mira hacia la meta y "trota". */
+.fm-corredor { display:inline-block; font-size:19px; margin-right:8px; vertical-align:-3px; animation:fmCorre .45s ease-in-out infinite alternate; }
+@keyframes fmCorre { from { transform:scaleX(-1) translate(0,0) rotate(0deg); } to { transform:scaleX(-1) translate(-3px,-3px) rotate(-8deg); } }
+.fm-trofeo { display:inline-block; font-size:18px; margin-right:8px; vertical-align:-2px; }
 .fm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#A9B6D3; margin:6px 0 4px; }
 .fm-legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
 .fm-chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(78px,1fr)); gap:6px; margin-top:8px; }
@@ -4610,11 +4614,11 @@ async function factMetaRender() {
     al.style.display = '';
     if (gap > 0) {
       al.style.cssText = 'display:block;background:rgba(255,138,76,.12);border:1px solid rgba(255,138,76,.45);color:#FFC9A8;';
-      al.innerHTML = '⚠ Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase()
+      al.innerHTML = '<span class="fm-corredor" aria-hidden="true">🏃</span>Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase()
         + '. Para cumplir la meta del año hay que facturar <b>' + _fmMil(d.necesita_mes) + ' por mes</b>' + (rest.length ? ' en ' + rest.map(m => MES.find(x => _fmMes(x.mes) === m).mes.toLowerCase()).join(' y ') : '') + '.';
     } else {
       al.style.cssText = 'display:block;background:rgba(79,209,165,.12);border:1px solid rgba(79,209,165,.45);color:#A8F0D6;';
-      al.innerHTML = '✓ Vamos <b>' + _fmMil(-gap) + ' por encima</b> de la meta a ' + MES[cer - 1].mes.toLowerCase() + '.';
+      al.innerHTML = '<span class="fm-trofeo" aria-hidden="true">🏆</span>Vamos <b>' + _fmMil(-gap) + ' por encima</b> de la meta a ' + MES[cer - 1].mes.toLowerCase() + '.';
     }
   } else { al.style.display = 'none'; }
   // Gráfico de barras (SVG, sin librerías): presupuesto vs facturado por mes.
