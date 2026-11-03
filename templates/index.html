@@ -1689,7 +1689,7 @@ body.rol-viewer .write-only { display:none !important; }
     <div class="fm-cards">
       <div class="fm-card"><div class="fm-lbl">Presupuesto anual</div><div class="fm-big" id="fmPresu">—</div><div class="fm-sub" id="fmPresuSub">Meta del año</div></div>
       <div class="fm-card"><div class="fm-lbl">Facturado a hoy</div><div class="fm-big" id="fmFact">—</div><div class="fm-sub" id="fmFactSub">—</div></div>
-      <div class="fm-card"><div class="fm-lbl">Cumplimiento acumulado</div><div class="fm-big fm-acento" id="fmCump">—</div><div class="fm-sub" id="fmCumpSub">—</div></div>
+      <div class="fm-card"><div class="fm-lbl">¿Vamos al día con la meta?</div><div class="fm-big fm-acento" id="fmCump">—</div><div class="fm-sub" id="fmCumpSub">—</div></div>
       <div class="fm-card"><div class="fm-lbl" id="fmNecLbl">Necesita por mes</div><div class="fm-big fm-acento" id="fmNec">—</div><div class="fm-sub" id="fmNecSub">—</div></div>
     </div>
     <div class="fm-alert" id="fmAlerta" style="display:none;"></div>
@@ -4474,9 +4474,12 @@ async function factMetaRender() {
   if (d.cumplimiento_acum != null) {
     const dif = (d.cumplimiento_acum - 1) * 100;
     const ok = dif >= 0;
-    $('fmCump').innerHTML = _fmPct(d.cumplimiento_acum) + ' <span class="fm-pill" style="background:' + (ok ? 'rgba(79,209,165,.18);color:#4FD1A5' : 'rgba(255,138,76,.18);color:#FF8A4C') + '">'
-      + (ok ? '+' : '−') + Math.abs(dif).toFixed(1).replace('.', ',') + ' pts</span>';
-    $('fmCumpSub').textContent = 'Ene–' + ultCer + ' · meta acumulada ' + _fmMil(d.presupuesto_acum);
+    // Textos en lenguaje de negocio (Natalia: "pts" y "acumulada" confundían).
+    const brecha = d.presupuesto_acum - d.facturado_acum;
+    $('fmCump').textContent = _fmPct(d.cumplimiento_acum);
+    $('fmCumpSub').innerHTML = '<b style="color:' + (ok ? '#4FD1A5' : '#FF8A4C') + '">'
+      + (ok ? 'Vamos ' + _fmMil(-brecha) + ' por encima' : 'Faltan ' + _fmMil(brecha) + ' para estar al día') + '</b><br>'
+      + 'Meta a ' + MES[cer - 1].mes.toLowerCase() + ': ' + _fmMil(d.presupuesto_acum);
   } else { $('fmCump').textContent = '—'; $('fmCumpSub').textContent = 'Aún no hay meses cerrados'; }
   const rest = MES.slice(cer).map(x => _fmMes(x.mes));
   $('fmNecLbl').textContent = rest.length ? 'Necesita ' + rest[0] + (rest.length > 1 ? '–' + rest[rest.length - 1] : '') : 'Año cerrado';
@@ -4489,11 +4492,11 @@ async function factMetaRender() {
     al.style.display = '';
     if (gap > 0) {
       al.style.cssText = 'display:block;background:rgba(255,138,76,.12);border:1px solid rgba(255,138,76,.45);color:#FFC9A8;';
-      al.innerHTML = '⚠ Atraso de <b>' + _fmMil(gap) + '</b> frente a la meta acumulada a ' + ultCer.toLowerCase()
-        + '. Para cerrar el año se necesitan <b>' + _fmMil(d.necesita_mes) + '/mes</b>' + (rest.length ? ' en ' + rest.join(' y ').toLowerCase() : '') + '.';
+      al.innerHTML = '⚠ Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase()
+        + '. Para cumplir la meta del año hay que facturar <b>' + _fmMil(d.necesita_mes) + ' por mes</b>' + (rest.length ? ' en ' + rest.map(m => MES.find(x => _fmMes(x.mes) === m).mes.toLowerCase()).join(' y ') : '') + '.';
     } else {
       al.style.cssText = 'display:block;background:rgba(79,209,165,.12);border:1px solid rgba(79,209,165,.45);color:#A8F0D6;';
-      al.innerHTML = '✓ Vamos <b>' + _fmMil(-gap) + '</b> por encima de la meta acumulada a ' + ultCer.toLowerCase() + '.';
+      al.innerHTML = '✓ Vamos <b>' + _fmMil(-gap) + ' por encima</b> de la meta a ' + MES[cer - 1].mes.toLowerCase() + '.';
     }
   } else { al.style.display = 'none'; }
   // Gráfico de barras (SVG, sin librerías): presupuesto vs facturado por mes.
