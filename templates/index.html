@@ -368,9 +368,11 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 .fm-trofeo { display:inline-block; font-size:18px; margin-right:8px; vertical-align:-2px; }
 .fm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#A9B6D3; margin:6px 0 4px; }
 .fm-legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
-.fm-chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(78px,1fr)); gap:6px; margin-top:8px; }
+.fm-chips { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:8px; }
+@media (max-width:700px) { .fm-chips { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 .fm-chip { border:1px solid #2C3F69; border-radius:8px; padding:6px 4px; text-align:center; font-size:12px; }
 .fm-chip b { display:block; font-size:15px; }
+.fm-chip-meta { display:block; font-size:10.5px; color:#A9B6D3; margin-top:2px; white-space:nowrap; }
 .fm-ax { fill:#8EA0C4; } .fm-mx { fill:#C5D0E6; } .fm-grid { stroke:#2A3B63; }
 @media print {
   body.fm-printing * { visibility:hidden; }
@@ -4645,13 +4647,17 @@ async function factMetaRender() {
   $('fmChart').innerHTML = svg + '</svg>';
   // Cumplimiento por mes.
   $('fmCumpMes').innerHTML = MES.map(x => {
-    if (x.estado === 'futuro' || !x.presupuesto) return '<div class="fm-chip" style="color:#6F7FA3">' + _fmMes(x.mes) + '<b>—</b></div>';
+    // Cada mes muestra también su meta proyectada (Natalia, 2026-11-03).
+    if (!x.presupuesto) return '<div class="fm-chip" style="color:#6F7FA3">' + _fmMes(x.mes) + '<b>—</b></div>';
+    if (x.estado === 'futuro') return '<div class="fm-chip" style="color:#A9B6D3">' + _fmMes(x.mes) + '<b style="color:#6F7FA3">—</b>'
+      + '<span class="fm-chip-meta">Meta ' + _fmMil(x.presupuesto) + '</span></div>';
     const p = Math.round(x.facturado / x.presupuesto * 100);
     const curso = x.estado === 'en_curso';
     const ok = p >= 100;
     const bg = curso ? 'rgba(255,208,138,.14)' : (ok ? 'rgba(79,209,165,.14)' : 'rgba(255,138,76,.14)'), fg = curso ? '#FFD08A' : (ok ? '#4FD1A5' : '#FF8A4C');
     return '<div class="fm-chip" style="background:' + bg + ';color:' + fg + '" title="' + _fmMil(x.facturado) + ' de ' + _fmMil(x.presupuesto) + (curso ? ' · mes en curso' : '') + '">'
-      + _fmMes(x.mes) + (curso ? ' (en curso)' : '') + '<b>' + p + ' %</b></div>';
+      + _fmMes(x.mes) + (curso ? ' (en curso)' : '') + '<b>' + p + ' %</b>'
+      + '<span class="fm-chip-meta">' + _fmMil(x.facturado) + ' de ' + _fmMil(x.presupuesto) + '</span></div>';
   }).join('');
 }
 
