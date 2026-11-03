@@ -5092,6 +5092,60 @@ def facturacion_real():
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/facturacion/meta")
+def facturacion_meta(anio: Optional[int] = Query(None)):
+    """Informe META del año (pestaña Facturación › Meta): presupuesto vs facturado
+    real por mes. Facturado = vulcano_facturas NO excluidas del año. Meses
+    'cerrados' = los anteriores al mes en curso (para el año actual); el
+    cumplimiento acumulado compara solo meses cerrados, como el dashboard de Natalia."""
+    hoy = datetime.now()
+    anio_val = anio or hoy.year
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT mes, monto FROM presupuesto WHERE anio=%s", (anio_val,))
+            presu = {str(r["mes"]).upper(): int(r["monto"] or 0) for r in fetchall(cur)}
+            cur.execute(
+                "SELECT UPPER(TRIM(COALESCE(mes,''))) m, COUNT(*) n, COALESCE(SUM(subtotal),0) v, "
+                "MAX(fecha) ult, MAX(factura) ultf FROM vulcano_facturas "
+                "WHERE excluida = false AND COALESCE(anio, %s) = %s GROUP BY 1",
+                (str(anio_val), str(anio_val)))
+            fact = {r["m"]: r for r in fetchall(cur)}
+        if anio_val < hoy.year:
+            cerrados = 12
+        elif anio_val > hoy.year:
+            cerrados = 0
+        else:
+            cerrados = hoy.month - 1
+        meses, ult = [], None
+        for i, m in enumerate(_MES_ORDER):
+            f = fact.get(m) or {}
+            v = int(f.get("v") or 0)
+            if f.get("ult") and (ult is None or f["ult"] > ult):
+                ult = f["ult"]
+            meses.append({"mes": m, "presupuesto": presu.get(m, 0), "facturado": v,
+                          "n": int(f.get("n") or 0),
+                          "estado": "cerrado" if i < cerrados else ("en_curso" if i == cerrados else "futuro")})
+        p_total = sum(x["presupuesto"] for x in meses)
+        f_total = sum(x["facturado"] for x in meses)
+        p_acum = sum(x["presupuesto"] for x in meses[:cerrados])
+        f_acum = sum(x["facturado"] for x in meses[:cerrados])
+        restantes = max(12 - cerrados, 0)
+        falta = max(p_total - f_total, 0)
+        return {
+            "anio": anio_val, "meses": meses, "meses_cerrados": cerrados,
+            "presupuesto_total": p_total, "facturado_total": f_total,
+            "presupuesto_acum": p_acum, "facturado_acum": f_acum,
+            "cumplimiento_acum": (f_acum / p_acum) if p_acum else None,
+            "falta_anual": falta, "meses_restantes": restantes,
+            "necesita_mes": (falta / restantes) if restantes else 0,
+            "ultima_factura": str(ult) if ult else None,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/facturacion/real/mes/{mes}")
 def facturacion_real_mes(mes: str, clase: Optional[str] = Query(None)):
     """Detalle: facturas (no excluidas) de un mes, para desplegar al hacer clic en

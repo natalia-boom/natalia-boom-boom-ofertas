@@ -339,6 +339,33 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 /* TABLE ACTIONS */
 .action-btn { background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
 .action-btn:hover { background: #f1f5f9; }
+/* Facturación › Meta (informe para gerencia). */
+.fm-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin:4px 0 14px; }
+.fm-tab { background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; font-size:13px; color:var(--text-muted); cursor:pointer; font-family:inherit; }
+.fm-tab.on { border-bottom-color:#E8601C; color:#1B2A4A; font-weight:700; }
+.fm-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.fm-title { font-size:17px; font-weight:800; color:#1B2A4A; }
+.fm-live { background:#e5f4e4; color:#27500A; border-radius:999px; padding:2px 8px; font-size:11px; font-weight:700; }
+.fm-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+.fm-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:13px 15px; }
+.fm-block { margin-top:12px; }
+.fm-lbl { font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-muted); font-weight:700; }
+.fm-big { font-size:22px; font-weight:800; color:#1B2A4A; margin-top:4px; }
+.fm-sub { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.fm-pill { font-size:11px; border-radius:999px; padding:2px 8px; font-weight:700; vertical-align:middle; }
+.fm-alert { margin-top:12px; border-radius:10px; padding:10px 14px; font-size:13px; }
+.fm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); margin:6px 0 4px; }
+.fm-legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+.fm-chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(78px,1fr)); gap:6px; margin-top:8px; }
+.fm-chip { border:1px solid var(--border); border-radius:8px; padding:6px 4px; text-align:center; }
+.fm-chip b { display:block; font-size:15px; }
+@media print {
+  body.fm-printing * { visibility:hidden; }
+  body.fm-printing #factMetaView, body.fm-printing #factMetaView * { visibility:visible; }
+  body.fm-printing #factMetaView { position:absolute; left:0; top:0; width:100%; }
+  body.fm-printing .fm-noprint { display:none !important; }
+  body.fm-printing .fm-card { break-inside:avoid; }
+}
 /* Campo obligatorio que falta para guardar/descargar en el generador IA. */
 .campo-falta { border: 2px solid #dc2626 !important; background: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(220,38,38,.18) !important; animation: campoFalta .45s ease 2; }
 @keyframes campoFalta { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
@@ -1627,9 +1654,45 @@ body.rol-viewer .write-only { display:none !important; }
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <input type="file" id="factArchivo" accept=".xlsx,.xls" style="display:none;" onchange="factImportar()">
       <button class="btn btn-sm write-only" onclick="document.getElementById('factArchivo').click()" title="Sube tu Excel (hojas 'Facturación' y 'Ofertas Aprobadas'): actualiza el facturado por mes y reparte el facturado por oferta sin enredos." style="background:#e8641a;color:#fff;border:none;">Importar Excel</button>
-      <button class="btn btn-outline btn-sm" onclick="pyRenderReal()">Refrescar</button>
+      <button class="btn btn-outline btn-sm" onclick="pyRenderReal(); factMetaRender();">Refrescar</button>
     </div>
   </div>
+
+  <!-- Sub-pestañas: Meta (informe para gerencia) / Por mes y clientes (detalle) -->
+  <div class="fm-tabs">
+    <button class="fm-tab on" id="fmTabMeta" onclick="factSubtab('meta')">Meta <span id="fmTabAnio">2026</span></button>
+    <button class="fm-tab" id="fmTabDet" onclick="factSubtab('detalle')">Por mes y clientes</button>
+  </div>
+
+  <!-- ===== META (Fase 1) ===== -->
+  <div id="factMetaView">
+    <div class="fm-head">
+      <div>
+        <div class="fm-title">Meta de facturación <span id="fmAnio">2026</span></div>
+        <div class="fm-sub"><span class="fm-live">● En vivo</span> <span id="fmActualizado">Cargando…</span></div>
+      </div>
+      <button class="btn btn-sm fm-noprint" onclick="factMetaPDF()" style="background:#E8601C;color:#fff;border:none;">Descargar PDF</button>
+    </div>
+    <div class="fm-cards">
+      <div class="fm-card"><div class="fm-lbl">Presupuesto anual</div><div class="fm-big" id="fmPresu">—</div><div class="fm-sub" id="fmPresuSub">Meta del año</div></div>
+      <div class="fm-card"><div class="fm-lbl">Facturado a hoy</div><div class="fm-big" id="fmFact">—</div><div class="fm-sub" id="fmFactSub">—</div></div>
+      <div class="fm-card"><div class="fm-lbl">Cumplimiento acumulado</div><div class="fm-big" id="fmCump">—</div><div class="fm-sub" id="fmCumpSub">—</div></div>
+      <div class="fm-card"><div class="fm-lbl" id="fmNecLbl">Necesita por mes</div><div class="fm-big" id="fmNec">—</div><div class="fm-sub" id="fmNecSub">—</div></div>
+    </div>
+    <div class="fm-alert" id="fmAlerta" style="display:none;"></div>
+    <div class="fm-card fm-block">
+      <div class="fm-lbl">Presupuesto vs facturado por mes</div>
+      <div class="fm-legend"><span><i style="background:#D3D1C7"></i>Presupuesto</span><span><i style="background:#1D9E75"></i>Facturado ≥ meta</span><span><i style="background:#E24B4A"></i>Facturado &lt; meta</span><span><i style="background:#F0997B"></i>Mes en curso</span></div>
+      <div id="fmChart"></div>
+    </div>
+    <div class="fm-card fm-block">
+      <div class="fm-lbl">Cumplimiento mensual</div>
+      <div id="fmCumpMes" class="fm-chips"></div>
+    </div>
+  </div>
+
+  <!-- ===== POR MES Y CLIENTES (lo que ya existía) ===== -->
+  <div id="factDetalleView" style="display:none;">
 
   <!-- Facturado real -->
   <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
@@ -1665,6 +1728,7 @@ body.rol-viewer .write-only { display:none !important; }
       <div id="factTopClientes"><div class="empty-state">Cargando…</div></div>
     </div>
   </div>
+  </div><!-- /factDetalleView -->
 </section>
 
 <!-- ==================== USUARIOS ==================== -->
@@ -4308,7 +4372,7 @@ function switchTab(name) {
   if (name === 'rentabilidad') initRentabilidad();
   if (name === 'tarifario')  cargarTarifario();
   if (name === 'proyeccion') renderProyeccion();
-  if (name === 'facturacion') { factVista('mes'); pyRenderReal(); }
+  if (name === 'facturacion') { factVista('mes'); pyRenderReal(); factSubtab('meta'); }
   // Activa columnas ajustables cuando la tabla ya está visible (con datos).
   setTimeout(enableColResize, 60);
 }
@@ -4353,6 +4417,106 @@ function enableColResize() {
 
 // ========== PROYECCIÓN DE FACTURACIÓN (replica la tabla dinámica) ==========
 // Datos del Bloque 1 (facturado real) para el filtro por origen
+// ========== FACTURACIÓN › META (informe para gerencia, en vivo) ==========
+const _fmMil = v => '$' + Math.round((v || 0) / 1e6).toLocaleString('es-CO') + 'M';
+const _fmPct = v => (v * 100).toFixed(1).replace('.', ',') + ' %';
+const _fmMes = m => m.charAt(0) + m.slice(1, 3).toLowerCase();
+
+function factSubtab(cual) {
+  const meta = cual === 'meta';
+  document.getElementById('factMetaView').style.display = meta ? '' : 'none';
+  document.getElementById('factDetalleView').style.display = meta ? 'none' : '';
+  document.getElementById('fmTabMeta').classList.toggle('on', meta);
+  document.getElementById('fmTabDet').classList.toggle('on', !meta);
+  if (meta) factMetaRender();
+}
+
+async function factMetaRender() {
+  let d;
+  try {
+    const r = await fetch('/api/facturacion/meta');
+    if (!r.ok) throw new Error('http ' + r.status);
+    d = await r.json();
+  } catch (e) {
+    document.getElementById('fmActualizado').textContent = 'No se pudo cargar la meta. Intenta Refrescar.';
+    return;
+  }
+  const $ = id => document.getElementById(id);
+  const cer = d.meses_cerrados, MES = d.meses;
+  const ultCer = cer > 0 ? _fmMes(MES[cer - 1].mes) : '';
+  ['fmAnio', 'fmTabAnio'].forEach(id => { $(id).textContent = d.anio; });
+  $('fmActualizado').textContent = 'Actualizado ' + new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+    + (d.ultima_factura ? ' · última factura del ' + d.ultima_factura : '') + ' · fuente: facturas de Vulcano en la plataforma';
+  $('fmPresu').textContent = _fmMil(d.presupuesto_total);
+  $('fmPresuSub').textContent = 'Meta ' + d.anio;
+  $('fmFact').textContent = _fmMil(d.facturado_total);
+  $('fmFactSub').textContent = (d.presupuesto_total ? _fmPct(d.facturado_total / d.presupuesto_total) : '—') + ' del presupuesto anual';
+  if (d.cumplimiento_acum != null) {
+    const dif = (d.cumplimiento_acum - 1) * 100;
+    const ok = dif >= 0;
+    $('fmCump').innerHTML = _fmPct(d.cumplimiento_acum) + ' <span class="fm-pill" style="background:' + (ok ? '#e5f4e4;color:#27500A' : '#fbebeb;color:#791F1F') + '">'
+      + (ok ? '+' : '−') + Math.abs(dif).toFixed(1).replace('.', ',') + ' pts</span>';
+    $('fmCumpSub').textContent = 'Ene–' + ultCer + ' · meta acumulada ' + _fmMil(d.presupuesto_acum);
+  } else { $('fmCump').textContent = '—'; $('fmCumpSub').textContent = 'Aún no hay meses cerrados'; }
+  const rest = MES.slice(cer).map(x => _fmMes(x.mes));
+  $('fmNecLbl').textContent = rest.length ? 'Necesita ' + rest[0] + (rest.length > 1 ? '–' + rest[rest.length - 1] : '') : 'Año cerrado';
+  $('fmNec').innerHTML = rest.length ? _fmMil(d.necesita_mes) + '<span style="font-size:13px;color:var(--text-muted);font-weight:600;">/mes</span>' : '—';
+  $('fmNecSub').textContent = d.falta_anual > 0 ? 'Faltan ' + _fmMil(d.falta_anual) + ' para el presupuesto anual' : 'Presupuesto anual cumplido';
+  // Aviso: atraso (o adelanto) frente a la meta acumulada de los meses cerrados.
+  const al = $('fmAlerta');
+  if (cer > 0) {
+    const gap = d.presupuesto_acum - d.facturado_acum;
+    al.style.display = '';
+    if (gap > 0) {
+      al.style.cssText = 'display:block;background:#fbebeb;border:1px solid #F7C1C1;color:#791F1F;';
+      al.innerHTML = '⚠ Atraso de <b>' + _fmMil(gap) + '</b> frente a la meta acumulada a ' + ultCer.toLowerCase()
+        + '. Para cerrar el año se necesitan <b>' + _fmMil(d.necesita_mes) + '/mes</b>' + (rest.length ? ' en ' + rest.join(' y ').toLowerCase() : '') + '.';
+    } else {
+      al.style.cssText = 'display:block;background:#e5f4e4;border:1px solid #C0DD97;color:#27500A;';
+      al.innerHTML = '✓ Vamos <b>' + _fmMil(-gap) + '</b> por encima de la meta acumulada a ' + ultCer.toLowerCase() + '.';
+    }
+  } else { al.style.display = 'none'; }
+  // Gráfico de barras (SVG, sin librerías): presupuesto vs facturado por mes.
+  const W = 760, H = 230, pl = 54, pb = 24, pt = 10, cw = (W - pl) / 12;
+  const paso = 500e6;   // eje en cifras redondas: $0, $500M, $1.000M…
+  const maxV = Math.max(paso, Math.ceil(Math.max(...MES.map(x => Math.max(x.presupuesto, x.facturado))) / paso) * paso);
+  const y = v => pt + (H - pt - pb) * (1 - v / maxV);
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="Presupuesto vs facturado por mes">';
+  for (let v = 0; v <= maxV; v += paso) {
+    const yy = y(v);
+    svg += '<line x1="' + pl + '" x2="' + W + '" y1="' + yy + '" y2="' + yy + '" stroke="#eceff3"/>'
+      + '<text x="' + (pl - 6) + '" y="' + (yy + 4) + '" font-size="10" fill="#8a94a3" text-anchor="end">' + _fmMil(v) + '</text>';
+  }
+  MES.forEach((x, i) => {
+    const x0 = pl + i * cw + cw * 0.14, bw = cw * 0.34;
+    svg += '<rect x="' + x0 + '" y="' + y(x.presupuesto) + '" width="' + bw + '" height="' + (H - pb - y(x.presupuesto)) + '" rx="2" fill="#D3D1C7"><title>' + _fmMes(x.mes) + ' · presupuesto ' + _fmMil(x.presupuesto) + '</title></rect>';
+    if (x.estado !== 'futuro' && x.facturado > 0) {
+      const col = x.estado === 'en_curso' ? '#F0997B' : (x.facturado >= x.presupuesto ? '#1D9E75' : '#E24B4A');
+      svg += '<rect x="' + (x0 + bw + 2) + '" y="' + y(x.facturado) + '" width="' + bw + '" height="' + (H - pb - y(x.facturado)) + '" rx="2" fill="' + col + '"><title>' + _fmMes(x.mes) + ' · facturado ' + _fmMil(x.facturado) + ' (' + x.n + ' facturas)</title></rect>';
+    }
+    svg += '<text x="' + (pl + i * cw + cw / 2) + '" y="' + (H - 7) + '" font-size="11" fill="#556" text-anchor="middle">' + _fmMes(x.mes) + '</text>';
+  });
+  $('fmChart').innerHTML = svg + '</svg>';
+  // Cumplimiento por mes.
+  $('fmCumpMes').innerHTML = MES.map(x => {
+    if (x.estado === 'futuro' || !x.presupuesto) return '<div class="fm-chip" style="color:var(--text-muted)">' + _fmMes(x.mes) + '<b>—</b></div>';
+    const p = Math.round(x.facturado / x.presupuesto * 100);
+    const curso = x.estado === 'en_curso';
+    const ok = p >= 100;
+    const bg = curso ? '#f9ece7' : (ok ? '#e5f4e4' : '#fbebeb'), fg = curso ? '#993C1D' : (ok ? '#27500A' : '#791F1F');
+    return '<div class="fm-chip" style="background:' + bg + ';color:' + fg + '" title="' + _fmMil(x.facturado) + ' de ' + _fmMil(x.presupuesto) + (curso ? ' · mes en curso' : '') + '">'
+      + _fmMes(x.mes) + (curso ? ' (en curso)' : '') + '<b>' + p + ' %</b></div>';
+  }).join('');
+}
+
+// PDF para gerencia: imprime solo la vista Meta (el navegador ofrece "Guardar como PDF").
+function factMetaPDF() {
+  document.body.classList.add('fm-printing');
+  const fin = () => { document.body.classList.remove('fm-printing'); window.removeEventListener('afterprint', fin); };
+  window.addEventListener('afterprint', fin);
+  setTimeout(() => window.print(), 50);
+}
+
 let pyRealData = null;
 let pyFiltro = 'total';
 const PY_FILTRO_LBL = {
