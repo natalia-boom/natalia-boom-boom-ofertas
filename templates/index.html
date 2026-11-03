@@ -1668,18 +1668,6 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- ==================== FACTURACIÓN ==================== -->
 <section class="tab-panel" id="tab-facturacion">
-  <div class="approved-header">
-    <div>
-      <h2>Facturación</h2>
-      <p>Facturado real (Vulcano) por mes y por cliente. Sube tu Excel para actualizar.</p>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <input type="file" id="factArchivo" accept=".xlsx,.xls" style="display:none;" onchange="factImportar()">
-      <button class="btn btn-sm write-only" onclick="document.getElementById('factArchivo').click()" title="Sube tu Excel (hojas 'Facturación' y 'Ofertas Aprobadas'): actualiza el facturado por mes y reparte el facturado por oferta sin enredos." style="background:#e8641a;color:#fff;border:none;">Importar Excel</button>
-      <button class="btn btn-outline btn-sm" onclick="pyRenderReal(); factMetaRender();">Refrescar</button>
-    </div>
-  </div>
-
   <!-- Sub-pestañas: Meta (informe para gerencia) / Por mes y clientes (detalle) -->
   <div class="fm-tabs">
     <button class="fm-tab on" id="fmTabMeta" onclick="factSubtab('meta')">Meta <span id="fmTabAnio">2026</span></button>
@@ -1742,6 +1730,19 @@ body.rol-viewer .write-only { display:none !important; }
 
   <!-- ===== POR MES Y CLIENTES (lo que ya existía) ===== -->
   <div id="factDetalleView" style="display:none;">
+
+  <div class="approved-header">
+    <div>
+      <h2>Facturación</h2>
+      <p>Facturado real (Vulcano) por mes y por cliente. Sube tu Excel para actualizar.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="file" id="factArchivo" accept=".xlsx,.xls" style="display:none;" onchange="factImportar()">
+      <button class="btn btn-sm write-only" onclick="document.getElementById('factArchivo').click()" title="Sube tu Excel (hojas 'Facturación' y 'Ofertas Aprobadas'): actualiza el facturado por mes y reparte el facturado por oferta sin enredos." style="background:#e8641a;color:#fff;border:none;">Importar Excel</button>
+      <button class="btn btn-sm" onclick="pyRenderReal();" style="background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.7);">Refrescar</button>
+    </div>
+  </div>
+
 
   <!-- Facturado real -->
   <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(27,42,74,.05);">
