@@ -3811,7 +3811,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-03c"
+APP_VERSION = "2026-11-03d"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -5098,6 +5098,9 @@ _META_FACT_PERSONAS = ["NATALIA VARGAS", "BORIS BORREGO", "WILLINGTON ORTIZ"]
 
 
 def _puede_ver_meta(user) -> bool:
+    # Los administradores también lo ven (Natalia entra con el usuario "Administrador").
+    if (user or {}).get("rol") == "admin":
+        return True
     nombre = (user or {}).get("nombre", "")
     return any(_misma_persona(nombre, p) for p in _META_FACT_PERSONAS)
 
