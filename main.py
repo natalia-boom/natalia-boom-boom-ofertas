@@ -2518,7 +2518,9 @@ def _origen_destino(oferta_row: dict, pdf: dict):
         if m:
             tramo = m.group(2).strip()
             r = re.split(r"\s*(?:→|->|–|—|\s-\s)\s*", tramo)
-            if len(r) == 2 and all(r):
+            # Solo si parece una ruta (no "Servicio de grúas – San Pedro").
+            no_lugar = re.compile(r"^(servicio|reemplazo|suministro|mantenimiento|alquiler|izaje|montaje|transporte|movilizaci|traslado|operaci|breakbulk)", re.I)
+            if len(r) == 2 and all(r) and not any(no_lugar.match(x.strip()) for x in r):
                 og, de = og or r[0].strip().title(), de or r[1].strip().title()
     if not (og and de):
         texto = (str(pdf.get("descripcion") or oferta_row.get("general") or "")).replace("&rarr;", "→").replace("->", "→")
@@ -2527,6 +2529,49 @@ def _origen_destino(oferta_row: dict, pdf: dict):
             og = og or _RE_VERBO_RUTA.sub("", m.group(1)).strip()
             de = de or _RE_VERBO_RUTA.sub("", m.group(2)).strip()
     return og, de
+
+
+def _detalle_carga_html(ia_html: str) -> str:
+    """Toma la sección "DETALLE TÉCNICO DE LA CARGA" (o "ACLARACIÓN TÉCNICA") de
+    la oferta del generador y la pasa a HTML sencillo apto para correo: tarjetas
+    (valor + rótulo) como tabla de 2 columnas y el resto como viñetas."""
+    if not ia_html:
+        return ""
+    import html as _h
+    m = re.search(r'class="section-title"[^>]*>[^<]*(?:DETALLE\s+T(?:É|&Eacute;|E)CNICO|ACLARACI(?:Ó|&Oacute;|O)N\s+T(?:É|&Eacute;|E)CNICA)[^<]*</(?:div|h\d|p)>(.*?)(?=<[a-z0-9]+[^>]*class="section-title"|$)',
+                  ia_html, re.I | re.S)
+    if not m:
+        return ""
+    sec = m.group(1)
+    tarjetas = re.findall(r'class="spec-card"[^>]*>\s*<div class="val"[^>]*>(.*?)</div>\s*<div class="lbl"[^>]*>(.*?)</div>', sec, re.S)
+    limpio = lambda t: _h.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t))).strip()
+    filas = "".join(
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;color:#555;'>{limpio(l)}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;font-weight:bold;'>{limpio(v)}</td></tr>"
+        for v, l in tarjetas if limpio(v))
+    resto = re.sub(r'<div class="spec-grid".*?</div>\s*</div>\s*</div>', " ", sec, flags=re.S) if tarjetas else sec
+    resto = re.sub(r'class="spec-card".*?</div>\s*</div>', " ", resto, flags=re.S)
+    resto = re.sub(r"\s+", " ", resto)   # los saltos del código HTML no son renglones
+    resto = re.sub(r"</t[dh]>", " · ", resto, flags=re.I)
+    resto = re.sub(r"</(p|li|tr|div|h\d)>|<br\s*/?>", "\n", resto, flags=re.I)
+    lineas = []
+    for ln in limpio_lines(resto):
+        ln = ln.strip(" ·")
+        if len(ln) > 2 and ln not in lineas:
+            lineas.append(ln)
+    vinetas = "".join(f"<li style='margin-bottom:4px;'>{ln}</li>" for ln in lineas[:12])
+    out = ""
+    if filas:
+        out += f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>{filas}</tbody></table>"
+    if vinetas:
+        out += f"<ul style='margin:8px 0 0 0;padding-left:18px;font-size:13px;'>{vinetas}</ul>"
+    return out
+
+
+def limpio_lines(texto: str):
+    import html as _h
+    t = _h.unescape(re.sub(r"<[^>]+>", " ", texto))
+    return [re.sub(r"[ \t]+", " ", x).strip() for x in t.split("\n")]
 
 
 def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
@@ -2564,7 +2609,8 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
             <th style='padding:7px 10px;'>Peso</th>
           </tr></thead><tbody>{rows_c}</tbody></table>"""
     else:
-        tabla_carga = f"<p style='color:#666;font-size:13px;'>Ver el detalle completo en la oferta {num} (Control de Ofertas).</p>"
+        tabla_carga = (_detalle_carga_html(str(pdf_data.get("ia_html") or ""))
+                       or f"<p style='color:#666;font-size:13px;'>Ver el detalle completo en la oferta {num} adjunta.</p>")
 
     # ── Tabla equipos
     total = sum(int(e.get("cant",1) or 1) * int(e.get("valor_unit",0) or 0) for e in equipos) or int(valor or 0)
@@ -2631,7 +2677,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     <ul style='margin:0;padding-left:18px;font-size:13px;line-height:1.8;'>
       <li><strong>Origen:</strong> {origen or "A confirmar con cliente"}</li>
       <li><strong>Destino:</strong> {destino or "A confirmar con cliente"}</li>
-      <li><strong>Fecha de cargue:</strong> A confirmar con cliente</li>
+      <li><strong>Fecha estimada de cargue:</strong> {(oferta_row.get("_fecha_cargue") or "").strip() or "A confirmar con cliente"}</li>
       {f"<li><strong>Servicio:</strong> {descripcion}</li>" if descripcion else ""}
     </ul>
 
@@ -5542,7 +5588,7 @@ def contratos_pendientes_delete(cid: int, request: Request):
 
 
 @app.get("/api/ofertas/{oferta_id}/correo-inicio.eml")
-def correo_inicio_eml(oferta_id: int):
+def correo_inicio_eml(oferta_id: int, fecha: str = Query("")):
     """Correo de INICIO DE SERVICIO como archivo .eml "sin enviar" (X-Unsent: 1):
     al abrirlo, Outlook de escritorio lo muestra como un correo NUEVO ya armado
     (para, copia, asunto, diseño y la OFERTA EN PDF ADJUNTA) y la persona solo da
@@ -5563,6 +5609,7 @@ def correo_inicio_eml(oferta_id: int):
                 pdf = json.loads(pdf)
             except Exception:
                 pdf = {}
+        row = dict(row, _fecha_cargue=(fecha or "")[:40])
         asunto, html_body = _armar_notificacion_osi(row, pdf or {})
         # La oferta en PDF va adjunta (como lo hace Natalia). Mismo PDF que el
         # botón de descarga de Control; si no se puede generar, el correo sale igual.

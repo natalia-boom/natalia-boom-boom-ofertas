@@ -6529,9 +6529,11 @@ function closeModalOutside(e) {
 // Correo de INICIO DE SERVICIO: descarga un .eml "sin enviar" que Outlook de
 // escritorio abre como correo NUEVO ya armado (para, copia, asunto y diseño).
 async function correoInicio(id, num) {
+  const fecha = prompt('Fecha estimada de cargue (por ejemplo 15/11/2026).\nDéjala vacía si aún no se sabe:', '');
+  if (fecha === null) return;   // canceló
   try {
     showToast('Preparando el correo…', 'info');
-    const r = await fetch('/api/ofertas/' + id + '/correo-inicio.eml');
+    const r = await fetch('/api/ofertas/' + id + '/correo-inicio.eml?fecha=' + encodeURIComponent(fecha.trim()));
     if (!r.ok) throw new Error('No se pudo preparar el correo');
     const ref = String(num || '').replace(/\D/g, '');
     descargarArchivo(await r.blob(), 'Inicio_servicio_' + (ref.length === 6 ? ref.slice(0, 2) + '-' + ref.slice(2) : id) + '.eml');
