@@ -2832,7 +2832,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
   {titulo(1, "INFORMACIÓN DEL PROYECTO")}{li(info)}
   {titulo(2, "DETALLE TÉCNICO DE LA CARGA")}{carga}{alerta_dim}
   {titulo(3, "CONFIGURACIÓN DE TRANSPORTE Y TARIFA")}{tarifa}{li(tarifa_lineas)}
-  {titulo(4, "CONDICIONES OPERATIVAS Y SEGUROS")}{li(op)}{poliza_montaje}
+  {titulo(4, "CONDICIONES OPERATIVAS Y SEGUROS")}<p style='font-size:13px;margin:6px 0 0 0;'>Ver condiciones operativas, pólizas y exclusiones en la oferta <strong>{num}</strong> adjunta.</p>{poliza_montaje}
   {titulo(5, "CONDICIONES COMERCIALES")}{li(comerciales)}
 
   <p style='margin:20px 0 8px 0;'>Lo anterior para lo correspondiente.</p>
