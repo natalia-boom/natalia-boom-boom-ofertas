@@ -2481,16 +2481,12 @@ _session_load_from_db()
 
 
 # ── Email notification ────────────────────────────────────────────────────────
-def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    if not SMTP_USER or not SMTP_PASSWORD:
-        print("[EMAIL] SMTP_USER/SMTP_PASSWORD no configurados — email omitido")
-        return
-
-    num     = oferta_row.get("num", "")
+def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
+    """Arma (asunto, html) del correo de INICIO DE SERVICIO. Separado del envío
+    para poder previsualizarlo. Sirve para ofertas del formulario clásico (con
+    tabla de equipos) y del generador IA (sin equipos: usa descripción y valor)."""
+    pdf_data = pdf_data or {}
+    num     = _fmt_ref(oferta_row.get("num", "")) if oferta_row.get("num") else ""
     cliente = oferta_row.get("cliente", "")
     valor   = oferta_row.get("valor", 0) or 0
     origen  = pdf_data.get("origen", "") if pdf_data else ""
@@ -2498,8 +2494,13 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     equipos = pdf_data.get("equipos", []) if pdf_data else []
     cargo_items = pdf_data.get("cargo_items", []) if pdf_data else []
     notas   = pdf_data.get("notas", "") if pdf_data else ""
+    if isinstance(notas, list):
+        notas = "\n".join(str(x) for x in notas)
+    notas = notas or ""
     forma_pago = pdf_data.get("forma_pago", "50% anticipo / 50% a 30 días tras radicación de factura") if pdf_data else ""
     vigencia   = pdf_data.get("vigencia", 30) if pdf_data else 30
+    descripcion = (pdf_data.get("descripcion") or oferta_row.get("general") or "").strip()
+    comercial   = (oferta_row.get("realizada") or "Natalia Vargas").strip().title()
 
     # ── Tabla carga
     if cargo_items:
@@ -2516,10 +2517,10 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
             <th style='padding:7px 10px;'>Peso</th>
           </tr></thead><tbody>{rows_c}</tbody></table>"""
     else:
-        tabla_carga = "<p style='color:#666;font-size:13px;'>Ver detalle en oferta adjunta.</p>"
+        tabla_carga = f"<p style='color:#666;font-size:13px;'>Ver el detalle completo en la oferta {num} (Control de Ofertas).</p>"
 
     # ── Tabla equipos
-    total = sum(int(e.get("cant",1) or 1) * int(e.get("valor_unit",0) or 0) for e in equipos)
+    total = sum(int(e.get("cant",1) or 1) * int(e.get("valor_unit",0) or 0) for e in equipos) or int(valor or 0)
     rows_e = "".join(f"""<tr><td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;'>{e.get('equipo','')}</td>
       <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;'>{e.get('cant',1)}</td>
       <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;'>{e.get('config','')}</td>
@@ -2527,7 +2528,15 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
         for e in equipos if e.get('equipo'))
     total_row = f"""<tr style='background:#E8601C;color:#fff;'><td colspan='3' style='padding:8px 10px;font-weight:bold;'>TOTAL OFERTA</td>
       <td style='padding:8px 10px;text-align:right;font-weight:bold;'>{_fmt_cop(total)} COP</td></tr>"""
-    tabla_equipos = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
+    if not rows_e:
+        moneda = (pdf_data.get("moneda") or oferta_row.get("moneda") or "COP").upper()
+        tabla_equipos = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
+      <tbody><tr style='background:#E8601C;color:#fff;'><td style='padding:8px 10px;font-weight:bold;'>VALOR TOTAL OFERTA: {_fmt_cop(total)} {moneda}</td></tr>
+      </tbody></table>"""
+    else:
+        tabla_equipos = None
+    if tabla_equipos is None:
+        tabla_equipos = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
       <thead><tr style='background:#1B2A4A;color:#fff;'>
         <th style='padding:7px 10px;text-align:left;'>Equipo</th>
         <th style='padding:7px 10px;'>Cant.</th>
@@ -2576,6 +2585,7 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
       <li><strong>Origen:</strong> {origen or "A confirmar con cliente"}</li>
       <li><strong>Destino:</strong> {destino or "A confirmar con cliente"}</li>
       <li><strong>Fecha de cargue:</strong> A confirmar con cliente</li>
+      {f"<li><strong>Servicio:</strong> {descripcion}</li>" if descripcion else ""}
     </ul>
 
     <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>2. DETALLE TÉCNICO DE LA CARGA</p>
@@ -2594,15 +2604,29 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     </ul>
 
     <p style='margin:20px 0 0 0;border-top:1px solid #e0e0e0;padding-top:14px;font-size:13px;color:#666;'>Lo anterior para lo correspondiente.</p>
-    <p style='margin:8px 0 2px 0;font-weight:bold;color:#1B2A4A;'>Natalia Vargas</p>
-    <p style='margin:2px 0;color:#E8601C;font-size:13px;'>Ejecutiva Comercial</p>
+    <p style='margin:8px 0 2px 0;font-weight:bold;color:#1B2A4A;'>{comercial}</p>
+    <p style='margin:2px 0;color:#E8601C;font-size:13px;'>Área Comercial</p>
     <p style='margin:2px 0;font-size:12px;color:#666;'>BOOM Logistics Colombia S.A.S.</p>
   </div>
 </div>
 </body></html>"""
 
+    asunto = f"🔔 NOTIFICACIÓN DE INICIO DE SERVICIO — REF: {num} — {cliente.upper()}"
+    return asunto, html_body
+
+
+def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    if not SMTP_USER or not SMTP_PASSWORD:
+        print("[EMAIL] SMTP_USER/SMTP_PASSWORD no configurados — email omitido")
+        return
+    asunto, html_body = _armar_notificacion_osi(oferta_row, pdf_data)
+    num = oferta_row.get("num", "")
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"🔔 NOTIFICACIÓN DE INICIO DE SERVICIO — REF: {num} — {cliente.upper()}"
+    msg["Subject"] = asunto
     msg["From"]    = SMTP_FROM
     msg["To"]      = ", ".join(NOTIF_TO)
     msg["Cc"]      = ", ".join(NOTIF_CC)
@@ -2618,6 +2642,43 @@ def _enviar_notificacion_osi(oferta_row: dict, pdf_data: dict):
         print(f"[EMAIL] Notificación OSI enviada para oferta {num}")
     except Exception as exc:
         print(f"[EMAIL] Error al enviar notificación: {exc}")
+
+
+def _al_aceptar_oferta(oferta_id: int):
+    """Lo que pasa cuando una oferta PASA a ACEPTADA, venga de donde venga
+    (lápiz de Control, generador IA, alta directa): sella la fecha de aceptación,
+    deja la notificación para Operaciones (campana) y envía el correo de INICIO
+    DE SERVICIO en segundo plano. Las importaciones masivas de Excel NO lo llaman
+    (enviarían decenas de correos de ofertas viejas)."""
+    import threading
+    try:
+        with get_conn() as connA:
+            curA = connA.cursor()
+            curA.execute("UPDATE ofertas SET aceptada_fecha = now() WHERE id = %s", (oferta_id,))
+            curA.execute("SELECT * FROM ofertas WHERE id = %s", (oferta_id,))
+            row = fetchone(curA) or {}
+    except Exception as _e:
+        print(f"[ACEPTADA] No se pudo leer/sellar la oferta {oferta_id}: {_e}")
+        return
+    pdf_payload = row.get("pdf_data")
+    if isinstance(pdf_payload, str):
+        try:
+            pdf_payload = json.loads(pdf_payload)
+        except Exception:
+            pdf_payload = {}
+    pdf_payload = pdf_payload or {}
+    try:
+        with get_conn() as conn2:
+            cur2 = conn2.cursor()
+            cur2.execute("""
+                INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
+                VALUES (%s,%s,%s,%s,%s,%s)
+            """, (oferta_id, row.get("num",""), row.get("cliente",""),
+                  pdf_payload.get("origen",""), pdf_payload.get("destino",""),
+                  row.get("valor",0) or 0))
+    except Exception as db_exc:
+        print(f"[OSI] Error guardando notificación/OSI: {db_exc}")
+    threading.Thread(target=_enviar_notificacion_osi, args=(row, pdf_payload), daemon=True).start()
 
 
 def new_conn():
@@ -5529,6 +5590,8 @@ def create_oferta(oferta: OfertaCreate):
                 # Re-lee por si el cruce renombró el cliente de esta oferta.
                 cur.execute("SELECT * FROM ofertas WHERE id = %s", (nueva["id"],))
                 fresca = fetchone(cur)
+                if (oferta.respuesta or "").upper() == "ACEPTADA":
+                    _al_aceptar_oferta(nueva["id"])
                 return fresca or nueva
         except pgdb.DatabaseError as e:
             msg = str(e).lower()
@@ -5666,43 +5729,7 @@ def update_oferta(oferta_id: int, oferta: OfertaUpdate, request: Request):
         nueva_respuesta = (fields.get("respuesta") or "").upper()
         prev_respuesta  = (prev.get("respuesta") or "").upper()
         if nueva_respuesta == "ACEPTADA" and prev_respuesta != "ACEPTADA":
-            import threading
-            # Sella la fecha de aceptación → el módulo de Aprobadas la pone ARRIBA.
-            try:
-                with get_conn() as connA:
-                    curA = connA.cursor()
-                    curA.execute("UPDATE ofertas SET aceptada_fecha = now() WHERE id = %s", (oferta_id,))
-            except Exception as _e:
-                print(f"[ACEPTADA] No se pudo sellar aceptada_fecha: {_e}")
-            pdf_payload = row.get("pdf_data")
-            if isinstance(pdf_payload, str):
-                try:
-                    pdf_payload = json.loads(pdf_payload)
-                except Exception:
-                    pdf_payload = {}
-            pdf_payload = pdf_payload or {}
-
-            # Persist notification in DB.
-            # La OSI ya NO se crea automáticamente: la genera el líder desde la
-            # tarjeta con el botón "Crear OSI" (formulario pre-llenado).
-            try:
-                with get_conn() as conn2:
-                    cur2 = conn2.cursor()
-                    cur2.execute("""
-                        INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                    """, (oferta_id, row.get("num",""), row.get("cliente",""),
-                          pdf_payload.get("origen",""), pdf_payload.get("destino",""),
-                          row.get("valor",0) or 0))
-            except Exception as db_exc:
-                print(f"[OSI] Error guardando notificación/OSI: {db_exc}")
-
-            # Send email in background
-            threading.Thread(
-                target=_enviar_notificacion_osi,
-                args=(row, pdf_payload),
-                daemon=True
-            ).start()
+            _al_aceptar_oferta(oferta_id)
 
         # ── Cleanup when respuesta stops being ACEPTADA ──────────────────────
         # Si la oferta deja de estar aceptada, retira su notificación pendiente
@@ -6576,14 +6603,14 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                 if _rechoque:
                     cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS n FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
                     num = str(fetchone(cur)["n"])
-                cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
+                cur.execute("SELECT id, valor, respuesta FROM ofertas WHERE num = %s", (num,))
                 ex = fetchone(cur)
                 if ex and body.nueva and not _rechoque:
                     # El consecutivo mostrado ya pertenece a OTRA oferta: no la
                     # sobreescribas; toma el siguiente número libre para esta nueva.
                     cur.execute("SELECT COALESCE(MAX(CAST(num AS INTEGER)), 260000) + 1 AS n FROM ofertas WHERE NOT COALESCE(es_prueba, false)")
                     num = str(fetchone(cur)["n"])
-                    cur.execute("SELECT id, valor FROM ofertas WHERE num = %s", (num,))
+                    cur.execute("SELECT id, valor, respuesta FROM ofertas WHERE num = %s", (num,))
                     ex = fetchone(cur)
                 pdf_data["ref"] = num
                 # El número impreso en la hoja DEBE ser el mismo que queda en
@@ -6598,6 +6625,7 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                         pdf_data["ia_html"] = _html_fix
                         nuevo_valor = _suma_ok
                         print(f"[SUMA] Oferta {num}: total corregido a {_suma_ok}")
+                prev_resp = ((ex or {}).get("respuesta") or "").upper()
                 if ex:
                     oferta_id = ex["id"]
                     valor_ant = int(ex.get("valor") or 0)
@@ -6673,6 +6701,9 @@ def guardar_version(body: OfertaVersionBody, request: Request):
                            VALUES (%s,%s,'valor',%s,%s,%s)""",
                         (oferta_id, num, str(valor_ant), str(nuevo_valor), usuario),
                     )
+            # Si con este guardado la oferta PASA a ACEPTADA → notificación + correo.
+            if (body.respuesta or "").upper() == "ACEPTADA" and prev_resp != "ACEPTADA":
+                _al_aceptar_oferta(oferta_id)
             num_fmt = num.zfill(6)
             num_fmt = num_fmt[:2] + "-" + num_fmt[2:]
             return {"ok": True, "oferta_id": oferta_id, "num": num, "num_fmt": num_fmt,
