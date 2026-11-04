@@ -2578,11 +2578,14 @@ def _filas_tabla(tabla_html: str):
 def _tabla_correo(tabla_html: str) -> str:
     """Re-arma una tabla de la oferta con estilos en línea (Outlook ignora <style>)."""
     out = ""
+    es_num = re.compile(r"^[$\d]")
+    der = "text-align:right;white-space:nowrap;"
     for es_th, es_tot, txts, spans in _filas_tabla(tabla_html):
         est = _TH if es_th else (_TOT if es_tot else _TD)
         tag = "th" if es_th else "td"
+        # Ojo: producción corre Python 3.11 → nada de "\" dentro de {…} en f-strings.
         out += "<tr>" + "".join(
-            f"<{tag} colspan='{sp}' style='{est}{'text-align:right;white-space:nowrap;' if (re.match(r'^[$\d]', t) and not es_th) else ''}'>{_html_mod.escape(t)}</{tag}>"
+            f"<{tag} colspan='{sp}' style='{est}{der if (es_num.match(t) and not es_th) else ''}'>{_html_mod.escape(t)}</{tag}>"
             for t, sp in zip(txts, spans)) + "</tr>"
     return f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>{out}</tbody></table>" if out else ""
 
