@@ -1283,6 +1283,15 @@ body.rol-viewer .write-only { display:none !important; }
         </select>
       </div>
       <div class="form-group">
+        <label>Correo inicio</label>
+        <select id="aCorreo" onchange="filterAprobadas()">
+          <option value="">Todos</option>
+          <option value="pendiente">Correo pendiente</option>
+          <option value="preparado">Preparado (sin confirmar)</option>
+          <option value="enviado">Enviado</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Facturación desde</label>
         <input type="date" id="aFechaDesde" oninput="filterAprobadas()">
       </div>
@@ -3815,7 +3824,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-04b',
+  version: '2026-11-04c',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5985,6 +5994,7 @@ function filterAprobadas() {
   const facturacion = document.getElementById('aFacturacion').value;
   const fechaDesde  = document.getElementById('aFechaDesde').value;
   const fechaHasta  = document.getElementById('aFechaHasta').value;
+  const correoF     = (document.getElementById('aCorreo') || {}).value || '';
 
   // Un proyecto ACEPTADO pero luego CANCELADO no cuenta como aprobado vivo.
   // Se excluye por defecto, salvo que el usuario filtre explícitamente por "Cancelado".
@@ -6004,6 +6014,12 @@ function filterAprobadas() {
     if (facturacion === 'vencida'     && !esVencida(o)) return false;
     if (fechaDesde && (o.fecha_facturacion||'') < fechaDesde) return false;
     if (fechaHasta && (o.fecha_facturacion||'') > fechaHasta) return false;
+    if (correoF) {
+      const ce = o.correo_inicio_estado || '';
+      if (correoF === 'pendiente' && ce === 'enviado') return false;
+      if (correoF === 'preparado' && ce !== 'preparado') return false;
+      if (correoF === 'enviado'   && ce !== 'enviado') return false;
+    }
     // Filtro del semáforo (tarjetas del panel Control de Aprobadas)
     if (semFilter) {
       const cls = semaforoDe(o).cls;
@@ -6108,14 +6124,14 @@ function filterAprobadas() {
       factCell = `<div style="height:6px;background:#eef1f5;border-radius:999px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${barcol};"></div></div><div style="font-size:10px;color:${txtcol};margin-top:3px;">${txt}${badgeFact}</div>`;
     }
     const valCell = (o.valor_aprobado && o.valor_aprobado < o.valor)
-      ? `<span title="Aprobado ${formatCOP(o.valor_aprobado)} de ${formatCOP(o.valor)} total — el resto está cotizado pero sin autorizar">${formatCOP(o.valor_aprobado)} <span style="display:inline-block;background:#f3e8ff;color:#6d28d9;border:1px solid #d8b4fe;border-radius:9px;padding:0 5px;font-size:8px;font-weight:700;">PARCIAL</span><br><span style="font-size:9px;color:#94a3b8;">de ${formatCOP(o.valor)}</span></span>`
+      ? `<div title="Aprobado ${formatCOP(o.valor_aprobado)} de ${formatCOP(o.valor)} total — el resto está cotizado pero sin autorizar"><div>${formatCOP(o.valor_aprobado)}</div><div style="margin-top:3px;font-size:9.5px;color:#94a3b8;white-space:nowrap;"><span style="display:inline-block;background:#f3e8ff;color:#6d28d9;border:1px solid #d8b4fe;border-radius:9px;padding:0 6px;font-size:8.5px;font-weight:700;margin-right:3px;">PARCIAL</span>de ${formatCOP(o.valor)}</div></div>`
       : (valor ? formatCOP(valor) : '—');
     return `
     <tr class="${vencida ? 'tr-cobro' : ''}" style="${vencida ? 'border-left:3px solid #b23a2e;' : ''}">
       <td style="white-space:nowrap;vertical-align:top;"><span class="num-badge">${o.num||''}</span>${vencida ? `<span title="Sin facturar hace ${diasAtraso} días" style="margin-left:4px;color:#b23a2e;"></span>` : ''}<div style="font-size:10px;color:#94a3b8;margin-top:2px;">${o.mes||''}${o.fecha?' · '+o.fecha:''}</div></td>
       <td style="vertical-align:top;"><div style="font-weight:600;font-size:12px;">${o.cliente||''}</div></td>
       <td style="vertical-align:top;font-size:11px;color:#556;max-width:300px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(o._desc||'').replace(/"/g,'&quot;')}">${o._desc || '<span style=\"color:#b8c0cc;\">—</span>'}</div></td>
-      <td style="text-align:right;font-size:11.5px;white-space:nowrap;vertical-align:top;">${valCell}</td>
+      <td style="text-align:right;font-size:11.5px;white-space:nowrap;vertical-align:top;min-width:125px;overflow:visible;">${valCell}</td>
       <td style="min-width:150px;vertical-align:top;">${factCell}</td>
       <td style="vertical-align:top;">
         <select class="seg-select seg-${slugSeg(o.seguimiento)}" ${(currentUser && currentUser.rol==='viewer') ? 'disabled title="Solo lectura"' : ''} onchange="saveSeguimiento(${o.id}, this.value)">
@@ -6127,8 +6143,8 @@ function filterAprobadas() {
         </select>
       </td>
       <td style="text-align:center;vertical-align:top;white-space:nowrap;">
-        <button class="write-only" onclick="correoInicio(${o.id}, '${(o.num||'').replace(/'/g,"\\'")}')" title="Preparar el correo de inicio de servicio en Outlook" style="background:#1B2A4A;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600;margin-bottom:4px;">✉ Correo inicio</button>
-        ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button class="write-only" onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Facturación</button>` : ''}
+        ${_celdaCorreo(o)}
+        ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button class="write-only" onclick="openEditFact(${o.id})" style="display:block;margin:6px auto 0;width:118px;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:5px 0;font-size:11px;cursor:pointer;font-weight:600;">Facturación</button>` : ''}
       </td>
     </tr>
     ${nFact > 0 ? `<tr id="fdet-${o.num}" style="display:none;background:#f8fafc;">
@@ -6526,17 +6542,133 @@ function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
 
-// Correo de INICIO DE SERVICIO: descarga un .eml "sin enviar" que Outlook de
-// escritorio abre como correo NUEVO ya armado (para, copia, asunto y diseño).
+// ── Correo de INICIO DE SERVICIO ──────────────────────────────────────────
+// Ventanita: fecha estimada + "¿Qué aprobó el cliente?" (renglones de precio de
+// la oferta). Arma un .eml "sin enviar" que Outlook abre como correo NUEVO con la
+// oferta en PDF adjunta. Registra 'preparado'; luego "Marcar enviado".
+function _fmtCorta(f) { try { const d = new Date(f); return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); } catch (e) { return ''; } }
+// Celda de acciones "Correo inicio": un solo bloque de 118 px, alineado con el
+// botón Facturación. El botón cambia de aspecto según el estado y debajo va una
+// línea corta (punto de color + estado + fecha); quién lo hizo va en el tooltip.
+function _celdaCorreo(o) {
+  const ce = o.correo_inicio_estado || '';
+  const quien = o.correo_inicio_por ? String(o.correo_inicio_por).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : '';
+  const cuando = o.correo_inicio_fecha ? _fmtCorta(o.correo_inicio_fecha) : '';
+  const tip = ce ? `${ce === 'enviado' ? 'Enviado' : 'Preparado'}${quien ? ' por ' + quien : ''}${cuando ? ' el ' + cuando : ''}` : 'Aún no se ha preparado el correo de inicio';
+  const num = (o.num || '').replace(/'/g, "\\'");
+  const base = 'display:block;margin:0 auto;width:118px;border-radius:6px;padding:5px 0;font-size:11px;cursor:pointer;font-weight:600;';
+  const btnEst = ce === 'enviado'
+    ? 'background:#fff;color:#1B2A4A;border:1px solid #cbd5e1;'      // ya enviado: discreto (por si hay que reenviar)
+    : 'background:#1B2A4A;color:#fff;border:1px solid #1B2A4A;';
+  const dot = c => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};margin-right:5px;vertical-align:0;"></span>`;
+  let linea;
+  if (ce === 'enviado')
+    linea = `<span style="color:#1d7a3a;font-weight:700;">${dot('#22a05a')}Enviado ${cuando}</span>`;
+  else if (ce === 'preparado')
+    linea = `<span style="color:#9a6b00;font-weight:700;">${dot('#e0a100')}Preparado ${cuando}</span>`
+          + `<button class="write-only" onclick="marcarCorreoEnviado(${o.id})" title="Confírmalo cuando lo hayas enviado desde Outlook" style="${base}margin-top:4px;background:#ecf8f0;color:#1d7a3a;border:1px solid #9fd8b3;">✓ Marcar enviado</button>`;
+  else
+    linea = `<span style="color:#94a3b8;">${dot('#cbd5e1')}Sin enviar</span>`;
+  return `<button class="write-only" onclick="correoInicio(${o.id}, '${num}')" title="Preparar el correo de inicio de servicio en Outlook" style="${base}${btnEst}">✉ Correo inicio</button>`
+       + `<div title="${tip}" style="font-size:10px;margin-top:4px;white-space:nowrap;">${linea}</div>`;
+}
+async function _estadoCorreo(id, estado) {
+  const r = await fetch('/api/ofertas/' + id + '/correo-inicio/estado', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado })
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo guardar el estado del correo'); }
+  const d = await r.json();
+  const o = allOfertas.find(x => x.id === id);
+  if (o) { o.correo_inicio_estado = d.correo_inicio_estado; o.correo_inicio_por = d.correo_inicio_por; o.correo_inicio_fecha = d.correo_inicio_fecha; }
+}
+async function marcarCorreoEnviado(id) {
+  try { await _estadoCorreo(id, 'enviado'); showToast('Correo de inicio marcado como ENVIADO', 'success'); filterAprobadas(); }
+  catch (e) { showToast('' + e.message, 'error'); }
+}
+
+let _ci = null;   // estado de la ventanita
+const _ciCOP = n => '$' + (Math.round(n) || 0).toLocaleString('es-CO');
 async function correoInicio(id, num) {
+  let datos;
   try {
-    showToast('Preparando el correo…', 'info');
-    const r = await fetch('/api/ofertas/' + id + '/correo-inicio.eml');
+    const r = await fetch('/api/ofertas/' + id + '/conceptos');
+    if (!r.ok) throw new Error('No se pudo leer la oferta');
+    datos = await r.json();
+  } catch (e) { showToast('' + e.message, 'error'); return; }
+  _ci = { id, num, conc: datos.conceptos || [], ok: (datos.conceptos || []).map(() => true), moneda: datos.moneda || 'COP' };
+  let ov = document.getElementById('ciOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ciOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }
+  const ref = String(num || '').replace(/\D/g, '');
+  const refTxt = ref.length === 6 ? ref.slice(0, 2) + '-' + ref.slice(2) : (num || id);
+  ov.innerHTML = `<div style="background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);width:460px;max-width:100%;max-height:90vh;overflow:auto;padding:20px;color:#1B2A4A;font-size:13px;">
+    <div style="font-weight:700;font-size:16px;margin-bottom:12px;">✉ Correo de inicio de servicio — ${refTxt}</div>
+    <label style="display:block;font-weight:700;margin:6px 0 4px;">Fecha estimada de cargue</label>
+    <input type="text" id="ciFecha" placeholder="Ej. 15/11/2026 — vacía = A confirmar con cliente" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+    <label style="display:block;font-weight:700;margin:14px 0 4px;">¿Qué aprobó el cliente?</label>
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px;">Desmarca lo que el cliente NO aprobó (por ejemplo el izaje).</div>
+    <div id="ciItems">${_ci.conc.map((c, i) => `<label class="ciRow" style="transition:opacity .15s,background .15s;display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:6px;cursor:pointer;">
+      <input type="checkbox" checked onchange="_ci.ok[${i}]=this.checked;_ciPintar()" style="margin-top:2px;">
+      <span style="flex:1;">${(c.concepto||'').replace(/</g,'&lt;')}</span><b style="white-space:nowrap;">${(c.texto||'').replace(/</g,'&lt;')}</b></label>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;background:#E8601C;color:#fff;font-weight:700;padding:9px 10px;border-radius:6px;margin-top:4px;"><span id="ciTotLbl">TOTAL</span><span id="ciTot"></span></div>
+    <div id="ciPar" style="display:none;background:#fff3cd;color:#8a6200;font-weight:700;padding:7px 9px;border-radius:6px;margin-top:8px;font-size:12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button onclick="document.getElementById('ciOverlay').remove()" style="background:#eef1f5;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;">Cancelar</button>
+      <button id="ciBtn" onclick="_ciPreparar()" style="background:#E8601C;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-weight:700;cursor:pointer;">Preparar correo en Outlook</button>
+    </div></div>`;
+  _ciPintar();
+  setTimeout(() => { const f = document.getElementById('ciFecha'); if (f) f.focus(); }, 50);
+}
+function _ciPintar() {
+  const tot = _ci.conc.reduce((s, c, i) => s + (_ci.ok[i] ? (c.valor || 0) : 0), 0);
+  const parcial = _ci.ok.includes(false);
+  // Lo NO aprobado se ve apagado y tachado, para que se note de un vistazo.
+  document.querySelectorAll('#ciItems .ciRow').forEach((el, i) => {
+    el.style.opacity = _ci.ok[i] ? 1 : .55;
+    el.style.background = _ci.ok[i] ? '#fff' : '#f8fafc';
+    el.querySelectorAll('span,b').forEach(s => s.style.textDecoration = _ci.ok[i] ? 'none' : 'line-through');
+  });
+  document.getElementById('ciTotLbl').textContent = parcial ? 'TOTAL APROBADO' : 'TOTAL';
+  document.getElementById('ciTot').textContent = _ciCOP(tot) + ' ' + _ci.moneda;
+  const p = document.getElementById('ciPar');
+  const ninguno = !_ci.ok.includes(true);
+  p.style.display = (parcial) ? '' : 'none';
+  p.textContent = ninguno ? 'Marca al menos un concepto aprobado.'
+    : `APROBACIÓN PARCIAL: se guardará ${_ciCOP(tot)} como valor aprobado de la oferta (etiqueta PARCIAL).`;
+  document.getElementById('ciBtn').disabled = ninguno;
+  document.getElementById('ciBtn').style.opacity = ninguno ? .5 : 1;
+}
+async function _ciPreparar() {
+  const { id, num, conc, ok } = _ci;
+  const fecha = (document.getElementById('ciFecha').value || '').trim();
+  const excl = ok.map((v, i) => v ? null : i).filter(i => i !== null);
+  const parcial = excl.length > 0;
+  const tot = conc.reduce((s, c, i) => s + (ok[i] ? (c.valor || 0) : 0), 0);
+  const btn = document.getElementById('ciBtn');
+  btn.disabled = true; btn.textContent = 'Preparando…';
+  try {
+    const r = await fetch('/api/ofertas/' + id + '/correo-inicio.eml?fecha=' + encodeURIComponent(fecha) + '&excluir=' + excl.join(','));
     if (!r.ok) throw new Error('No se pudo preparar el correo');
     const ref = String(num || '').replace(/\D/g, '');
     descargarArchivo(await r.blob(), 'Inicio_servicio_' + (ref.length === 6 ? ref.slice(0, 2) + '-' + ref.slice(2) : id) + '.eml');
-    showToast('Listo: abre el archivo descargado y se abrirá Outlook con el correo armado. Revisa y dale Enviar.', 'success');
+    document.getElementById('ciOverlay').remove();
+    showToast('Listo: abre el archivo descargado y se abrirá Outlook con el correo armado. Revisa, dale Enviar y luego "✓ Marcar enviado".', 'success');
+    try { await _estadoCorreo(id, 'preparado'); } catch (e) { console.warn(e); }
+    if (parcial && tot > 0) {
+      try {
+        const rp = await fetch('/api/ofertas/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor_aprobado: tot }) });
+        if (!rp.ok) { const e = await rp.json().catch(() => ({})); throw new Error(e.detail || 'No se pudo guardar el valor aprobado'); }
+        const o = allOfertas.find(x => x.id === id); if (o) o.valor_aprobado = tot;
+      } catch (e) { showToast('El correo quedó listo, pero el valor aprobado no se guardó: ' + e.message, 'error'); }
+    }
+    if (typeof filterAprobadas === 'function') filterAprobadas();
   } catch (e) {
+    btn.disabled = false; btn.textContent = 'Preparar correo en Outlook';
     showToast('' + e.message, 'error');
   }
 }

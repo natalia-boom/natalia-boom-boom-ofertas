@@ -1656,6 +1656,11 @@ def _ensure_db():
         # Aprobacion PARCIAL: el cliente autoriza solo una parte de la oferta al notificar.
         # valor = total cotizado ; valor_aprobado = lo realmente autorizado (<= valor).
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS valor_aprobado bigint DEFAULT NULL")
+        # Correo de INICIO DE SERVICIO: 'preparado' (se armó el .eml) o 'enviado'
+        # (la persona confirmó que lo envió desde Outlook), quién y cuándo.
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_estado text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_por text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_fecha timestamptz")
         # Moneda de la oferta (COP por defecto). Las ofertas en USD ya no se muestran
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
@@ -2481,137 +2486,439 @@ _session_load_from_db()
 
 
 # ── Email notification ────────────────────────────────────────────────────────
-def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
-    """Arma (asunto, html) del correo de INICIO DE SERVICIO. Separado del envío
-    para poder previsualizarlo. Sirve para ofertas del formulario clásico (con
-    tabla de equipos) y del generador IA (sin equipos: usa descripción y valor)."""
-    pdf_data = pdf_data or {}
-    num     = _fmt_ref(oferta_row.get("num", "")) if oferta_row.get("num") else ""
-    cliente = oferta_row.get("cliente", "")
-    valor   = oferta_row.get("valor", 0) or 0
-    origen  = pdf_data.get("origen", "") if pdf_data else ""
-    destino = pdf_data.get("destino", "") if pdf_data else ""
-    equipos = pdf_data.get("equipos", []) if pdf_data else []
-    cargo_items = pdf_data.get("cargo_items", []) if pdf_data else []
-    notas   = pdf_data.get("notas", "") if pdf_data else ""
+_RE_ROTULO_LUGAR = r"\s*:\s*(.+?)\s*(?:\n|·|\||→|destino\s*:|origen\s*:|stand|$)"
+_LUGAR_TXT = r"[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*){0,3}(?:\s*\([^)]+\))?"
+_RE_VERBO_RUTA = re.compile(r"^(transporte|transportes|movilizaci[oó]n|traslado|cargue|carga|servicio|alquiler|izaje|montaje|desmonte|retiro|entrega|despacho|ruta|desde|recogida|recolecci[oó]n)s?\s+", re.I)
+
+
+def _origen_destino(oferta_row: dict, pdf: dict):
+    """(origen, destino) de una oferta. Mismo criterio que Ofertas Aprobadas:
+    1) campos del registro; 2) rótulos "Origen: … / Destino: …" en el texto de la
+    oferta; 3) la ruta de la barra REF ("REF: 26-1363 | CLIENTE | A – B | MES");
+    4) una ruta "A → B" en la descripción. Si no hay nada claro, deja vacío."""
+    pdf = pdf or {}
+    og = str(pdf.get("origen") or "").strip()
+    de = str(pdf.get("destino") or "").strip()
+    if og and de:
+        return og, de
+    notas = pdf.get("notas") or ""
     if isinstance(notas, list):
         notas = "\n".join(str(x) for x in notas)
-    notas = notas or ""
-    forma_pago = pdf_data.get("forma_pago", "50% anticipo / 50% a 30 días tras radicación de factura") if pdf_data else ""
-    vigencia   = pdf_data.get("vigencia", 30) if pdf_data else 30
+    html_txt = str(pdf.get("ia_html") or pdf.get("html") or "")
+    plano = re.sub(r"<[^>]+>", " ", html_txt).replace("&nbsp;", " ")
+    blob = "\n".join([str(notas), plano, str(oferta_row.get("general") or ""), str(oferta_row.get("seguimiento") or "")])
+
+    def rotulo(campo):
+        m = re.search(campo + _RE_ROTULO_LUGAR, blob, re.I)
+        if not m:
+            return ""
+        v = re.sub(r"\s{2,}", " ", m.group(1)).strip()
+        return "" if (not v or re.match(r"^(a confirmar|por confirmar|sin |n/?a$|-$|—$)", v, re.I)) else v
+
+    og = og or rotulo("origen")
+    de = de or rotulo("destino")
+    if not (og and de):
+        # Barra REF: el tercer tramo suele ser la ruta.
+        m = re.search(r"REF\s*:?\s*\d{2}\s*-\s*\d{3,4}\s*\|([^|]*)\|([^|]*)\|", re.sub(r"\s+", " ", plano))
+        if m:
+            tramo = m.group(2).strip()
+            r = re.split(r"\s*(?:→|->|–|—|\s-\s)\s*", tramo)
+            # Solo si parece una ruta (no "Servicio de grúas – San Pedro").
+            no_lugar = re.compile(r"^(servicio|reemplazo|suministro|mantenimiento|alquiler|izaje|montaje|transporte|movilizaci|traslado|operaci|breakbulk)", re.I)
+            if len(r) == 2 and all(r) and not any(no_lugar.match(x.strip()) for x in r):
+                og, de = og or r[0].strip().title(), de or r[1].strip().title()
+    if not (og and de):
+        texto = (str(pdf.get("descripcion") or oferta_row.get("general") or "")).replace("&rarr;", "→").replace("->", "→")
+        m = re.search("(" + _LUGAR_TXT + r")\s*→\s*(" + _LUGAR_TXT + ")", texto)
+        if m:
+            og = og or _RE_VERBO_RUTA.sub("", m.group(1)).strip()
+            de = de or _RE_VERBO_RUTA.sub("", m.group(2)).strip()
+    return og, de
+
+
+import html as _html_mod
+
+_TD = "padding:6px 10px;border-bottom:1px solid #e5e5e5;vertical-align:top;"
+_TH = "padding:7px 10px;text-align:left;background:#1B2A4A;color:#fff;"
+_TOT = "padding:8px 10px;font-weight:bold;background:#E8601C;color:#fff;"
+_UL = "margin:6px 0 0 0;padding-left:18px;font-size:13px;line-height:1.6;"
+
+
+def _txt(t: str) -> str:
+    """Texto plano de un trozo de HTML (sin etiquetas, con <br> como ' / ')."""
+    t = re.sub(r"<br\s*/?>", " / ", str(t or ""), flags=re.I)
+    return _html_mod.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t))).strip(" /")
+
+
+def _seccion_oferta(ia_html: str, patron: str) -> str:
+    """HTML interno de la sección de la oferta IA cuyo título (class="section-title",
+    en div/h2/h3/p) contiene `patron`. Termina en la siguiente sección o en el Anexo."""
+    if not ia_html:
+        return ""
+    m = re.search(r'class="section-title"[^>]*>[^<]*(?:' + patron + r')[^<]*</(?:div|h\d|p)>(.*?)(?=<[a-z0-9]+[^>]*class="section-title"|<!--ANEXO1-->|<div class="footer"|$)',
+                  ia_html, re.I | re.S)
+    return m.group(1) if m else ""
+
+
+def _filas_tabla(tabla_html: str):
+    """[(es_encabezado, es_total, [celdas texto], [colspans])] de una <table>."""
+    filas = []
+    for tr_attrs, tr in re.findall(r"<tr([^>]*)>(.*?)</tr>", tabla_html, re.S | re.I):
+        celdas = re.findall(r"<(t[dh])([^>]*)>(.*?)</t[dh]>", tr, re.S | re.I)
+        if not celdas:
+            continue
+        es_th = all(c[0].lower() == "th" for c in celdas)
+        txts = [_txt(c[2]) for c in celdas]
+        es_tot = ("total" in tr_attrs.lower()) or bool(re.match(r"^(valor\s+)?total|^subtotal", txts[0], re.I))
+        spans = [int((re.search(r'colspan="?(\d+)', c[1]) or [0, 1])[1]) for c in celdas]
+        filas.append((es_th, es_tot, txts, spans))
+    return filas
+
+
+def _tabla_correo(tabla_html: str) -> str:
+    """Re-arma una tabla de la oferta con estilos en línea (Outlook ignora <style>)."""
+    out = ""
+    for es_th, es_tot, txts, spans in _filas_tabla(tabla_html):
+        est = _TH if es_th else (_TOT if es_tot else _TD)
+        tag = "th" if es_th else "td"
+        out += "<tr>" + "".join(
+            f"<{tag} colspan='{sp}' style='{est}{'text-align:right;white-space:nowrap;' if (re.match(r'^[$\d]', t) and not es_th) else ''}'>{_html_mod.escape(t)}</{tag}>"
+            for t, sp in zip(txts, spans)) + "</tr>"
+    return f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>{out}</tbody></table>" if out else ""
+
+
+def _vinetas_seccion(sec: str, maximo: int = 14):
+    """Renglones de texto (li / p / alertas) de una sección, sin tablas ni tarjetas."""
+    sec = re.sub(r"<table.*?</table>", " ", sec, flags=re.S | re.I)
+    sec = re.sub(r'<div class="spec-grid".*?</div>\s*</div>\s*</div>', " ", sec, flags=re.S)
+    sec = re.sub(r'class="spec-card".*?</div>\s*</div>', " ", sec, flags=re.S)
+    sec = re.sub(r"<img[^>]*>", " ", sec, flags=re.I)
+    sec = re.sub(r"\s+", " ", sec)
+    sec = re.sub(r"</(p|li|tr|div|h\d)>|<br\s*/?>", "\n", sec, flags=re.I)
+    lineas = []
+    for ln in limpio_lines(sec):
+        ln = ln.strip(" ·")
+        if len(ln) > 2 and ln not in lineas and not re.match(r"^(foto|imagen)s?\b", ln, re.I):
+            lineas.append(ln)
+    return lineas[:maximo]
+
+
+def _ul(lineas) -> str:
+    lineas = [l for l in lineas if l]
+    return f"<ul style='{_UL}'>" + "".join(f"<li style='margin-bottom:3px;'>{l}</li>" for l in lineas) + "</ul>" if lineas else ""
+
+
+def _detalle_carga_html(ia_html: str) -> str:
+    """Sección "DETALLE TÉCNICO DE LA CARGA" (o "ACLARACIÓN TÉCNICA") de la oferta
+    IA en HTML de correo: tarjetas como tabla de 2 columnas, tablas de piezas
+    re-armadas y el resto (alertas, observaciones) como viñetas."""
+    sec = _seccion_oferta(ia_html, r"DETALLE\s+T(?:É|&Eacute;|E)CNICO|ACLARACI(?:Ó|&Oacute;|O)N\s+T(?:É|&Eacute;|E)CNICA")
+    if not sec:
+        return ""
+    tarjetas = re.findall(r'class="spec-card"[^>]*>\s*<div class="val"[^>]*>(.*?)</div>\s*<div class="lbl"[^>]*>(.*?)</div>', sec, re.S)
+    filas = "".join(f"<tr><td style='{_TD}color:#555;'>{_txt(l)}</td><td style='{_TD}font-weight:bold;'>{_txt(v)}</td></tr>"
+                    for v, l in tarjetas if _txt(v))
+    out = f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>{filas}</tbody></table>" if filas else ""
+    out += "".join(_tabla_correo(t) for t in re.findall(r"<table.*?</table>", sec, re.S | re.I))
+    return out + _ul(_vinetas_seccion(sec, 12))
+
+
+def limpio_lines(texto: str):
+    t = _html_mod.unescape(re.sub(r"<[^>]+>", " ", texto))
+    return [re.sub(r"[ \t]+", " ", x).strip() for x in t.split("\n")]
+
+
+def _num_m(v: str):
+    """'4.60' / '4,60 m' / '460 cm' → metros (float) o None."""
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(cm|mm|m)?\b", str(v or ""), re.I)
+    if not m:
+        return None
+    x = float(m.group(1).replace(",", "."))
+    u = (m.group(2) or "").lower()
+    if u == "mm" or (not u and x > 1000):
+        x /= 1000
+    elif u == "cm" or (not u and x > 20):
+        x /= 100
+    return x
+
+
+def _max_dimensiones(ia_html: str, cargo_items):
+    """(ancho_max, alto_max) en metros, de la tabla de piezas o de cargo_items."""
+    anchos, altos = [], []
+    sec = _seccion_oferta(ia_html, r"DETALLE\s+T(?:É|&Eacute;|E)CNICO|ACLARACI(?:Ó|&Oacute;|O)N\s+T(?:É|&Eacute;|E)CNICA")
+    for t in re.findall(r"<table.*?</table>", sec, re.S | re.I):
+        filas = _filas_tabla(t)
+        enc = next((f[2] for f in filas if f[0]), None)
+        if not enc:
+            continue
+        ia = next((i for i, h in enumerate(enc) if re.search(r"ancho|\bw\b", h, re.I)), None)
+        il = next((i for i, h in enumerate(enc) if re.search(r"alto|\bh\b", h, re.I)), None)
+        cm = any(re.search(r"\(cm\)", h, re.I) for h in enc)
+        for es_th, _, txts, _ in filas:
+            if es_th:
+                continue
+            for idx, lista in ((ia, anchos), (il, altos)):
+                if idx is not None and idx < len(txts):
+                    v = _num_m(txts[idx] + (" cm" if cm else ""))
+                    if v:
+                        lista.append(v)
+    # Tarjetas o renglones "Dimensiones: 13,33 m × 2,89 m × 2,89 m" (L × A × H).
+    texto = _txt(sec) + " " + " ".join(str((c or {}).get("dimensiones", "")) for c in (cargo_items or []))
+    for m in re.finditer(r"(\d+(?:[.,]\d+)?)\s*(cm|m)?\s*(?:\([^)]*\))?\s*[x×X]\s*(\d+(?:[.,]\d+)?)\s*(cm|m)?\s*(?:\([^)]*\))?\s*[x×X]\s*(\d+(?:[.,]\d+)?)\s*(cm|m)?", texto):
+        u = m.group(6) or m.group(4) or m.group(2) or ""
+        a, h = _num_m(m.group(3) + " " + u), _num_m(m.group(5) + " " + u)
+        if a and h:
+            anchos.append(a); altos.append(h)
+    for rot, lista in (("ancho", anchos), ("alto", altos)):
+        for m in re.finditer(rot + r"\s*(?:\(m\))?\s*:?\s*(\d+(?:[.,]\d+)?\s*(?:cm|m)?)", texto, re.I):
+            v = _num_m(m.group(1))
+            if v:
+                lista.append(v)
+    return (max(anchos) if anchos else None, max(altos) if altos else None)
+
+
+def _dinero(txt: str) -> int:
+    """'$28.500.000' / 'USD 1,500.00' / '12.000.000 COP' → entero (0 si no hay)."""
+    t = re.sub(r"[^\d.,]", "", str(txt or ""))
+    if not t:
+        return 0
+    t = re.sub(r"[.,]\d{1,2}$", "", t)          # decimales
+    t = re.sub(r"[.,]", "", t)
+    try:
+        return int(t)
+    except ValueError:
+        return 0
+
+
+def _conceptos_oferta(oferta_row: dict, pdf: dict):
+    """Renglones de precio de la oferta para la APROBACIÓN PARCIAL del correo:
+    [{concepto, valor, texto}]. Del formulario clásico (equipos) o de la tabla de
+    la PROPUESTA ECONÓMICA de la oferta IA (sin filas de total/subtotal). Si no
+    hay renglones, un único concepto con el valor total de la oferta."""
+    pdf = pdf or {}
+    out = []
+    for e in (pdf.get("equipos") or []):
+        if e.get("equipo"):
+            v = int(e.get("cant", 1) or 1) * int(e.get("valor_unit", 0) or 0)
+            nombre = " ".join(x for x in (str(e.get("equipo") or ""), str(e.get("config") or "")) if x).strip()
+            out.append({"concepto": nombre, "valor": v, "texto": _fmt_cop(v)})
+    if not out:
+        econ = _seccion_oferta(str(pdf.get("ia_html") or ""), r"PROPUESTA\s+ECON")
+        for t in re.findall(r"<table.*?</table>", econ, re.S | re.I):
+            for es_th, es_tot, txts, _ in _filas_tabla(t):
+                if es_th or es_tot or len(txts) < 2:
+                    continue
+                ult = next((x for x in reversed(txts[1:]) if _dinero(x) > 0 and re.search(r"[$]|\d[.,]\d{3}", x)), "")
+                if ult and txts[0]:
+                    out.append({"concepto": txts[0], "valor": _dinero(ult), "texto": ult})
+    if not out:
+        v = int(oferta_row.get("valor") or 0)
+        desc = (pdf.get("descripcion") or oferta_row.get("general") or "Servicio según oferta").strip()
+        out.append({"concepto": desc[:160], "valor": v, "texto": _fmt_cop(v)})
+    return out
+
+
+def _contacto_cliente(oferta_row: dict, pdf: dict, ia_html: str) -> str:
+    """Nombre del contacto del cliente (nunca alguien de BOOM)."""
+    c = str(pdf.get("contacto") or "").strip()
+    if not c:
+        m = re.search(r'class="greeting".*?<p>\s*(?:Estimad[oa]s?|Apreciad[oa]s?|Señor(?:a|es)?)\s+([^,<]{2,60}),', ia_html or "", re.S | re.I)
+        if m:
+            c = _txt(m.group(1))
+    if re.match(r"^(señor|equipo|cliente|ingenier)", c, re.I) or re.search(r"natalia|boris|willington", c, re.I):
+        c = ""
+    if c and _txt(oferta_row.get("cliente") or "").upper() in c.upper():
+        c = ""
+    return c
+
+
+def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
+    """Arma (asunto, html) del correo de INICIO DE SERVICIO con el formato de
+    notificación de Natalia (PARA / REF / CLIENTE / ESTADO + 5 secciones). Toma los
+    datos de la oferta: formulario clásico (equipos, cargo_items, notas) o
+    generador IA (secciones del HTML). Notificación interna: sin firma."""
+    pdf_data = pdf_data or {}
+    ia_html = str(pdf_data.get("ia_html") or "")
+    num     = _fmt_ref(oferta_row.get("num", "")) if oferta_row.get("num") else ""
+    cliente = str(oferta_row.get("cliente", "") or "").upper()
+    valor   = oferta_row.get("valor", 0) or 0
+    moneda  = (pdf_data.get("moneda") or oferta_row.get("moneda") or "COP").upper()
+    origen, destino = _origen_destino(oferta_row, pdf_data)
+    equipos = pdf_data.get("equipos") or []
+    cargo_items = pdf_data.get("cargo_items") or []
+    notas   = pdf_data.get("notas", "") or ""
+    if isinstance(notas, list):
+        notas = "\n".join(str(x) for x in notas)
+    nota_lineas = [l.strip() for l in notas.split("\n") if l.strip()]
     descripcion = (pdf_data.get("descripcion") or oferta_row.get("general") or "").strip()
-    comercial   = (oferta_row.get("realizada") or "Natalia Vargas").strip().title()
+    fecha = (oferta_row.get("_fecha_cargue") or "").strip() or "A confirmar con cliente"
+    contacto = _contacto_cliente(oferta_row, pdf_data, ia_html)
+    proyecto = str(pdf_data.get("cliente_final") or pdf_data.get("proyecto") or "").strip()
+    texto_todo = (_txt(ia_html) + " " + notas + " " + descripcion + " " + " ".join(str(e.get("equipo", "")) for e in equipos)).lower()
 
-    # ── Tabla carga
+    def titulo(n, t):
+        return f"<p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:18px 0 6px 0;'>{n}. {t}</p>"
+
+    # Condiciones comerciales de la oferta IA: tabla rótulo → valor.
+    cond = {}
+    for _, _, txts, _ in _filas_tabla(_seccion_oferta(ia_html, r"CONDICIONES\s+COMERCIALES")):
+        if len(txts) >= 2:
+            cond[txts[0].lower()] = txts[1]
+    def cond_de(*claves):
+        for k, v in cond.items():
+            if any(c in k for c in claves):
+                return v
+        return ""
+
+    # ── 1. Información del proyecto
+    modalidad = ", ".join(x for x, pat in (("DTA", r"\bdta\b"), ("ITR", r"\bitr\b"), ("OTM", r"\botm\b")) if re.search(pat, texto_todo))
+    info = [f"<strong>Origen:</strong> {origen or 'A confirmar con cliente'}",
+            f"<strong>Destino:</strong> {destino or 'A confirmar con cliente'}",
+            f"<strong>Fecha estimada de cargue:</strong> {fecha}"]
+    if modalidad:
+        info.append(f"<strong>Modalidad:</strong> {modalidad}")
+    if descripcion:
+        info.append(f"<strong>Servicio:</strong> {descripcion}")
+
+    # ── 2. Detalle técnico de la carga
     if cargo_items:
-        rows_c = "".join(f"""<tr><td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;'>{c.get('descripcion','')}</td>
-          <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;'>{c.get('cant',1)}</td>
-          <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;'>{c.get('dimensiones','')}</td>
-          <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;'>{c.get('peso','')}</td></tr>"""
-            for c in cargo_items if c.get('descripcion'))
-        tabla_carga = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
-          <thead><tr style='background:#1B2A4A;color:#fff;'>
-            <th style='padding:7px 10px;text-align:left;'>Descripción</th>
-            <th style='padding:7px 10px;'>Cant.</th>
-            <th style='padding:7px 10px;'>Dimensiones</th>
-            <th style='padding:7px 10px;'>Peso</th>
-          </tr></thead><tbody>{rows_c}</tbody></table>"""
+        filas_c = "".join(f"<tr><td style='{_TD}'>{c.get('descripcion','')}</td><td style='{_TD}text-align:center;'>{c.get('cant',1)}</td>"
+                          f"<td style='{_TD}text-align:center;'>{c.get('dimensiones','') or 'Por confirmar'}</td><td style='{_TD}text-align:center;'>{c.get('peso','') or 'Por confirmar'}</td></tr>"
+                          for c in cargo_items if c.get('descripcion'))
+        carga = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
+                 f"<tr><th style='{_TH}'>Descripción</th><th style='{_TH}'>Cant.</th><th style='{_TH}'>Dimensiones</th><th style='{_TH}'>Peso</th></tr>{filas_c}</tbody></table>")
     else:
-        tabla_carga = f"<p style='color:#666;font-size:13px;'>Ver el detalle completo en la oferta {num} (Control de Ofertas).</p>"
-
-    # ── Tabla equipos
-    total = sum(int(e.get("cant",1) or 1) * int(e.get("valor_unit",0) or 0) for e in equipos) or int(valor or 0)
-    rows_e = "".join(f"""<tr><td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;'>{e.get('equipo','')}</td>
-      <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;'>{e.get('cant',1)}</td>
-      <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;'>{e.get('config','')}</td>
-      <td style='padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:bold;'>{_fmt_cop(int(e.get('cant',1) or 1)*int(e.get('valor_unit',0) or 0))}</td></tr>"""
-        for e in equipos if e.get('equipo'))
-    total_row = f"""<tr style='background:#E8601C;color:#fff;'><td colspan='3' style='padding:8px 10px;font-weight:bold;'>TOTAL OFERTA</td>
-      <td style='padding:8px 10px;text-align:right;font-weight:bold;'>{_fmt_cop(total)} COP</td></tr>"""
-    if not rows_e:
-        moneda = (pdf_data.get("moneda") or oferta_row.get("moneda") or "COP").upper()
-        tabla_equipos = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
-      <tbody><tr style='background:#E8601C;color:#fff;'><td style='padding:8px 10px;font-weight:bold;'>VALOR TOTAL OFERTA: {_fmt_cop(total)} {moneda}</td></tr>
-      </tbody></table>"""
+        carga = _detalle_carga_html(ia_html) or f"<p style='font-size:13px;margin:6px 0;'>Por confirmar (ver la oferta {num} adjunta).</p>"
+    ancho, alto = _max_dimensiones(ia_html, cargo_items)
+    fmt_m = lambda x: f"{x:.2f}".replace(".", ",")
+    if (ancho and ancho > 3.0) or (alto and alto > 4.2):
+        partes = " / ".join(x for x in ((f"{fmt_m(ancho)} m de ancho" if ancho and ancho > 3.0 else ""),
+                                        (f"{fmt_m(alto)} m de alto" if alto and alto > 4.2 else "")) if x)
+        alerta_dim = (f"<p style='background:#fff3cd;border-left:4px solid #E8601C;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+                      f"⚠️ <strong>Alerta dimensiones:</strong> la carga tiene {partes}, superando el límite estándar. "
+                      f"Los tecnólogos deben gestionar los permisos de carga extradimensionada antes del inicio del servicio.</p>")
+    elif ancho or alto:
+        alerta_dim = "<p style='font-size:13px;margin:10px 0 0 0;'>✅ <strong>Sin sobredimensión:</strong> dimensiones dentro de límites reglamentarios.</p>"
     else:
-        tabla_equipos = None
-    if tabla_equipos is None:
-        tabla_equipos = f"""<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'>
-      <thead><tr style='background:#1B2A4A;color:#fff;'>
-        <th style='padding:7px 10px;text-align:left;'>Equipo</th>
-        <th style='padding:7px 10px;'>Cant.</th>
-        <th style='padding:7px 10px;text-align:left;'>Esquema de Seguridad</th>
-        <th style='padding:7px 10px;text-align:right;'>Tarifa Neto (COP)</th>
-      </tr></thead><tbody>{rows_e}{total_row}</tbody></table>"""
+        alerta_dim = ""
 
-    # ── Stand-by desde notas
-    sb_lines = [l.strip() for l in notas.split("\n") if "stand-by" in l.lower()]
-    sb_html = "".join(f"<li style='margin-bottom:4px;'>{l}</li>" for l in sb_lines)
-    if sb_html:
-        sb_html = f"<ul style='margin:6px 0 0 0;padding-left:18px;font-size:13px;'>{sb_html}</ul>"
+    # ── 3. Configuración de transporte y tarifa
+    econ = _seccion_oferta(ia_html, r"PROPUESTA\s+ECON")
+    tablas_econ = "".join(_tabla_correo(t) for t in re.findall(r"<table.*?</table>", econ, re.S | re.I))
+    if equipos and any(e.get("equipo") for e in equipos):
+        total = sum(int(e.get("cant", 1) or 1) * int(e.get("valor_unit", 0) or 0) for e in equipos) or int(valor or 0)
+        filas_e = "".join(f"<tr><td style='{_TD}text-align:center;'>{e.get('cant',1)}</td><td style='{_TD}'>{e.get('equipo','')}</td>"
+                          f"<td style='{_TD}'>{e.get('config','')}</td><td style='{_TD}'>{(origen + ' – ' + destino) if origen and destino else ''}</td>"
+                          f"<td style='{_TD}text-align:right;font-weight:bold;'>{_fmt_cop(int(e.get('cant',1) or 1) * int(e.get('valor_unit',0) or 0))}</td></tr>"
+                          for e in equipos if e.get('equipo'))
+        tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
+                  f"<tr><th style='{_TH}'>CANT.</th><th style='{_TH}'>EQUIPO</th><th style='{_TH}'>SEGURIDAD</th><th style='{_TH}'>TRAYECTO</th><th style='{_TH}text-align:right;'>TARIFA NETO ({moneda})</th></tr>"
+                  f"{filas_e}<tr><td colspan='4' style='{_TOT}'>TOTAL OFERTA</td><td style='{_TOT}text-align:right;'>{_fmt_cop(total)} {moneda}</td></tr></tbody></table>")
+    elif tablas_econ:
+        tarifa = tablas_econ
+    else:
+        tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
+                  f"<tr><td style='{_TOT}'>TOTAL OFERTA: {_fmt_cop(int(valor or 0))} {moneda}</td></tr></tbody></table>")
+    # Aprobación PARCIAL: el cliente aprobó solo algunos renglones (p. ej. el
+    # transporte y no el izaje). Se notifica SOLO lo aprobado, con su total.
+    excl = set(oferta_row.get("_excluir") or [])
+    estado_extra, no_aprobado = "", ""
+    conc = _conceptos_oferta(oferta_row, pdf_data)
+    si = [c for i, c in enumerate(conc) if i not in excl]
+    no = [c for i, c in enumerate(conc) if i in excl] if si else []
+    # Equipos realmente aprobados: deciden las notas de izaje / póliza de montaje
+    # (no el texto completo, que puede nombrar una grúa en exclusiones o en lo no aprobado).
+    texto_eq = " ".join([c["concepto"] for c in si] + [str(e.get("equipo", "")) for e in equipos]).lower()
+    if excl:
+        if no and si:
+            tot_si = sum(c["valor"] for c in si)
+            filas_si = "".join(f"<tr><td style='{_TD}'>{_html_mod.escape(c['concepto'])}</td>"
+                               f"<td style='{_TD}text-align:right;white-space:nowrap;'>{_html_mod.escape(c['texto'])}</td></tr>" for c in si)
+            tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
+                      f"<tr><th style='{_TH}'>Concepto aprobado</th><th style='{_TH}text-align:right;'>Valor</th></tr>{filas_si}"
+                      f"<tr><td style='{_TOT}'>TOTAL APROBADO</td><td style='{_TOT}text-align:right;white-space:nowrap;'>{_fmt_cop(tot_si)} {moneda}</td></tr></tbody></table>")
+            estado_extra = (" — <span style='background:#fff3cd;color:#8a6200;padding:1px 6px;border-radius:4px;font-weight:bold;'>"
+                            "APROBACIÓN PARCIAL</span>")
+            no_aprobado = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+                           "⛔ <strong>No aprobado por el cliente / no incluido:</strong> "
+                           + "; ".join(_html_mod.escape(c["concepto"]) for c in no) + ". No programar.</p>")
+            econ = ""   # las notas de la tabla completa ya no aplican tal cual
+    extra_econ = _vinetas_seccion(econ, 8) if econ else []
+    standby = cond_de("stand") or next((l for l in nota_lineas if "stand-by" in l.lower()), "")
+    standby = re.sub(r"\s*(Las\s+)?horas adicionales.*$", "", standby, flags=re.I).strip()
+    standby = re.sub(r"^\s*stand-?by\s*", "", standby, flags=re.I)
+    standby = re.sub(r"^[\s:—–\-·]+", "", standby).strip()
+    if no and standby:
+        # Si el stand-by habla solo de un equipo NO aprobado (p. ej. la grúa), no aplica.
+        kw = lambda c: next((w for w in re.findall(r"\w+", c["concepto"].lower()) if len(w) >= 4), "")
+        sb = standby.lower()
+        if any(kw(c) and kw(c) in sb for c in no) and not any(kw(c) and kw(c) in sb for c in si):
+            standby = "según tarifa del equipo aprobado (ver oferta adjunta)."
+    tarifa_lineas = extra_econ + [
+        f"<strong>Stand-by:</strong> {standby}" if standby else "<strong>Stand-by:</strong> según tarifa del equipo ofertado.",
+        "Las horas adicionales serán cobradas proporcionalmente según tarifa establecida.",
+        f"<strong>IVA:</strong> {cond_de('iva') or 'No incluido'}",
+    ]
+    izaje = re.search(r"gr[uú]a|modular|skidding|jacking|montacarga|izaje", texto_eq)
+    if izaje:
+        tarifa_lineas.append("El cobro del equipo de izaje inicia desde la llegada del equipo al sitio designado.")
 
-    # ── Condiciones operativas desde notas
-    op_lines = [l.strip() for l in notas.split("\n")
-                if l.strip() and "stand-by" not in l.lower()
-                and not l.strip().lower().startswith(("origen:","destino:"))]
-    op_html = "".join(f"<li style='margin-bottom:4px;'>{l}</li>" for l in op_lines)
-    if op_html:
-        op_html = f"<ul style='margin:6px 0 0 0;padding-left:18px;font-size:13px;'>{op_html}</ul>"
+    # ── 4. Condiciones operativas y seguros
+    notas_tec = []
+    if ia_html:   # notas técnicas (tiempos libres, permisos…) primero, luego el alcance
+        for ln in (_vinetas_seccion(_seccion_oferta(ia_html, r"NOTAS\s+T(?:É|&Eacute;|E)CNICAS"), 12)
+                   + _vinetas_seccion(_seccion_oferta(ia_html, r"ALCANCE"), 8)):
+            if ln not in notas_tec:
+                notas_tec.append(ln)
+    op = notas_tec or [l for l in nota_lineas if "stand-by" not in l.lower() and not l.lower().startswith(("origen:", "destino:"))]
+    seguros = cond_de("seguro", "póliza", "poliza") or "Póliza de carga y RCE hasta $4.000.000.000 COP."
+    op = op + [f"<strong>Pólizas:</strong> {seguros}"]
+    exclus = _vinetas_seccion(_seccion_oferta(ia_html, r"EXCLUSIONES"), 10) if ia_html else []
+    if exclus:
+        op.append("<strong>Exclusiones:</strong> " + "; ".join(x.rstrip(".") for x in exclus) + ".")
+    poliza_montaje = ""
+    if re.search(r"skidding|jacking", texto_eq):
+        poliza_montaje = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+                          "<strong>PÓLIZA ESPECÍFICA DE MONTAJE — CONDICIÓN OBLIGATORIA:</strong> el cliente debe declarar el valor del equipo; "
+                          "la expedición toma 2 a 3 días hábiles; no está incluida en la oferta y sin ella no inicia la operación.</p>")
+
+    # ── 5. Condiciones comerciales
+    forma_pago = cond_de("forma de pago", "pago") or pdf_data.get("forma_pago") or "50% anticipo / 50% a 30 días tras radicación de factura"
+    vig = cond_de("validez", "vigencia") or f"{pdf_data.get('vigencia', 30) or 30} días calendario"
+    mon = cond_de("moneda") or ("Pesos colombianos (COP)" if moneda == "COP" else moneda)
+    comerciales = [f"<strong>Forma de pago:</strong> {forma_pago}", f"<strong>Moneda:</strong> {mon}", f"<strong>Vigencia:</strong> {vig}"]
+
+    email_cli = str(pdf_data.get("email_cliente") or "").strip()
+    contacto_pie = " — ".join(x for x in (contacto, cliente, email_cli) if x)
+    li = lambda xs: _ul(xs)
 
     html_body = f"""<!DOCTYPE html><html><head><meta charset='UTF-8'></head>
-<body style='font-family:Arial,sans-serif;font-size:14px;color:#1B2A4A;margin:0;padding:20px;background:#f4f4f4;'>
-<div style='max-width:700px;margin:0 auto;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);'>
-  <div style='background:#1B2A4A;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;'>
-    <span style='color:#fff;font-weight:700;font-size:18px;letter-spacing:1px;'>BOOM</span>
-    <div style='color:#fff;font-size:11px;text-align:right;'><strong style='font-size:12px;display:block;'>BOOM LOGISTICS COLOMBIA S.A.S.</strong>Soluciones de Transporte Especializado</div>
+<body style='font-family:Arial,sans-serif;font-size:14px;color:#1B2A4A;margin:0;padding:16px;background:#ffffff;'>
+<div style='max-width:720px;'>
+  <p style='margin:0 0 12px 0;'>Cordial Saludo:</p>
+  <p style='margin:0 0 16px 0;'>Para conocimiento de todos a continuación, notificamos lo siguiente:</p>
+
+  <div style='background:#f0f4ff;border-left:4px solid #1B2A4A;padding:12px 16px;border-radius:4px;margin-bottom:8px;'>
+    <p style='margin:0 0 6px 0;font-weight:700;font-size:15px;'>NOTIFICACIÓN DE INICIO DE SERVICIO 📄</p>
+    <p style='margin:2px 0;font-size:13px;'><strong>PARA:</strong> Operaciones, Seguimiento y Control Documental</p>
+    <p style='margin:2px 0;font-size:13px;'><strong>REF:</strong> OFERTA MERCANTIL No. {num}</p>
+    <p style='margin:2px 0;font-size:13px;'><strong>CLIENTE:</strong> {cliente}{(' — Contacto: ' + contacto) if contacto else ''}</p>
+    {f"<p style='margin:2px 0;font-size:13px;'><strong>PROYECTO:</strong> {proyecto}</p>" if proyecto else ""}
+    <p style='margin:2px 0;font-size:13px;'><strong>ESTADO:</strong> 🟢 PROGRAMADO{estado_extra}</p>
   </div>
-  <div style='background:#E8601C;padding:8px 20px;'>
-    <p style='margin:0;color:#fff;font-size:11px;font-weight:bold;'>🔔 NOTIFICACIÓN DE INICIO DE SERVICIO &nbsp;|&nbsp; REF: {num} &nbsp;|&nbsp; {cliente.upper()} &nbsp;|&nbsp; {(origen+' → '+destino).upper() if origen and destino else ''}</p>
-  </div>
-  <div style='padding:24px;'>
-    <p style='margin:0 0 16px 0;'>Cordial Saludo,</p>
-    <p style='margin:0 0 20px 0;'>Para conocimiento de todos, a continuación notificamos lo siguiente:</p>
 
-    <div style='background:#f0f4ff;border-left:4px solid #1B2A4A;padding:12px 16px;border-radius:4px;margin-bottom:20px;'>
-      <p style='margin:0 0 4px 0;font-weight:700;font-size:15px;'>📄 NOTIFICACIÓN DE INICIO DE SERVICIO</p>
-      <p style='margin:2px 0;font-size:13px;'><strong>PARA:</strong> Operaciones, Seguimiento y Control Documental</p>
-      <p style='margin:2px 0;font-size:13px;'><strong>REF:</strong> OFERTA MERCANTIL No. {num}</p>
-      <p style='margin:2px 0;font-size:13px;'><strong>CLIENTE:</strong> {cliente.upper()}</p>
-      <p style='margin:2px 0;font-size:13px;'><strong>ESTADO:</strong> 🟢 PROGRAMADO</p>
-    </div>
+  {titulo(1, "INFORMACIÓN DEL PROYECTO")}{li(info)}
+  {titulo(2, "DETALLE TÉCNICO DE LA CARGA")}{carga}{alerta_dim}
+  {titulo(3, "CONFIGURACIÓN DE TRANSPORTE Y TARIFA")}{tarifa}{no_aprobado}{li(tarifa_lineas)}
+  {titulo(4, "CONDICIONES OPERATIVAS Y SEGUROS")}<p style='font-size:13px;margin:6px 0 0 0;'>Ver condiciones operativas, pólizas y exclusiones en la oferta <strong>{num}</strong> adjunta.</p>{poliza_montaje}
+  {titulo(5, "CONDICIONES COMERCIALES")}{li(comerciales)}
 
-    <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>1. INFORMACIÓN DEL PROYECTO</p>
-    <ul style='margin:0;padding-left:18px;font-size:13px;line-height:1.8;'>
-      <li><strong>Origen:</strong> {origen or "A confirmar con cliente"}</li>
-      <li><strong>Destino:</strong> {destino or "A confirmar con cliente"}</li>
-      <li><strong>Fecha de cargue:</strong> A confirmar con cliente</li>
-      {f"<li><strong>Servicio:</strong> {descripcion}</li>" if descripcion else ""}
-    </ul>
-
-    <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>2. DETALLE TÉCNICO DE LA CARGA</p>
-    {tabla_carga}
-
-    <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>3. CONFIGURACIÓN DE TRANSPORTE Y TARIFA</p>
-    {tabla_equipos}
-
-    <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>4. CONDICIONES OPERATIVAS Y SEGUROS</p>
-    {sb_html}{op_html if op_html else "<p style='font-size:13px;color:#666;margin:6px 0 0 0;'>Póliza de carga y RCE hasta $4.000.000.000 COP. GPS incluido.</p>"}
-
-    <p style='background:#1B2A4A;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:3px;margin:16px 0 8px 0;'>5. CONDICIONES COMERCIALES</p>
-    <ul style='margin:0;padding-left:18px;font-size:13px;line-height:1.8;'>
-      <li><strong>Forma de pago:</strong> {forma_pago}</li>
-      <li><strong>Vigencia:</strong> {vigencia} días calendario</li>
-    </ul>
-
-    <p style='margin:20px 0 0 0;border-top:1px solid #e0e0e0;padding-top:14px;font-size:13px;color:#666;'>Lo anterior para lo correspondiente.</p>
-    <p style='margin:8px 0 2px 0;font-weight:bold;color:#1B2A4A;'>{comercial}</p>
-    <p style='margin:2px 0;color:#E8601C;font-size:13px;'>Área Comercial</p>
-    <p style='margin:2px 0;font-size:12px;color:#666;'>BOOM Logistics Colombia S.A.S.</p>
-  </div>
+  <p style='margin:20px 0 8px 0;'>Lo anterior para lo correspondiente.</p>
+  <p style='margin:0;font-size:13px;'><strong>Contacto cliente:</strong> {contacto_pie or cliente}</p>
 </div>
 </body></html>"""
 
-    asunto = f"🔔 NOTIFICACIÓN DE INICIO DE SERVICIO — REF: {num} — {cliente.upper()}"
+    asunto = f"NOTIFICACIÓN DE INICIO DE SERVICIO — OFERTA {num} — {cliente}"
     return asunto, html_body
 
 
@@ -2674,7 +2981,7 @@ def _al_aceptar_oferta(oferta_id: int):
                 INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
                 VALUES (%s,%s,%s,%s,%s,%s)
             """, (oferta_id, row.get("num",""), row.get("cliente",""),
-                  pdf_payload.get("origen",""), pdf_payload.get("destino",""),
+                  *_origen_destino(row, pdf_payload),
                   row.get("valor",0) or 0))
     except Exception as db_exc:
         print(f"[OSI] Error guardando notificación/OSI: {db_exc}")
@@ -3872,7 +4179,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-04b"
+APP_VERSION = "2026-11-04c"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -5495,7 +5802,7 @@ def contratos_pendientes_delete(cid: int, request: Request):
 
 
 @app.get("/api/ofertas/{oferta_id}/correo-inicio.eml")
-def correo_inicio_eml(oferta_id: int):
+def correo_inicio_eml(oferta_id: int, fecha: str = Query(""), excluir: str = Query("")):
     """Correo de INICIO DE SERVICIO como archivo .eml "sin enviar" (X-Unsent: 1):
     al abrirlo, Outlook de escritorio lo muestra como un correo NUEVO ya armado
     (para, copia, asunto, diseño y la OFERTA EN PDF ADJUNTA) y la persona solo da
@@ -5516,6 +5823,8 @@ def correo_inicio_eml(oferta_id: int):
                 pdf = json.loads(pdf)
             except Exception:
                 pdf = {}
+        excl = [int(x) for x in re.findall(r"\d+", excluir or "")][:50]
+        row = dict(row, _fecha_cargue=(fecha or "")[:40], _excluir=excl)
         asunto, html_body = _armar_notificacion_osi(row, pdf or {})
         # La oferta en PDF va adjunta (como lo hace Natalia). Mismo PDF que el
         # botón de descarga de Control; si no se puede generar, el correo sale igual.
@@ -5548,6 +5857,61 @@ def correo_inicio_eml(oferta_id: int):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+def _pdf_de(row):
+    pdf = row.get("pdf_data") if row else None
+    if isinstance(pdf, str):
+        try:
+            pdf = json.loads(pdf)
+        except Exception:
+            pdf = {}
+    return pdf if isinstance(pdf, dict) else {}
+
+
+@app.get("/api/ofertas/{oferta_id}/conceptos")
+def conceptos_oferta(oferta_id: int):
+    """Renglones de precio de la oferta (para marcar qué aprobó el cliente)."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM ofertas WHERE id = %s", (oferta_id,))
+        row = fetchone(cur)
+    if not row:
+        raise HTTPException(404, "Oferta no encontrada")
+    return {"moneda": (row.get("moneda") or "COP"), "valor": int(row.get("valor") or 0),
+            "conceptos": _conceptos_oferta(row, _pdf_de(row))}
+
+
+class CorreoEstadoBody(BaseModel):
+    estado: str
+
+
+@app.post("/api/ofertas/{oferta_id}/correo-inicio/estado")
+def correo_inicio_estado(oferta_id: int, body: CorreoEstadoBody, request: Request):
+    """'preparado' al armar el correo (no baja un 'enviado') y 'enviado' cuando la
+    persona confirma que lo mandó desde Outlook. Guarda quién y cuándo."""
+    est = (body.estado or "").strip().lower()
+    if est not in ("preparado", "enviado"):
+        raise HTTPException(400, "Estado no válido")
+    usuario = ""
+    try:
+        usuario = (getattr(request.state, "user", None) or {}).get("nombre", "") or ""
+    except Exception:
+        pass
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """UPDATE ofertas SET correo_inicio_estado = %s, correo_inicio_por = %s, correo_inicio_fecha = now()
+               WHERE id = %s AND (%s = 'enviado' OR COALESCE(correo_inicio_estado, '') <> 'enviado')
+               RETURNING id, correo_inicio_estado, correo_inicio_por, correo_inicio_fecha""",
+            (est, usuario or None, oferta_id, est))
+        fila = fetchone(cur)
+        if not fila:
+            cur.execute("SELECT id, correo_inicio_estado, correo_inicio_por, correo_inicio_fecha FROM ofertas WHERE id = %s", (oferta_id,))
+            fila = fetchone(cur)
+            if not fila:
+                raise HTTPException(404, "Oferta no encontrada")
+        return fila
 
 
 @app.get("/api/ofertas/{oferta_id}")
