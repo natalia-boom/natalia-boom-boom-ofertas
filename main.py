@@ -2481,6 +2481,54 @@ _session_load_from_db()
 
 
 # ── Email notification ────────────────────────────────────────────────────────
+_RE_ROTULO_LUGAR = r"\s*:\s*(.+?)\s*(?:\n|·|\||→|destino\s*:|origen\s*:|stand|$)"
+_LUGAR_TXT = r"[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*){0,3}(?:\s*\([^)]+\))?"
+_RE_VERBO_RUTA = re.compile(r"^(transporte|transportes|movilizaci[oó]n|traslado|cargue|carga|servicio|alquiler|izaje|montaje|desmonte|retiro|entrega|despacho|ruta|desde|recogida|recolecci[oó]n)s?\s+", re.I)
+
+
+def _origen_destino(oferta_row: dict, pdf: dict):
+    """(origen, destino) de una oferta. Mismo criterio que Ofertas Aprobadas:
+    1) campos del registro; 2) rótulos "Origen: … / Destino: …" en el texto de la
+    oferta; 3) la ruta de la barra REF ("REF: 26-1363 | CLIENTE | A – B | MES");
+    4) una ruta "A → B" en la descripción. Si no hay nada claro, deja vacío."""
+    pdf = pdf or {}
+    og = str(pdf.get("origen") or "").strip()
+    de = str(pdf.get("destino") or "").strip()
+    if og and de:
+        return og, de
+    notas = pdf.get("notas") or ""
+    if isinstance(notas, list):
+        notas = "\n".join(str(x) for x in notas)
+    html_txt = str(pdf.get("ia_html") or pdf.get("html") or "")
+    plano = re.sub(r"<[^>]+>", " ", html_txt).replace("&nbsp;", " ")
+    blob = "\n".join([str(notas), plano, str(oferta_row.get("general") or ""), str(oferta_row.get("seguimiento") or "")])
+
+    def rotulo(campo):
+        m = re.search(campo + _RE_ROTULO_LUGAR, blob, re.I)
+        if not m:
+            return ""
+        v = re.sub(r"\s{2,}", " ", m.group(1)).strip()
+        return "" if (not v or re.match(r"^(a confirmar|por confirmar|sin |n/?a$|-$|—$)", v, re.I)) else v
+
+    og = og or rotulo("origen")
+    de = de or rotulo("destino")
+    if not (og and de):
+        # Barra REF: el tercer tramo suele ser la ruta.
+        m = re.search(r"REF\s*:?\s*\d{2}\s*-\s*\d{3,4}\s*\|([^|]*)\|([^|]*)\|", re.sub(r"\s+", " ", plano))
+        if m:
+            tramo = m.group(2).strip()
+            r = re.split(r"\s*(?:→|->|–|—|\s-\s)\s*", tramo)
+            if len(r) == 2 and all(r):
+                og, de = og or r[0].strip().title(), de or r[1].strip().title()
+    if not (og and de):
+        texto = (str(pdf.get("descripcion") or oferta_row.get("general") or "")).replace("&rarr;", "→").replace("->", "→")
+        m = re.search("(" + _LUGAR_TXT + r")\s*→\s*(" + _LUGAR_TXT + ")", texto)
+        if m:
+            og = og or _RE_VERBO_RUTA.sub("", m.group(1)).strip()
+            de = de or _RE_VERBO_RUTA.sub("", m.group(2)).strip()
+    return og, de
+
+
 def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     """Arma (asunto, html) del correo de INICIO DE SERVICIO. Separado del envío
     para poder previsualizarlo. Sirve para ofertas del formulario clásico (con
@@ -2489,8 +2537,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     num     = _fmt_ref(oferta_row.get("num", "")) if oferta_row.get("num") else ""
     cliente = oferta_row.get("cliente", "")
     valor   = oferta_row.get("valor", 0) or 0
-    origen  = pdf_data.get("origen", "") if pdf_data else ""
-    destino = pdf_data.get("destino", "") if pdf_data else ""
+    origen, destino = _origen_destino(oferta_row, pdf_data)
     equipos = pdf_data.get("equipos", []) if pdf_data else []
     cargo_items = pdf_data.get("cargo_items", []) if pdf_data else []
     notas   = pdf_data.get("notas", "") if pdf_data else ""
@@ -2674,7 +2721,7 @@ def _al_aceptar_oferta(oferta_id: int):
                 INSERT INTO notificaciones (oferta_id, oferta_num, cliente, origen, destino, valor)
                 VALUES (%s,%s,%s,%s,%s,%s)
             """, (oferta_id, row.get("num",""), row.get("cliente",""),
-                  pdf_payload.get("origen",""), pdf_payload.get("destino",""),
+                  *_origen_destino(row, pdf_payload),
                   row.get("valor",0) or 0))
     except Exception as db_exc:
         print(f"[OSI] Error guardando notificación/OSI: {db_exc}")
