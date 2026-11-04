@@ -5494,6 +5494,62 @@ def contratos_pendientes_delete(cid: int, request: Request):
         raise HTTPException(500, str(e))
 
 
+@app.get("/api/ofertas/{oferta_id}/correo-inicio.eml")
+def correo_inicio_eml(oferta_id: int):
+    """Correo de INICIO DE SERVICIO como archivo .eml "sin enviar" (X-Unsent: 1):
+    al abrirlo, Outlook de escritorio lo muestra como un correo NUEVO ya armado
+    (para, copia, asunto, diseño y la OFERTA EN PDF ADJUNTA) y la persona solo da
+    Enviar. Sustituye al envío automático por SMTP, que Sistemas no habilita."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.application import MIMEApplication
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM ofertas WHERE id = %s", (oferta_id,))
+            row = fetchone(cur)
+        if not row:
+            raise HTTPException(404, "Oferta no encontrada")
+        pdf = row.get("pdf_data")
+        if isinstance(pdf, str):
+            try:
+                pdf = json.loads(pdf)
+            except Exception:
+                pdf = {}
+        asunto, html_body = _armar_notificacion_osi(row, pdf or {})
+        # La oferta en PDF va adjunta (como lo hace Natalia). Mismo PDF que el
+        # botón de descarga de Control; si no se puede generar, el correo sale igual.
+        pdf_bytes, pdf_nombre = None, None
+        try:
+            r_pdf = download_oferta_pdf(oferta_id)
+            pdf_bytes = r_pdf.body
+            cd = r_pdf.headers.get("content-disposition", "")
+            m = re.search(r'filename="([^"]+)"', cd)
+            pdf_nombre = m.group(1) if m else f"Oferta_{_fmt_ref(row.get('num') or oferta_id)}.pdf"
+        except Exception as e_pdf:
+            print(f"[CORREO-INICIO] Oferta {oferta_id}: sin PDF adjunto ({e_pdf})")
+        msg = MIMEMultipart("mixed")
+        msg["Subject"] = asunto
+        msg["To"] = ", ".join(NOTIF_TO)
+        msg["Cc"] = ", ".join(NOTIF_CC)
+        msg["X-Unsent"] = "1"
+        cuerpo = MIMEMultipart("alternative")
+        cuerpo.attach(MIMEText(html_body, "html", "utf-8"))
+        msg.attach(cuerpo)
+        if pdf_bytes:
+            adj = MIMEApplication(pdf_bytes, _subtype="pdf")
+            adj.add_header("Content-Disposition", "attachment", filename=pdf_nombre)
+            msg.attach(adj)
+        nombre = f"Inicio_servicio_{_fmt_ref(row.get('num') or oferta_id)}.eml"
+        return FastResponse(content=msg.as_bytes(), media_type="message/rfc822",
+                            headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
 @app.get("/api/ofertas/{oferta_id}")
 def get_oferta(oferta_id: int):
     try:

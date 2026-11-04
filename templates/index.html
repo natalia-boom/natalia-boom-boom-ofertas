@@ -6126,7 +6126,8 @@ function filterAprobadas() {
           <option value="Cancelado" ${o.seguimiento==='Cancelado'?'selected':''}>Cancelado</option>
         </select>
       </td>
-      <td style="text-align:center;vertical-align:top;">
+      <td style="text-align:center;vertical-align:top;white-space:nowrap;">
+        <button class="write-only" onclick="correoInicio(${o.id}, '${(o.num||'').replace(/'/g,"\\'")}')" title="Preparar el correo de inicio de servicio en Outlook" style="background:#1B2A4A;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600;margin-bottom:4px;">✉ Correo inicio</button>
         ${(o.seguimiento === 'Ejecutado' || o.seguimiento === 'Facturada') ? `<button class="write-only" onclick="openEditFact(${o.id})" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">Facturación</button>` : ''}
       </td>
     </tr>
@@ -6525,6 +6526,21 @@ function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
 
+// Correo de INICIO DE SERVICIO: descarga un .eml "sin enviar" que Outlook de
+// escritorio abre como correo NUEVO ya armado (para, copia, asunto y diseño).
+async function correoInicio(id, num) {
+  try {
+    showToast('Preparando el correo…', 'info');
+    const r = await fetch('/api/ofertas/' + id + '/correo-inicio.eml');
+    if (!r.ok) throw new Error('No se pudo preparar el correo');
+    const ref = String(num || '').replace(/\D/g, '');
+    descargarArchivo(await r.blob(), 'Inicio_servicio_' + (ref.length === 6 ? ref.slice(0, 2) + '-' + ref.slice(2) : id) + '.eml');
+    showToast('Listo: abre el archivo descargado y se abrirá Outlook con el correo armado. Revisa y dale Enviar.', 'success');
+  } catch (e) {
+    showToast('' + e.message, 'error');
+  }
+}
+
 async function saveEdit() {
   const id = document.getElementById('editId').value;
   const payload = {};
@@ -6553,7 +6569,13 @@ async function saveEdit() {
     }
     showToast('Oferta actualizada correctamente', 'success');
     closeModal();
+    const _prev = (allOfertas.find(x => String(x.id) === String(id)) || {}).respuesta || '';
     await loadAll();
+    if ((r || '').toUpperCase() === 'ACEPTADA' && _prev.toUpperCase() !== 'ACEPTADA'
+        && confirm('La oferta quedó ACEPTADA.\n\n¿Preparar ahora el correo de inicio de servicio para el equipo?')) {
+      const o = allOfertas.find(x => String(x.id) === String(id)) || {};
+      correoInicio(id, o.num || '');
+    }
   } catch(e) {
     showToast('' + e.message, 'error');
   }
