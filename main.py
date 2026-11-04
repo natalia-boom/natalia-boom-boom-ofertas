@@ -1656,6 +1656,11 @@ def _ensure_db():
         # Aprobacion PARCIAL: el cliente autoriza solo una parte de la oferta al notificar.
         # valor = total cotizado ; valor_aprobado = lo realmente autorizado (<= valor).
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS valor_aprobado bigint DEFAULT NULL")
+        # Correo de INICIO DE SERVICIO: 'preparado' (se armó el .eml) o 'enviado'
+        # (la persona confirmó que lo envió desde Outlook), quién y cuándo.
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_estado text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_por text")
+        cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS correo_inicio_fecha timestamptz")
         # Moneda de la oferta (COP por defecto). Las ofertas en USD ya no se muestran
         # ni se suman como si fueran pesos en el Control.
         cur.execute("ALTER TABLE ofertas ADD COLUMN IF NOT EXISTS moneda text DEFAULT 'COP'")
@@ -2672,6 +2677,47 @@ def _max_dimensiones(ia_html: str, cargo_items):
     return (max(anchos) if anchos else None, max(altos) if altos else None)
 
 
+def _dinero(txt: str) -> int:
+    """'$28.500.000' / 'USD 1,500.00' / '12.000.000 COP' → entero (0 si no hay)."""
+    t = re.sub(r"[^\d.,]", "", str(txt or ""))
+    if not t:
+        return 0
+    t = re.sub(r"[.,]\d{1,2}$", "", t)          # decimales
+    t = re.sub(r"[.,]", "", t)
+    try:
+        return int(t)
+    except ValueError:
+        return 0
+
+
+def _conceptos_oferta(oferta_row: dict, pdf: dict):
+    """Renglones de precio de la oferta para la APROBACIÓN PARCIAL del correo:
+    [{concepto, valor, texto}]. Del formulario clásico (equipos) o de la tabla de
+    la PROPUESTA ECONÓMICA de la oferta IA (sin filas de total/subtotal). Si no
+    hay renglones, un único concepto con el valor total de la oferta."""
+    pdf = pdf or {}
+    out = []
+    for e in (pdf.get("equipos") or []):
+        if e.get("equipo"):
+            v = int(e.get("cant", 1) or 1) * int(e.get("valor_unit", 0) or 0)
+            nombre = " ".join(x for x in (str(e.get("equipo") or ""), str(e.get("config") or "")) if x).strip()
+            out.append({"concepto": nombre, "valor": v, "texto": _fmt_cop(v)})
+    if not out:
+        econ = _seccion_oferta(str(pdf.get("ia_html") or ""), r"PROPUESTA\s+ECON")
+        for t in re.findall(r"<table.*?</table>", econ, re.S | re.I):
+            for es_th, es_tot, txts, _ in _filas_tabla(t):
+                if es_th or es_tot or len(txts) < 2:
+                    continue
+                ult = next((x for x in reversed(txts[1:]) if _dinero(x) > 0 and re.search(r"[$]|\d[.,]\d{3}", x)), "")
+                if ult and txts[0]:
+                    out.append({"concepto": txts[0], "valor": _dinero(ult), "texto": ult})
+    if not out:
+        v = int(oferta_row.get("valor") or 0)
+        desc = (pdf.get("descripcion") or oferta_row.get("general") or "Servicio según oferta").strip()
+        out.append({"concepto": desc[:160], "valor": v, "texto": _fmt_cop(v)})
+    return out
+
+
 def _contacto_cliente(oferta_row: dict, pdf: dict, ia_html: str) -> str:
     """Nombre del contacto del cliente (nunca alguien de BOOM)."""
     c = str(pdf.get("contacto") or "").strip()
@@ -2773,6 +2819,27 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     else:
         tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
                   f"<tr><td style='{_TOT}'>TOTAL OFERTA: {_fmt_cop(int(valor or 0))} {moneda}</td></tr></tbody></table>")
+    # Aprobación PARCIAL: el cliente aprobó solo algunos renglones (p. ej. el
+    # transporte y no el izaje). Se notifica SOLO lo aprobado, con su total.
+    excl = set(oferta_row.get("_excluir") or [])
+    estado_extra, no_aprobado = "", ""
+    if excl:
+        conc = _conceptos_oferta(oferta_row, pdf_data)
+        si = [c for i, c in enumerate(conc) if i not in excl]
+        no = [c for i, c in enumerate(conc) if i in excl]
+        if no and si:
+            tot_si = sum(c["valor"] for c in si)
+            filas_si = "".join(f"<tr><td style='{_TD}'>{_html_mod.escape(c['concepto'])}</td>"
+                               f"<td style='{_TD}text-align:right;white-space:nowrap;'>{_html_mod.escape(c['texto'])}</td></tr>" for c in si)
+            tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
+                      f"<tr><th style='{_TH}'>Concepto aprobado</th><th style='{_TH}text-align:right;'>Valor</th></tr>{filas_si}"
+                      f"<tr><td style='{_TOT}'>TOTAL APROBADO</td><td style='{_TOT}text-align:right;'>{_fmt_cop(tot_si)} {moneda}</td></tr></tbody></table>")
+            estado_extra = (" — <span style='background:#fff3cd;color:#8a6200;padding:1px 6px;border-radius:4px;font-weight:bold;'>"
+                            "APROBACIÓN PARCIAL</span>")
+            no_aprobado = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+                           "⛔ <strong>No aprobado por el cliente / no incluido:</strong> "
+                           + "; ".join(_html_mod.escape(c["concepto"]) for c in no) + ". No programar.</p>")
+            econ = ""   # las notas de la tabla completa ya no aplican tal cual
     extra_econ = _vinetas_seccion(econ, 8) if econ else []
     standby = cond_de("stand") or next((l for l in nota_lineas if "stand-by" in l.lower()), "")
     standby = re.sub(r"\s*Las horas adicionales.*$", "", standby, flags=re.I).strip()
@@ -2826,12 +2893,12 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     <p style='margin:2px 0;font-size:13px;'><strong>REF:</strong> OFERTA MERCANTIL No. {num}</p>
     <p style='margin:2px 0;font-size:13px;'><strong>CLIENTE:</strong> {cliente}{(' — Contacto: ' + contacto) if contacto else ''}</p>
     {f"<p style='margin:2px 0;font-size:13px;'><strong>PROYECTO:</strong> {proyecto}</p>" if proyecto else ""}
-    <p style='margin:2px 0;font-size:13px;'><strong>ESTADO:</strong> 🟢 PROGRAMADO</p>
+    <p style='margin:2px 0;font-size:13px;'><strong>ESTADO:</strong> 🟢 PROGRAMADO{estado_extra}</p>
   </div>
 
   {titulo(1, "INFORMACIÓN DEL PROYECTO")}{li(info)}
   {titulo(2, "DETALLE TÉCNICO DE LA CARGA")}{carga}{alerta_dim}
-  {titulo(3, "CONFIGURACIÓN DE TRANSPORTE Y TARIFA")}{tarifa}{li(tarifa_lineas)}
+  {titulo(3, "CONFIGURACIÓN DE TRANSPORTE Y TARIFA")}{tarifa}{no_aprobado}{li(tarifa_lineas)}
   {titulo(4, "CONDICIONES OPERATIVAS Y SEGUROS")}<p style='font-size:13px;margin:6px 0 0 0;'>Ver condiciones operativas, pólizas y exclusiones en la oferta <strong>{num}</strong> adjunta.</p>{poliza_montaje}
   {titulo(5, "CONDICIONES COMERCIALES")}{li(comerciales)}
 
@@ -5724,7 +5791,7 @@ def contratos_pendientes_delete(cid: int, request: Request):
 
 
 @app.get("/api/ofertas/{oferta_id}/correo-inicio.eml")
-def correo_inicio_eml(oferta_id: int, fecha: str = Query("")):
+def correo_inicio_eml(oferta_id: int, fecha: str = Query(""), excluir: str = Query("")):
     """Correo de INICIO DE SERVICIO como archivo .eml "sin enviar" (X-Unsent: 1):
     al abrirlo, Outlook de escritorio lo muestra como un correo NUEVO ya armado
     (para, copia, asunto, diseño y la OFERTA EN PDF ADJUNTA) y la persona solo da
@@ -5745,7 +5812,8 @@ def correo_inicio_eml(oferta_id: int, fecha: str = Query("")):
                 pdf = json.loads(pdf)
             except Exception:
                 pdf = {}
-        row = dict(row, _fecha_cargue=(fecha or "")[:40])
+        excl = [int(x) for x in re.findall(r"\d+", excluir or "")][:50]
+        row = dict(row, _fecha_cargue=(fecha or "")[:40], _excluir=excl)
         asunto, html_body = _armar_notificacion_osi(row, pdf or {})
         # La oferta en PDF va adjunta (como lo hace Natalia). Mismo PDF que el
         # botón de descarga de Control; si no se puede generar, el correo sale igual.
@@ -5778,6 +5846,61 @@ def correo_inicio_eml(oferta_id: int, fecha: str = Query("")):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+def _pdf_de(row):
+    pdf = row.get("pdf_data") if row else None
+    if isinstance(pdf, str):
+        try:
+            pdf = json.loads(pdf)
+        except Exception:
+            pdf = {}
+    return pdf if isinstance(pdf, dict) else {}
+
+
+@app.get("/api/ofertas/{oferta_id}/conceptos")
+def conceptos_oferta(oferta_id: int):
+    """Renglones de precio de la oferta (para marcar qué aprobó el cliente)."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM ofertas WHERE id = %s", (oferta_id,))
+        row = fetchone(cur)
+    if not row:
+        raise HTTPException(404, "Oferta no encontrada")
+    return {"moneda": (row.get("moneda") or "COP"), "valor": int(row.get("valor") or 0),
+            "conceptos": _conceptos_oferta(row, _pdf_de(row))}
+
+
+class CorreoEstadoBody(BaseModel):
+    estado: str
+
+
+@app.post("/api/ofertas/{oferta_id}/correo-inicio/estado")
+def correo_inicio_estado(oferta_id: int, body: CorreoEstadoBody, request: Request):
+    """'preparado' al armar el correo (no baja un 'enviado') y 'enviado' cuando la
+    persona confirma que lo mandó desde Outlook. Guarda quién y cuándo."""
+    est = (body.estado or "").strip().lower()
+    if est not in ("preparado", "enviado"):
+        raise HTTPException(400, "Estado no válido")
+    usuario = ""
+    try:
+        usuario = (getattr(request.state, "user", None) or {}).get("nombre", "") or ""
+    except Exception:
+        pass
+    with get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """UPDATE ofertas SET correo_inicio_estado = %s, correo_inicio_por = %s, correo_inicio_fecha = now()
+               WHERE id = %s AND (%s = 'enviado' OR COALESCE(correo_inicio_estado, '') <> 'enviado')
+               RETURNING id, correo_inicio_estado, correo_inicio_por, correo_inicio_fecha""",
+            (est, usuario or None, oferta_id, est))
+        fila = fetchone(cur)
+        if not fila:
+            cur.execute("SELECT id, correo_inicio_estado, correo_inicio_por, correo_inicio_fecha FROM ofertas WHERE id = %s", (oferta_id,))
+            fila = fetchone(cur)
+            if not fila:
+                raise HTTPException(404, "Oferta no encontrada")
+        return fila
 
 
 @app.get("/api/ofertas/{oferta_id}")
