@@ -6569,7 +6569,7 @@ function _celdaCorreo(o) {
           + `<button class="write-only" onclick="marcarCorreoEnviado(${o.id})" title="Confírmalo cuando lo hayas enviado desde Outlook" style="${base}margin-top:4px;background:#ecf8f0;color:#1d7a3a;border:1px solid #9fd8b3;">✓ Marcar enviado</button>`;
   else
     linea = `<span style="color:#94a3b8;">${dot('#cbd5e1')}Sin enviar</span>`;
-  return `<button class="write-only" onclick="correoInicio(${o.id}, '${num}')" title="Preparar el correo de inicio de servicio en Outlook" style="${base}${btnEst}">✉ Correo inicio</button>`
+  return `<button class="write-only" onclick="correoInicio(${o.id}, '${num}')" title="Preparar el correo de inicio de servicio en Outlook" style="${base}${btnEst}display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email</button>`
        + `<div title="${tip}" style="font-size:10px;margin-top:4px;white-space:nowrap;">${linea}</div>`;
 }
 async function _estadoCorreo(id, estado) {
