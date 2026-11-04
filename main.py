@@ -2528,6 +2528,14 @@ def _origen_destino(oferta_row: dict, pdf: dict):
             if len(r) == 2 and all(r) and not any(no_lugar.match(x.strip()) for x in r):
                 og, de = og or r[0].strip().title(), de or r[1].strip().title()
     if not (og and de):
+        # Saludo de la oferta IA: "…transporte de X desde A hasta B, …" (solo el
+        # saludo, para no tomar recorridos internos tipo "desde el cuarto hasta…").
+        g = re.search(r'class="greeting".*?</div>', html_txt, re.S)
+        sal = re.sub(r"\s+", " ", _txt(g.group(0))) if g else ""
+        m = re.search(r"\bdesde\s+(?:el|la|los|las)?\s*(.{3,90}?)\s+(?:hasta|hacia)\s+(?:el|la|los|las)?\s*(.{3,90}?)(?=[,.;]|\s+(?:correspondiente|seg[uú]n|para|con|en\s+el\s+marco)\b|$)", sal, re.I)
+        if m:
+            og, de = og or m.group(1).strip(), de or m.group(2).strip()
+    if not (og and de):
         texto = (str(pdf.get("descripcion") or oferta_row.get("general") or "")).replace("&rarr;", "→").replace("->", "→")
         m = re.search("(" + _LUGAR_TXT + r")\s*→\s*(" + _LUGAR_TXT + ")", texto)
         if m:
@@ -2540,7 +2548,10 @@ import html as _html_mod
 
 _TD = "padding:6px 10px;border-bottom:1px solid #e5e5e5;vertical-align:top;"
 _TH = "padding:7px 10px;text-align:left;background:#1B2A4A;color:#fff;"
-_TOT = "padding:8px 10px;font-weight:bold;background:#E8601C;color:#fff;"
+_TOT = "padding:8px 10px;font-weight:bold;background:#2E5C8A;color:#fff;"
+# Cajas de aviso del correo (solo azules: nada naranja, pedido de Natalia).
+_AVISO = "background:#EAF2FB;border-left:4px solid #2E6DB4;color:#1B2A4A;padding:8px 12px;font-size:13px;margin:10px 0 0 0;"
+_AVISO_FUERTE = "background:#E3EAF4;border-left:4px solid #1B2A4A;color:#1B2A4A;padding:8px 12px;font-size:13px;margin:10px 0 0 0;"
 _UL = "margin:6px 0 0 0;padding-left:18px;font-size:13px;line-height:1.6;"
 
 
@@ -2609,6 +2620,21 @@ def _vinetas_seccion(sec: str, maximo: int = 14):
 def _ul(lineas) -> str:
     lineas = [l for l in lineas if l]
     return f"<ul style='{_UL}'>" + "".join(f"<li style='margin-bottom:3px;'>{l}</li>" for l in lineas) + "</ul>" if lineas else ""
+
+
+def _sitio_operacion(oferta_row: dict, pdf: dict) -> str:
+    """Para servicios en UN solo sitio (grúas, skidding): el lugar de operación.
+    Rótulo "Punto de operación" o el lugar tras el guion en la barra REF
+    ("Servicio de grúas – San Pedro, Sucre")."""
+    html_txt = str((pdf or {}).get("ia_html") or "")
+    plano = re.sub(r"\s+", " ", _txt(html_txt))
+    m = re.search(r"REF\s*:?\s*\d{2}\s*-\s*\d{3,4}\s*\|[^|]*\|([^|]*)\|", plano)
+    if m:
+        partes = re.split(r"\s+[–—-]\s+", m.group(1).strip())
+        if len(partes) == 2 and partes[1].strip():
+            return partes[1].strip()
+    m = re.search(r"([A-ZÁÉÍÓÚÑ][^|]{2,60}?)\s+Punto de operaci[oó]n", plano)
+    return m.group(1).strip() if m else ""
 
 
 def _detalle_carga_html(ia_html: str) -> str:
@@ -2775,9 +2801,14 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
 
     # ── 1. Información del proyecto
     modalidad = ", ".join(x for x, pat in (("DTA", r"\bdta\b"), ("ITR", r"\bitr\b"), ("OTM", r"\botm\b")) if re.search(pat, texto_todo))
-    info = [f"<strong>Origen:</strong> {origen or 'A confirmar con cliente'}",
-            f"<strong>Destino:</strong> {destino or 'A confirmar con cliente'}",
-            f"<strong>Fecha estimada de cargue:</strong> {fecha}"]
+    sitio = "" if (origen or destino) else _sitio_operacion(oferta_row, pdf_data)
+    if sitio:   # servicio en un solo sitio (grúa, skidding…): no hay origen/destino
+        info = [f"<strong>Sitio de operación:</strong> {sitio}",
+                f"<strong>Fecha estimada de inicio:</strong> {fecha}"]
+    else:
+        info = [f"<strong>Origen:</strong> {origen or 'A confirmar con cliente'}",
+                f"<strong>Destino:</strong> {destino or 'A confirmar con cliente'}",
+                f"<strong>Fecha estimada de cargue:</strong> {fecha}"]
     if modalidad:
         info.append(f"<strong>Modalidad:</strong> {modalidad}")
     if descripcion:
@@ -2797,7 +2828,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     if (ancho and ancho > 3.0) or (alto and alto > 4.2):
         partes = " / ".join(x for x in ((f"{fmt_m(ancho)} m de ancho" if ancho and ancho > 3.0 else ""),
                                         (f"{fmt_m(alto)} m de alto" if alto and alto > 4.2 else "")) if x)
-        alerta_dim = (f"<p style='background:#fff3cd;border-left:4px solid #E8601C;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+        alerta_dim = (f"<p style='{_AVISO}'>"
                       f"⚠️ <strong>Alerta dimensiones:</strong> la carga tiene {partes}, superando el límite estándar. "
                       f"Los tecnólogos deben gestionar los permisos de carga extradimensionada antes del inicio del servicio.</p>")
     elif ancho or alto:
@@ -2840,9 +2871,9 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
             tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
                       f"<tr><th style='{_TH}'>Concepto aprobado</th><th style='{_TH}text-align:right;'>Valor</th></tr>{filas_si}"
                       f"<tr><td style='{_TOT}'>TOTAL APROBADO</td><td style='{_TOT}text-align:right;white-space:nowrap;'>{_fmt_cop(tot_si)} {moneda}</td></tr></tbody></table>")
-            estado_extra = (" — <span style='background:#fff3cd;color:#8a6200;padding:1px 6px;border-radius:4px;font-weight:bold;'>"
+            estado_extra = (" — <span style='background:#DCE9F7;color:#1B4F8A;padding:1px 6px;border-radius:4px;font-weight:bold;'>"
                             "APROBACIÓN PARCIAL</span>")
-            no_aprobado = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+            no_aprobado = (f"<p style='{_AVISO_FUERTE}'>"
                            "⛔ <strong>No aprobado por el cliente / no incluido:</strong> "
                            + "; ".join(_html_mod.escape(c["concepto"]) for c in no) + ". No programar.</p>")
             econ = ""   # las notas de la tabla completa ya no aplican tal cual
@@ -2881,7 +2912,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
         op.append("<strong>Exclusiones:</strong> " + "; ".join(x.rstrip(".") for x in exclus) + ".")
     poliza_montaje = ""
     if re.search(r"skidding|jacking", texto_eq):
-        poliza_montaje = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
+        poliza_montaje = (f"<p style='{_AVISO_FUERTE}'>"
                           "<strong>PÓLIZA ESPECÍFICA DE MONTAJE — CONDICIÓN OBLIGATORIA:</strong> el cliente debe declarar el valor del equipo; "
                           "la expedición toma 2 a 3 días hábiles; no está incluida en la oferta y sin ella no inicia la operación.</p>")
 
