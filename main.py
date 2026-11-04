@@ -2823,17 +2823,20 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     # transporte y no el izaje). Se notifica SOLO lo aprobado, con su total.
     excl = set(oferta_row.get("_excluir") or [])
     estado_extra, no_aprobado = "", ""
+    conc = _conceptos_oferta(oferta_row, pdf_data)
+    si = [c for i, c in enumerate(conc) if i not in excl]
+    no = [c for i, c in enumerate(conc) if i in excl] if si else []
+    # Equipos realmente aprobados: deciden las notas de izaje / póliza de montaje
+    # (no el texto completo, que puede nombrar una grúa en exclusiones o en lo no aprobado).
+    texto_eq = " ".join([c["concepto"] for c in si] + [str(e.get("equipo", "")) for e in equipos]).lower()
     if excl:
-        conc = _conceptos_oferta(oferta_row, pdf_data)
-        si = [c for i, c in enumerate(conc) if i not in excl]
-        no = [c for i, c in enumerate(conc) if i in excl]
         if no and si:
             tot_si = sum(c["valor"] for c in si)
             filas_si = "".join(f"<tr><td style='{_TD}'>{_html_mod.escape(c['concepto'])}</td>"
                                f"<td style='{_TD}text-align:right;white-space:nowrap;'>{_html_mod.escape(c['texto'])}</td></tr>" for c in si)
             tarifa = (f"<table style='width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;'><tbody>"
                       f"<tr><th style='{_TH}'>Concepto aprobado</th><th style='{_TH}text-align:right;'>Valor</th></tr>{filas_si}"
-                      f"<tr><td style='{_TOT}'>TOTAL APROBADO</td><td style='{_TOT}text-align:right;'>{_fmt_cop(tot_si)} {moneda}</td></tr></tbody></table>")
+                      f"<tr><td style='{_TOT}'>TOTAL APROBADO</td><td style='{_TOT}text-align:right;white-space:nowrap;'>{_fmt_cop(tot_si)} {moneda}</td></tr></tbody></table>")
             estado_extra = (" — <span style='background:#fff3cd;color:#8a6200;padding:1px 6px;border-radius:4px;font-weight:bold;'>"
                             "APROBACIÓN PARCIAL</span>")
             no_aprobado = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
@@ -2842,13 +2845,21 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
             econ = ""   # las notas de la tabla completa ya no aplican tal cual
     extra_econ = _vinetas_seccion(econ, 8) if econ else []
     standby = cond_de("stand") or next((l for l in nota_lineas if "stand-by" in l.lower()), "")
-    standby = re.sub(r"\s*Las horas adicionales.*$", "", standby, flags=re.I).strip()
+    standby = re.sub(r"\s*(Las\s+)?horas adicionales.*$", "", standby, flags=re.I).strip()
+    standby = re.sub(r"^\s*stand-?by\s*", "", standby, flags=re.I)
+    standby = re.sub(r"^[\s:—–\-·]+", "", standby).strip()
+    if no and standby:
+        # Si el stand-by habla solo de un equipo NO aprobado (p. ej. la grúa), no aplica.
+        kw = lambda c: next((w for w in re.findall(r"\w+", c["concepto"].lower()) if len(w) >= 4), "")
+        sb = standby.lower()
+        if any(kw(c) and kw(c) in sb for c in no) and not any(kw(c) and kw(c) in sb for c in si):
+            standby = "según tarifa del equipo aprobado (ver oferta adjunta)."
     tarifa_lineas = extra_econ + [
-        f"<strong>Stand-by:</strong> {re.sub(r'^stand-?by\s*:?\s*', '', standby, flags=re.I)}" if standby else "<strong>Stand-by:</strong> según tarifa del equipo ofertado.",
+        f"<strong>Stand-by:</strong> {standby}" if standby else "<strong>Stand-by:</strong> según tarifa del equipo ofertado.",
         "Las horas adicionales serán cobradas proporcionalmente según tarifa establecida.",
         f"<strong>IVA:</strong> {cond_de('iva') or 'No incluido'}",
     ]
-    izaje = re.search(r"gr[uú]a|modular|skidding|jacking|montacarga|izaje", texto_todo)
+    izaje = re.search(r"gr[uú]a|modular|skidding|jacking|montacarga|izaje", texto_eq)
     if izaje:
         tarifa_lineas.append("El cobro del equipo de izaje inicia desde la llegada del equipo al sitio designado.")
 
@@ -2866,7 +2877,7 @@ def _armar_notificacion_osi(oferta_row: dict, pdf_data: dict):
     if exclus:
         op.append("<strong>Exclusiones:</strong> " + "; ".join(x.rstrip(".") for x in exclus) + ".")
     poliza_montaje = ""
-    if re.search(r"skidding|jacking", texto_todo):
+    if re.search(r"skidding|jacking", texto_eq):
         poliza_montaje = ("<p style='background:#fde8e8;border-left:4px solid #c0392b;padding:8px 12px;font-size:13px;margin:10px 0 0 0;'>"
                           "<strong>PÓLIZA ESPECÍFICA DE MONTAJE — CONDICIÓN OBLIGATORIA:</strong> el cliente debe declarar el valor del equipo; "
                           "la expedición toma 2 a 3 días hábiles; no está incluida en la oferta y sin ella no inicia la operación.</p>")
