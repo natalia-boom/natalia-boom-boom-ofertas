@@ -633,6 +633,31 @@ body.rol-viewer .write-only { display:none !important; }
 .user-avatar.admin { background:var(--orange); }
 
 /* CHAT IA PASO 1 */
+/* ── Generador IA: estilo nuevo (solo apariencia; ids y funciones iguales) ── */
+#tab-iaoferta > .section-card { background:transparent; box-shadow:none; padding:0; border:none; }
+.gz-hero { margin:-24px -28px 22px; padding:24px 32px 26px; color:#fff; display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap;
+  background:linear-gradient(90deg,rgba(12,26,58,.94) 0%,rgba(12,26,58,.78) 50%,rgba(12,26,58,.5) 100%), url('/api/inicio-bg') center 60%/cover no-repeat, #0c1a3a; }
+.gz-hero h2 { margin:0; font-size:24px; font-weight:700; color:#fff; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.gz-ia { font-size:11px; font-weight:700; letter-spacing:1px; background:#E8601C; padding:3px 8px; border-radius:6px; }
+.gz-hero p { margin:5px 0 0; font-size:13px; opacity:.85; max-width:760px; line-height:1.5; }
+.gz-ref { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25); border-radius:14px; padding:10px 20px; text-align:center; min-width:150px; color:#fff; font-family:'Barlow Condensed',sans-serif; backdrop-filter:blur(4px); }
+#tab-iaoferta .gz-tit { font-family:'Barlow',sans-serif; font-size:15px; text-transform:none; letter-spacing:0; }
+#tab-iaoferta .gz-tit::before { width:8px; height:8px; border-radius:50%; background:#E8601C; }
+#tab-iaoferta .chat-historia { border:none; border-radius:16px 16px 0 0; background:#FAFBFD; box-shadow:0 8px 22px rgba(16,25,46,.08); padding:16px 18px; }
+#tab-iaoferta .chat-input-row { border:none; border-top:1px solid #E8EDF3; border-radius:0 0 16px 16px; box-shadow:0 8px 22px rgba(16,25,46,.08); padding:12px 14px; }
+#tab-iaoferta #iaChatInput { border:1.5px solid #E8EDF3 !important; border-radius:12px !important; padding:10px 12px !important; }
+#tab-iaoferta #iaBtnEnviar { border-radius:10px; box-shadow:0 4px 14px rgba(232,96,28,.35); }
+#tab-iaoferta .chat-clip-btn { border-radius:10px; }
+#tab-iaoferta .chat-burbuja { background:#fff; border:1px solid #E8EDF3; border-radius:4px 14px 14px 14px; }
+#tab-iaoferta .chat-msg.user .chat-burbuja { background:#1B3A6B; color:#fff; border:none; border-radius:14px 4px 14px 14px; }
+#tab-iaoferta .chat-avatar { background:#16233F; }
+#tab-iaoferta #iaPreviewWrap { border:none !important; border-radius:16px !important; background:#E9EEF5 !important; box-shadow:0 8px 22px rgba(16,25,46,.08); }
+#tab-iaoferta #iaPreviewFrame { border-radius:12px; }
+#tab-iaoferta #iaResumenPanel > div:not(.gz-tit) { border:none !important; border-radius:16px !important; box-shadow:0 8px 22px rgba(16,25,46,.08) !important; }
+#tab-iaoferta .gz-tit { justify-content:flex-start !important; }
+#tab-iaoferta #iaMetaResumen { margin-left:auto; }
+#tab-iaoferta #iaPreviewWrap + #iaCambioPanel + div { border:none !important; border-radius:16px !important; background:#fff !important; box-shadow:0 8px 22px rgba(16,25,46,.08); padding:16px 18px !important; }
+@media(max-width:768px) { .gz-hero { margin:-12px -14px 18px; padding:20px 18px; } }
 .chat-historia { background:#fff; border:1.5px solid var(--border); border-radius:8px 8px 0 0; padding:14px 16px; min-height:200px; max-height:360px; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:12px; }
 .chat-msg { display:flex; gap:10px; align-items:flex-start; min-width:0; max-width:100%; }
 .chat-msg.user { flex-direction:row-reverse; }
@@ -2307,15 +2332,15 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 <section class="tab-panel" id="tab-iaoferta">
   <div class="section-card">
 
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+    <!-- Header: franja con foto del puente (estilo nuevo 2026-11-06) -->
+    <div class="gz-hero">
       <div>
-        <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;color:var(--petrol);">Oferta con IA — Modo Avanzado</h2>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:2px;max-width:640px;line-height:1.55;">
+        <h2>Generar oferta <span class="gz-ia">CON IA · MODO AVANZADO</span></h2>
+        <p>
           Conversa con Claude como en el chat de tu equipo. Describe la operación (o pega el correo del cliente), arrastra las fotos de referencia y la IA arma la oferta completa —compleja, con alertas, en español o inglés, USD o COP—. Ajusta lo que quieras conversando. Cuando esté lista, descárgala o guárdala en el Control.
         </p>
       </div>
-      <div style="background:var(--petrol);color:#fff;padding:10px 20px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;text-align:center;min-width:150px;">
+      <div class="gz-ref">
         <div style="font-size:11px;letter-spacing:1px;opacity:0.8;">REF.</div>
         <div id="iaRefDisplay" style="font-size:26px;font-weight:700;line-height:1.1;">—</div>
         <input type="hidden" id="iaRefNum" value="">
@@ -2328,7 +2353,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
       <!-- ===== Columna izquierda: CHAT ===== -->
       <div>
-        <div class="section-title" style="margin:0 0 8px;">CHAT CON CLAUDE</div>
+        <div class="section-title gz-tit" style="margin:0 0 8px;">Chat con Claude</div>
 
         <div class="chat-historia" id="iaChatHistoria" style="max-height:440px;min-height:300px;">
           <div class="chat-msg">
@@ -2364,7 +2389,7 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
         <!-- ===== Resumen en vivo de la operación ===== -->
         <div id="iaResumenPanel" style="margin-top:18px;">
-          <div class="section-title" style="margin:0 0 8px;">RESUMEN DE LA OPERACIÓN</div>
+          <div class="section-title gz-tit" style="margin:0 0 8px;">Resumen de la operación</div>
 
           <!-- Tarjeta resumen -->
           <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
@@ -2410,8 +2435,8 @@ Servicios, recursos o actividades no descritos explícitamente en esta oferta</t
 
       <!-- ===== Columna derecha: VISTA PREVIA ===== -->
       <div>
-        <div class="section-title" style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;">
-          <span>VISTA PREVIA</span>
+        <div class="section-title gz-tit" style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;">
+          <span>Vista previa</span>
           <span id="iaMetaResumen" style="font-size:11px;font-weight:400;opacity:0.9;"></span>
         </div>
         <div id="iaPreviewWrap" style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;background:#f4f4f4;min-height:440px;position:relative;">
@@ -3823,7 +3848,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06e',
+  version: '2026-11-06f',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
