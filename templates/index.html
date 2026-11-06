@@ -610,14 +610,11 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
   pointer-events:none;
 }
 /* La O del logo ya no rebota: solo se ilumina suave (pedido de Natalia 2026-11-06) */
-/* Destello: una línea de luz blanca le da la vuelta a la O cada 3,5 s (opción B elegida) */
-@keyframes o-destello {
-  0%      { stroke-dashoffset:0;    opacity:0; }
-  8%      { opacity:1; }
-  35%     { stroke-dashoffset:-232; opacity:1; }
-  42%,100%{ stroke-dashoffset:-232; opacity:0; }
-}
-.o-bounce .o-shine { animation:o-destello 3.5s ease-in-out infinite; }
+/* Destello (2026-11-06): la O se aclara un instante y brilla una estrellita en su borde; nada gira */
+@keyframes o-flash { 0%,72%,100% { stroke:#E8601C; } 80% { stroke:#FF9A55; } 88% { stroke:#E8601C; } }
+@keyframes o-star  { 0%,70%,100% { opacity:0; transform:scale(.2) rotate(0deg); } 80% { opacity:1; transform:scale(1) rotate(45deg); } 90% { opacity:0; transform:scale(.4) rotate(90deg); } }
+.o-bounce ellipse:first-child { animation:o-flash 3.5s ease-in-out infinite; }
+.o-star { opacity:0; transform-box:fill-box; transform-origin:center; animation:o-star 3.5s ease-in-out infinite; }
 @media (max-width:700px) {
   .login-panel { max-width:100%;padding:34px 26px; }
   #loginOverlay::before { background:rgba(8,15,28,0.9); }
@@ -759,9 +756,9 @@ body.rol-viewer .write-only { display:none !important; }
         <g class="o-bounce">
           <g transform="translate(118,104) skewX(-12) translate(-118,-104)">
             <ellipse cx="118" cy="104" rx="35" ry="37" fill="none" stroke="#E8601C" stroke-width="22" stroke-linecap="round"/>
-            <ellipse class="o-shine" cx="118" cy="104" rx="35" ry="37" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="6" stroke-linecap="round" stroke-dasharray="38 194" opacity="0"/>
           </g>
         </g>
+        <path class="o-star" d="M150 56 L154 70 L168 74 L154 78 L150 92 L146 78 L132 74 L146 70 Z" fill="#fff"/>
         <text x="148" y="148" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
               font-weight="900" font-size="100" fill="#ffffff" font-style="italic">OM</text>
         <polygon points="6,164 50,164 45,173 2,173"   fill="#ffffff" opacity="0.5"/>
@@ -3897,7 +3894,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06h',
+  version: '2026-11-06i',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -6054,7 +6051,8 @@ function renderPanelEstado() {
   const pill = e => {
     const st = ESTILO[e];
     const on = actual === e;
-    return `<span onclick="filtrarPorEstado('${e}')" title="Clic para filtrar la tabla" style="cursor:pointer;font-size:12px;font-weight:600;background:${st.bg};color:${st.tx};padding:5px 12px;border-radius:999px;${on?`box-shadow:0 0 0 2px ${st.tx};`:''}">${e} · ${cuenta[e]}</span>`;
+    // Pastillas transparentes (pedido de Natalia 2026-11-06): solo contorno + punto de color; se rellenan al estar activas.
+    return `<span onclick="filtrarPorEstado('${e}')" title="Clic para filtrar la tabla" style="cursor:pointer;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;background:${on?st.bg:'transparent'};color:${st.tx};border:1.5px solid ${on?st.tx:st.tx+'55'};padding:4px 12px;border-radius:999px;"><i style="width:7px;height:7px;border-radius:50%;background:${st.tx};display:inline-block;"></i>${e} · ${cuenta[e]}</span>`;
   };
   let html = ORDEN.map(pill).join('');
   if (actual) html += `<span onclick="filtrarPorEstado('')" title="Quitar filtro" style="cursor:pointer;font-size:12px;color:var(--text-muted);padding:5px 8px;">✕ ver todas</span>`;
@@ -6190,7 +6188,8 @@ function filterAprobadas() {
   const alarma = document.getElementById('alarmaEjecutadas');
   if (alarma) {
     const esAdmin = currentUser && currentUser.username === 'admin';
-    if (esAdmin && ejecutadasPend > 0) {
+    // Banner QUITADO a pedido de Natalia (2026-11-06). Para reactivarlo, quitar "false &&".
+    if (false && esAdmin && ejecutadasPend > 0) {
       const plural = ejecutadasPend === 1 ? '' : 's';
       document.getElementById('alarmaEjecutadasTxt').textContent =
         `Tienes ${ejecutadasPend} oferta${plural} ejecutada${plural} pendiente${plural} por facturar`;
