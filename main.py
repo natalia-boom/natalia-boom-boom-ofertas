@@ -4213,7 +4213,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-06"
+APP_VERSION = "2026-11-06b"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -4307,9 +4307,9 @@ def web_manifest():
 
 @app.get("/api/login-bg")
 def login_bg():
-    """Foto de fondo del login (mula BOOM con carga extradimensionada). Pública
-    para que cargue en la pantalla de acceso antes de iniciar sesión."""
-    ruta = os.path.join(os.path.dirname(__file__), "templates", "login_mula.jpg")
+    """Foto de fondo del login (tractocamión BOOM con el equipo, elegida por
+    Natalia 2026-11-06). Pública para que cargue antes de iniciar sesión."""
+    ruta = os.path.join(os.path.dirname(__file__), "templates", "login_fondo.jpg")
     if not os.path.exists(ruta):
         raise HTTPException(404, "Sin imagen de fondo")
     return FileResponse(ruta, media_type="image/jpeg",
