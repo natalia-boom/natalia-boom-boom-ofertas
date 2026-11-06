@@ -658,6 +658,31 @@ body.rol-viewer .write-only { display:none !important; }
 #tab-iaoferta #iaMetaResumen { margin-left:auto; }
 #tab-iaoferta #iaPreviewWrap + #iaCambioPanel + div { border:none !important; border-radius:16px !important; background:#fff !important; box-shadow:0 8px 22px rgba(16,25,46,.08); padding:16px 18px !important; }
 @media(max-width:768px) { .gz-hero { margin:-12px -14px 18px; padding:20px 18px; } }
+/* ── Control de Ofertas: estilo nuevo (solo apariencia) ── */
+.cz-hero { margin:-24px -28px 0; padding:24px 32px 66px; color:#fff; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+  background:linear-gradient(90deg,rgba(12,26,58,.94) 0%,rgba(12,26,58,.78) 50%,rgba(12,26,58,.5) 100%), url('/api/inicio-bg') center 60%/cover no-repeat, #0c1a3a; }
+.cz-hero h2 { margin:0; font-size:24px; font-weight:700; color:#fff; }
+.cz-hero p { margin:4px 0 0; font-size:13px; opacity:.85; }
+.cz-nueva { background:#E8601C; color:#fff; border:none; border-radius:10px; padding:10px 18px; font:600 13px 'Barlow',sans-serif; cursor:pointer; box-shadow:0 4px 14px rgba(232,96,28,.4); }
+.cz-sum { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:-44px; margin-bottom:16px; position:relative; }
+.cz-s { background:#fff; border-radius:14px; padding:12px 16px; box-shadow:0 8px 22px rgba(16,25,46,.1); border:2px solid transparent; cursor:pointer; transition:transform .15s,border-color .15s; }
+.cz-s:hover { transform:translateY(-2px); }
+.cz-s.on { border-color:#E8601C; }
+.cz-l { font-size:12px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:6px; }
+.cz-l i { width:9px; height:9px; border-radius:50%; display:inline-block; }
+.cz-v { font-size:24px; font-weight:700; color:var(--petrol); margin-top:2px; }
+#tab-control .cz-panel { border-radius:16px; box-shadow:0 2px 10px rgba(27,42,74,.06); }
+#tab-control thead th { background:#FAFBFD; color:#64748b; border-bottom:1px solid #E8EDF3; font-family:'Barlow',sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.5px; }
+#tab-control thead th:first-child, #tab-control thead th:last-child { border-radius:0; }
+#tab-control tbody tr:nth-child(even) { background:transparent; }
+#tab-control tbody tr { border-bottom:1px solid #F1F4F8; }
+#tab-control tbody tr:hover { background:#F7F9FC; }
+#tab-control .num-badge { background:#E8EFF8; color:#1B3A6B; }
+#tab-control .badge-aceptada { background:#FDEBDD; color:#B4470F; }
+#tab-control .badge-enviado { background:#E3F0FB; color:#2E6DB4; }
+#tab-control .badge-recibido { background:#EEF2F7; color:#475569; }
+@media(max-width:1000px) { .cz-sum { grid-template-columns:repeat(3,1fr); } }
+@media(max-width:768px)  { .cz-hero { margin:-12px -14px 0; padding:20px 18px 62px; } .cz-sum { grid-template-columns:1fr 1fr; } }
 .chat-historia { background:#fff; border:1.5px solid var(--border); border-radius:8px 8px 0 0; padding:14px 16px; min-height:200px; max-height:360px; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:12px; }
 .chat-msg { display:flex; gap:10px; align-items:flex-start; min-width:0; max-width:100%; }
 .chat-msg.user { flex-direction:row-reverse; }
@@ -1043,17 +1068,19 @@ body.rol-viewer .write-only { display:none !important; }
 </header>
 
 <!-- ====== AVISO DE ACTUALIZACIÓN (alarma con sonido para todos los usuarios) ====== -->
-<div id="avisoUpdateOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,16,30,.72);z-index:99999;align-items:center;justify-content:center;padding:20px;">
-  <div style="background:#fff;border-radius:18px;max-width:460px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden;animation:avisoPop .35s cubic-bezier(.2,.9,.3,1.2);">
-    <div style="background:linear-gradient(90deg,#E8601C,#f3923f);padding:24px;text-align:center;">
-      <div id="avisoUpdateCampana" style="font-size:44px;line-height:1;margin-bottom:6px;">🔔</div>
+<div id="avisoUpdateOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,16,30,.38);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <!-- Aviso en estilo cristal (más transparente), pedido de Natalia 2026-11-06 -->
+  <div style="background:rgba(22,35,63,.62);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);border:1px solid rgba(255,255,255,.22);border-radius:20px;max-width:460px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden;animation:avisoPop .35s cubic-bezier(.2,.9,.3,1.2);">
+    <div style="padding:26px 24px 6px;text-align:center;">
+      <div id="avisoUpdateCampana" style="font-size:40px;line-height:1;margin-bottom:8px;">🔔</div>
       <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:.3px;">Actualizaciones realizadas</div>
+      <div style="width:44px;height:3px;border-radius:3px;background:#E8601C;margin:10px auto 0;"></div>
     </div>
-    <div style="padding:22px 24px 24px;text-align:center;">
-      <div id="avisoUpdateMensaje" style="font-size:14.5px;color:#334155;line-height:1.65;"></div>
+    <div style="padding:14px 24px 24px;text-align:center;">
+      <div id="avisoUpdateMensaje" style="font-size:14.5px;color:rgba(255,255,255,.88);line-height:1.65;"></div>
       <div style="display:flex;gap:10px;margin-top:22px;">
-        <button onclick="recargarAhora()" style="flex:1;background:#E8601C;color:#fff;border:none;border-radius:10px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">🔄 Reiniciar ahora</button>
-        <button onclick="cerrarAvisoUpdate()" style="flex:0 0 auto;background:#eef2f7;color:#475569;border:none;border-radius:10px;padding:13px 16px;font-weight:700;font-size:14px;cursor:pointer;">Más tarde</button>
+        <button onclick="recargarAhora()" style="flex:1;background:#E8601C;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 6px 18px rgba(232,96,28,.45);">🔄 Reiniciar ahora</button>
+        <button onclick="cerrarAvisoUpdate()" style="flex:0 0 auto;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:13px 16px;font-weight:700;font-size:14px;cursor:pointer;">Más tarde</button>
       </div>
     </div>
   </div>
@@ -1061,6 +1088,7 @@ body.rol-viewer .write-only { display:none !important; }
 <style>
 @keyframes avisoPop { from { opacity:0; transform:scale(.88) translateY(10px); } to { opacity:1; transform:none; } }
 @keyframes campanaShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(16deg)} 40%{transform:rotate(-14deg)} 60%{transform:rotate(10deg)} 80%{transform:rotate(-6deg)} }
+#avisoUpdateMensaje b { color:#fff; }
 #avisoUpdateCampana { display:inline-block; animation:campanaShake .7s ease 2; transform-origin:50% 0; }
 </style>
 
@@ -1152,8 +1180,20 @@ body.rol-viewer .write-only { display:none !important; }
 
 <!-- ==================== CONTROL DE OFERTAS ==================== -->
 <section class="tab-panel" id="tab-control">
-  <div class="section-card" style="padding:16px 20px;">
-    <div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;letter-spacing:.3px;font-style:italic;">Versión 03 &nbsp;–&nbsp; Fecha de vigencia: 25/08/2026</div>
+  <!-- Franja con foto del puente (estilo nuevo 2026-11-06) -->
+  <div class="cz-hero">
+    <div><h2>Control de Ofertas</h2>
+      <p>Todas las ofertas emitidas &nbsp;·&nbsp; Versión 03 &nbsp;–&nbsp; Fecha de vigencia: 25/08/2026</p></div>
+    <button class="cz-nueva write-only" onclick="switchTab('iaoferta')">＋ Nueva oferta</button>
+  </div>
+  <div class="cz-sum" id="czSum">
+    <div class="cz-s" data-f="" onclick="ctlFiltroRapido('')"><div class="cz-l"><i style="background:#1B2A4A"></i>Todas</div><div class="cz-v" id="czTodas">—</div></div>
+    <div class="cz-s" data-f="ACEPTADA" onclick="ctlFiltroRapido('ACEPTADA')"><div class="cz-l"><i style="background:#E8601C"></i>Aceptadas</div><div class="cz-v" id="czAc">—</div></div>
+    <div class="cz-s" data-f="PENDIENTE" onclick="ctlFiltroRapido('PENDIENTE')"><div class="cz-l"><i style="background:#1B3A6B"></i>Pendientes</div><div class="cz-v" id="czPe">—</div></div>
+    <div class="cz-s" data-f="EN SEGUIMIENTO" onclick="ctlFiltroRapido('EN SEGUIMIENTO')"><div class="cz-l"><i style="background:#3F7CC4"></i>En seguimiento</div><div class="cz-v" id="czSe">—</div></div>
+    <div class="cz-s" data-f="*" onclick="ctlFiltroRapido('*')"><div class="cz-l"><span style="color:#E0A100">★</span>Con estrella</div><div class="cz-v" id="czEs">—</div></div>
+  </div>
+  <div class="section-card cz-panel" style="padding:16px 20px;">
     <div class="filters-bar">
       <div class="form-group" style="flex:2;min-width:200px;">
         <label>Buscar</label>
@@ -3848,7 +3888,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06f',
+  version: '2026-11-06g',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5683,7 +5723,33 @@ function mismaPersona(a, b) {
   return pb.slice(1).some(t => resto.has(t));
 }
 
+// Tarjetas-resumen de Control: cuentan y filtran con un clic.
+function ctlResumen() {
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  const R = o => (o.respuesta || '').toUpperCase();
+  set('czTodas', allOfertas.length);
+  set('czAc', allOfertas.filter(o => R(o) === 'ACEPTADA').length);
+  set('czPe', allOfertas.filter(o => R(o) === 'PENDIENTE').length);
+  set('czSe', allOfertas.filter(o => R(o) === 'EN SEGUIMIENTO').length);
+  set('czEs', allOfertas.filter(o => o.estrella).length);
+  const fr = (document.getElementById('fRespuesta') || {}).value || '';
+  const fe = (document.getElementById('fEstrella') || {}).value === '1';
+  const activo = fe ? '*' : fr;
+  document.querySelectorAll('#czSum .cz-s').forEach(c => c.classList.toggle('on', c.dataset.f === activo));
+}
+function ctlFiltroRapido(f) {
+  const r = document.getElementById('fRespuesta'), e = document.getElementById('fEstrella');
+  if (f === '*') { r.value = ''; e.value = '1'; }
+  else {
+    e.value = '';
+    if (f && ![...r.options].some(o => (o.value || o.text) === f)) r.insertAdjacentHTML('beforeend', `<option>${f}</option>`);
+    r.value = f;
+  }
+  filterControl();
+}
+
 function renderControlTable() {
+  try { ctlResumen(); } catch (e) {}
   const start = (controlPage - 1) * PAGE_SIZE;
   const page = controlFiltered.slice(start, start + PAGE_SIZE);
   const tbody = document.getElementById('controlBody');
