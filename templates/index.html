@@ -622,18 +622,22 @@ body.rol-viewer .write-only { display:none !important; }
 .gear-bg-cw  { transform-box:fill-box; transform-origin:center; animation:gear-spin-cw  70s linear infinite; }
 .gear-bg-ccw { transform-box:fill-box; transform-origin:center; animation:gear-spin-ccw 50s linear infinite; }
 .gear-bg-med { transform-box:fill-box; transform-origin:center; animation:gear-spin-cw  38s linear infinite; }
-.modulo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; max-width:960px; width:100%; padding:0 24px; }
-.modulo-card { background:#fff; border-radius:20px; padding:40px 28px; text-align:center; cursor:pointer; border:2px solid transparent; box-shadow:var(--shadow); transition:all 0.22s; user-select:none; }
-.modulo-card:hover { border-color:var(--orange); transform:translateY(-5px); box-shadow:var(--shadow-lg); }
+/* Tarjetas acostadas (icono | texto | botón), 2 filas de 3 — pedido de Natalia 2026-11-06 */
+.modulo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; max-width:1240px; width:100%; padding:0 24px; box-sizing:border-box; margin-top:3vh; }
+@media (max-width:1100px) { .modulo-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:640px)  { .modulo-grid { grid-template-columns:1fr; } }
+.modulo-card { background:rgba(255,255,255,.96); border-radius:16px; padding:18px 20px; text-align:left; display:flex; align-items:center; gap:16px; cursor:pointer; border:2px solid transparent; box-shadow:var(--shadow); transition:all 0.22s; user-select:none; }
+.modulo-card:hover { border-color:var(--orange); transform:translateY(-3px); box-shadow:var(--shadow-lg); }
 .modulo-card.disabled { background:rgba(255,255,255,.82); cursor:not-allowed; pointer-events:none; }
 .modulo-card.disabled > * { opacity:.55; }
-.modulo-icon { width:66px; height:66px; margin:0 auto 16px; border-radius:16px; background:rgba(232,96,28,0.10); display:flex; align-items:center; justify-content:center; }
-.modulo-icon svg { width:34px; height:34px; stroke:#E8601C; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.modulo-icon { width:56px; height:56px; margin:0; flex:0 0 56px; border-radius:16px; background:rgba(232,96,28,0.10); display:flex; align-items:center; justify-content:center; }
+.modulo-icon svg { width:28px; height:28px; stroke:#E8601C; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .modulo-card.pronto-card .modulo-icon { background:rgba(143,163,196,0.14); }
 .modulo-card.pronto-card .modulo-icon svg { stroke:#8fa3c4; }
-.modulo-title { font-size:19px; font-weight:700; color:var(--petrol); margin-bottom:8px; }
-.modulo-desc { font-size:12.5px; color:var(--text-muted); line-height:1.55; }
-.modulo-tag { display:inline-block; margin-top:14px; background:var(--orange); color:#fff; border-radius:20px; padding:3px 14px; font-size:11px; font-weight:700; letter-spacing:0.5px; }
+.modulo-txt { flex:1; min-width:0; }
+.modulo-title { font-size:16.5px; font-weight:700; color:var(--petrol); margin-bottom:3px; }
+.modulo-desc { font-size:12px; color:var(--text-muted); line-height:1.4; }
+.modulo-tag { display:inline-block; margin-top:0; flex:0 0 auto; background:var(--orange); color:#fff; border-radius:20px; padding:3px 14px; font-size:11px; font-weight:700; letter-spacing:0.5px; }
 .modulo-tag.pronto { background:#e2e8f0; color:#64748b; }
 .btn-cambiar-modulo { background:rgba(255,255,255,0.13); border:1px solid rgba(255,255,255,0.28); color:#fff; border-radius:6px; padding:6px 14px; font-family:'Barlow',sans-serif; font-size:12px; cursor:pointer; transition:background 0.2s; }
 .btn-cambiar-modulo:hover { background:rgba(255,255,255,0.23); }
@@ -896,38 +900,50 @@ body.rol-viewer .write-only { display:none !important; }
   <div class="modulo-grid">
     <div class="modulo-card" id="cardComercial" onclick="enterModulo('comercial')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M3 17V6a1 1 0 0 1 1-1h10v12M14 8h4l3 4v5h-3"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg></div>
-      <div class="modulo-title">Comercial</div>
-      <div class="modulo-desc">Gestión de ofertas, control comercial, clientes y facturación</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Comercial</div>
+        <div class="modulo-desc">Gestión de ofertas, control comercial, clientes y facturación</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card" id="cardOperaciones" onclick="enterModulo('operaciones')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M4 7h8M16.5 7H20M4 17h3.5M12 17h8"/><circle cx="14.5" cy="7" r="2.3"/><circle cx="9.5" cy="17" r="2.3"/></svg></div>
-      <div class="modulo-title">Operaciones</div>
-      <div class="modulo-desc">Alertas de proyectos aceptados y gestión de Órdenes de Servicio Internas (OSI)</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Operaciones</div>
+        <div class="modulo-desc">Alertas de proyectos aceptados y gestión de Órdenes de Servicio Internas (OSI)</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card" id="cardTarifario" onclick="enterModulo('tarifario')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M4 20V11M9.3 20V4M14.6 20v-6M20 20V8M3 20h18"/></svg></div>
-      <div class="modulo-title">Tarifario Automático</div>
-      <div class="modulo-desc">Consulta de tarifas basada en el historial de ofertas realizadas</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Tarifario Automático</div>
+        <div class="modulo-desc">Consulta de tarifas basada en el historial de ofertas realizadas</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardTi" onclick="enterModulo('ti')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></div>
-      <div class="modulo-title">Tecnología — TI</div>
-      <div class="modulo-desc">Administración de áreas, usuarios, permisos y estado del sistema</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Tecnología — TI</div>
+        <div class="modulo-desc">Administración de áreas, usuarios, permisos y estado del sistema</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardAprobaciones" onclick="enterModulo('aprobar_presupuesto')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6V7H9z"/><path d="M8.6 13.2l2.3 2.3 4-4.6"/></svg></div>
-      <div class="modulo-title">Aprobación de Presupuestos</div>
-      <div class="modulo-desc">Revisa y aprueba (o devuelve para ajustar) los presupuestos que arma el líder del proyecto</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Aprobación de Presupuestos</div>
+        <div class="modulo-desc">Revisa y aprueba (o devuelve para ajustar) los presupuestos que arma el líder del proyecto</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
     <div class="modulo-card disabled" id="cardRentabilidad" onclick="enterModulo('rentabilidad')">
       <div class="modulo-icon"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L21 6"/><path d="M15 6h6v6"/></svg></div>
-      <div class="modulo-title">Rentabilidad</div>
-      <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente ejecutado</div>
+      <div class="modulo-txt">
+        <div class="modulo-title">Rentabilidad</div>
+        <div class="modulo-desc">Análisis de márgenes, costos y rentabilidad por proyecto y cliente ejecutado</div>
+      </div>
       <div class="modulo-tag">Ingresar</div>
     </div>
   </div>
@@ -3802,7 +3818,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06c',
+  version: '2026-11-06d',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
