@@ -4213,7 +4213,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-06g"
+APP_VERSION = "2026-11-06h"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -4307,7 +4307,7 @@ def web_manifest():
 
 @app.get("/api/login-bg")
 def login_bg():
-    """Foto de fondo del login (tractocamión BOOM con el equipo, elegida por
+    """Foto de fondo del login (convoy BOOM en el Puente Pumarejo, de cerca; elegida por
     Natalia 2026-11-06). Pública para que cargue antes de iniciar sesión."""
     ruta = os.path.join(os.path.dirname(__file__), "templates", "login_fondo.jpg")
     if not os.path.exists(ruta):
