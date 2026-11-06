@@ -408,6 +408,49 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 }
 
 /* ===== DASHBOARD MODERNO ===== */
+/* ── Dashboard estilo nuevo ── */
+.dz-hero { margin:-24px -28px 0; padding:26px 32px 74px; color:#fff;
+  background:linear-gradient(90deg,rgba(12,26,58,.93) 0%,rgba(12,26,58,.76) 45%,rgba(12,26,58,.45) 100%), url('/api/inicio-bg') center 55%/cover no-repeat, #0c1a3a; }
+.dz-hero h1 { margin:0; font-size:26px; font-weight:700; }
+.dz-hero p { margin:4px 0 0; opacity:.85; font-size:14px; }
+.dz-chip { display:inline-block; margin-top:12px; font-size:12px; font-weight:600; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); padding:5px 12px; border-radius:20px; }
+.dz-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:-50px; position:relative; }
+.dz-kpi { background:#fff; border-radius:16px; padding:16px 18px; box-shadow:0 8px 24px rgba(16,25,46,.12); display:flex; gap:14px; align-items:center; animation:fadeUp .4s ease both; }
+.dz-ic { width:46px; height:46px; border-radius:12px; background:rgba(232,96,28,.1); display:flex; align-items:center; justify-content:center; flex:0 0 46px; }
+.dz-ic svg { width:24px; height:24px; stroke:#E8601C; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.dz-l { font-size:12px; color:var(--text-muted); font-weight:600; }
+.dz-v { font-size:28px; font-weight:700; line-height:1.1; color:var(--petrol); }
+.dz-s { font-size:12px; color:var(--text-muted); }
+.dz-s b { color:#1e7a4c; }
+.dz-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px; }
+.dz-card { background:#fff; border-radius:16px; padding:18px 20px; box-shadow:0 2px 10px rgba(27,42,74,.06); animation:fadeUp .4s ease both; min-width:0; }
+.dz-card h3 { margin:0 0 2px; font-size:15px; font-weight:700; color:var(--petrol); display:flex; align-items:center; gap:8px; }
+.dz-card h3::before { content:""; width:8px; height:8px; border-radius:50%; background:#E8601C; }
+.dz-sub { font-size:12px; color:var(--text-muted); margin:0 0 12px 16px; }
+.dz-pie { display:flex; align-items:center; gap:22px; }
+.dz-pie svg { width:190px; height:190px; flex:0 0 190px; }
+.dz-pie svg path { stroke:#fff; stroke-width:2; transition:transform .15s; transform-origin:100px 100px; cursor:default; }
+.dz-pie svg path:hover { transform:scale(1.04); }
+.dz-ct { font-size:26px; font-weight:700; fill:var(--petrol); }
+.dz-cl { font-size:11px; fill:#64748b; font-weight:600; }
+.dz-lg { flex:1; font-size:13px; min-width:0; }
+.dz-lg div { display:grid; grid-template-columns:12px 1fr auto auto; gap:8px; align-items:center; padding:4px 0; border-bottom:1px solid #F1F4F8; }
+.dz-lg i { width:12px; height:12px; border-radius:3px; }
+.dz-lg span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dz-lg b { font-weight:700; }
+.dz-lg em { font-style:normal; color:#64748b; font-size:12px; min-width:38px; text-align:right; }
+.dz-cols { display:flex; align-items:flex-end; gap:8px; height:190px; padding-top:18px; border-bottom:1px solid #E3E8EF; }
+.dz-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+.dz-col .b { width:70%; max-width:38px; background:#1B3A6B; border-radius:4px 4px 0 0; }
+.dz-col .b.cur { background:#E8601C; }
+.dz-col .vv { font-size:11.5px; font-weight:600; margin-bottom:4px; color:var(--petrol); }
+.dz-mes { display:flex; gap:8px; }
+.dz-mes span { flex:1; text-align:center; font-size:11px; color:#64748b; margin-top:6px; }
+.dz-vacio { color:#94a3b8; font-size:12px; text-align:center; padding:30px; }
+@media(max-width:1100px) { .dz-kpis { grid-template-columns:1fr 1fr; } }
+@media(max-width:900px)  { .dz-grid { grid-template-columns:1fr; } }
+@media(max-width:768px)  { .dz-hero { margin:-12px -14px 0; padding:20px 18px 70px; } }
+@media(max-width:560px)  { .dz-kpis { grid-template-columns:1fr; } .dz-pie { flex-direction:column; } }
 .dash-grid { display: grid; gap: 18px; margin-bottom: 18px; }
 .dash-grid-2 { grid-template-columns: 1fr 1fr; }
 .dash-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -1053,69 +1096,31 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- ==================== DASHBOARD ==================== -->
 <section class="tab-panel active" id="tab-dashboard">
 
-  <!-- KPIs -->
-  <div class="d-kpi-grid">
-    <div class="d-kpi">
-      <div class="d-kpi-chip" style="background:rgba(27,42,74,0.09);color:#1B2A4A;"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg></div>
-      <div class="d-kpi-label">Total Ofertas</div>
-      <div class="d-kpi-value" id="kTotal">—</div>
-    </div>
-    <div class="d-kpi">
-      <div class="d-kpi-chip" style="background:rgba(21,122,91,0.12);color:#157a5b;"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
-      <div class="d-kpi-label">Aceptadas</div>
-      <div class="d-kpi-value" id="kAceptadas" style="color:#157a5b;">—</div>
-      <div class="d-kpi-sub" id="kTasa">Tasa: —</div>
-    </div>
-    <div class="d-kpi">
-      <div class="d-kpi-chip" style="background:rgba(232,100,26,0.12);color:var(--orange);"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/></svg></div>
-      <div class="d-kpi-label">Ofertas Este Mes</div>
-      <div class="d-kpi-value" id="kMes">—</div>
-    </div>
+  <!-- Dashboard estilo nuevo (2026-11-06): franja con foto del puente + KPIs + tortas BOOM -->
+  <div class="dz-hero">
+    <h1 id="dzSaludo">Hola</h1>
+    <p>Así va la gestión comercial de BOOM Logistics</p>
+    <span class="dz-chip" id="dzFecha">—</span>
   </div>
 
-  <!-- Fila 1: Pie Aceptadas + Donut Tipo de Clientes -->
-  <div class="dash-grid dash-grid-2" style="margin-bottom:18px;">
-    <div class="d-card">
-      <div class="d-chart-title">OFERTAS ACEPTADAS</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
-        <svg id="svgPieAceptadas" viewBox="0 0 280 280" width="210" height="210"></svg>
-        <div id="legendPieAceptadas" style="display:flex;flex-direction:column;gap:12px;min-width:120px;"></div>
-      </div>
-    </div>
-    <div class="d-card">
-      <div class="d-chart-title">CLIENTES CON MÁS ACEPTADAS</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
-        <svg id="svgDonutSector" viewBox="0 0 280 280" width="210" height="210"></svg>
-        <div id="legendDonutSector" style="display:flex;flex-direction:column;gap:8px;min-width:150px;"></div>
-      </div>
-    </div>
+  <div class="dz-kpis">
+    <div class="dz-kpi"><div class="dz-ic"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div>
+      <div><div class="dz-l">Total ofertas</div><div class="dz-v" id="kTotal">—</div><div class="dz-s" id="kTotalSub">&nbsp;</div></div></div>
+    <div class="dz-kpi"><div class="dz-ic"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></div>
+      <div><div class="dz-l">Aceptadas</div><div class="dz-v" id="kAceptadas">—</div><div class="dz-s" id="kTasa">Tasa —</div></div></div>
+    <div class="dz-kpi"><div class="dz-ic"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></div>
+      <div><div class="dz-l">Ofertas este mes</div><div class="dz-v" id="kMes">—</div><div class="dz-s" id="kMesSub">&nbsp;</div></div></div>
+    <div class="dz-kpi"><div class="dz-ic"><svg viewBox="0 0 24 24"><path d="M12 3v18M16.5 7.5c-.8-1.4-2.5-2-4.5-2-2.8 0-4.5 1.3-4.5 3.2 0 4.6 9.5 2.3 9.5 7 0 2-1.8 3.3-5 3.3-2.2 0-4-.8-4.8-2.3"/></svg></div>
+      <div><div class="dz-l">Valor aceptado</div><div class="dz-v" id="kValorAc">—</div><div class="dz-s">en COP (sin ofertas en USD)</div></div></div>
   </div>
 
-  <!-- Fila 2: Barras Tipo Negocio + Pie Ranking Clientes -->
-  <div class="dash-grid dash-grid-2" style="margin-bottom:18px;">
-    <div class="d-card">
-      <div class="d-chart-title">TIPO DE NEGOCIO</div>
-      <div id="chartTipoNegocio"></div>
-    </div>
-    <div class="d-card">
-      <div class="d-chart-title">RANKING DE CLIENTES</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
-        <svg id="svgPieClientes" viewBox="0 0 280 280" width="210" height="210"></svg>
-        <div id="legendPieClientes" style="display:flex;flex-direction:column;gap:8px;min-width:150px;max-width:190px;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Fila 3: Por Mes + Unidad de Negocio -->
-  <div class="dash-grid dash-grid-2">
-    <div class="d-card">
-      <div class="d-chart-title">OFERTAS POR MES</div>
-      <div id="chartMes"></div>
-    </div>
-    <div class="d-card">
-      <div class="d-chart-title">UNIDAD DE NEGOCIO</div>
-      <div id="chartUnidad"></div>
-    </div>
+  <div class="dz-grid">
+    <div class="dz-card"><h3>Ofertas por estado</h3><p class="dz-sub">Aceptadas frente al resto</p><div id="dzEstado"></div></div>
+    <div class="dz-card"><h3>Ofertas por mes</h3><p class="dz-sub">Cantidad de ofertas · mes actual en naranja</p><div id="chartMes"></div></div>
+    <div class="dz-card"><h3>Clientes con más ofertas aceptadas</h3><p class="dz-sub">Top 5 + otros</p><div id="dzCliAc"></div></div>
+    <div class="dz-card"><h3>Ranking de clientes</h3><p class="dz-sub">Top 5 + otros · total de ofertas</p><div id="dzRank"></div></div>
+    <div class="dz-card"><h3>Unidad de negocio</h3><p class="dz-sub">Cantidad de ofertas</p><div id="dzUnidad"></div></div>
+    <div class="dz-card"><h3>Tipo de negocio</h3><p class="dz-sub">Cantidad de ofertas</p><div id="dzTipo"></div></div>
   </div>
 
 </section>
@@ -3818,7 +3823,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06d',
+  version: '2026-11-06e',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5475,66 +5480,94 @@ function animateKPI(id, target, isCOP) {
   requestAnimationFrame(tick);
 }
 
+// Colores BOOM para las tortas: naranja, azul marino, azul medio, durazno, azul claro; "Otros" en gris.
+const DZ_PAL = ['#E8601C', '#1B3A6B', '#3F7CC4', '#F4A26B', '#9DBCE3'];
+const DZ_OTROS = '#B8C2D0';
+function _dzEsc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Torta tipo dona con total en el centro y lista a la derecha (top 5 + "Otros").
+function dzTorta(id, datos, centro, ordenar) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let d = datos.filter(x => x[1] > 0);
+  if (ordenar !== false) d.sort((a, b) => b[1] - a[1]);
+  if (d.length > 6) { const o = d.slice(5).reduce((s, x) => s + x[1], 0); d = d.slice(0, 5).concat([['Otros', o]]); }
+  const tot = d.reduce((s, x) => s + x[1], 0);
+  if (!tot) { el.innerHTML = '<div class="dz-vacio">Sin datos</div>'; return; }
+  const R = 92, r = 58;
+  let a0 = -Math.PI / 2;
+  const pt = (rad, ang) => (100 + rad * Math.cos(ang)).toFixed(2) + ',' + (100 + rad * Math.sin(ang)).toFixed(2);
+  const filas = d.map((x, i) => {
+    const col = x[0] === 'Otros' ? DZ_OTROS : DZ_PAL[i % DZ_PAL.length];
+    const pct = Math.round(x[1] / tot * 100);
+    let a1 = a0 + x[1] / tot * 2 * Math.PI;
+    if (d.length === 1) a1 = a0 + 2 * Math.PI - 0.0001;
+    const L = (a1 - a0) > Math.PI ? 1 : 0;
+    const path = `<path d="M${pt(R,a0)}A${R},${R} 0 ${L} 1 ${pt(R,a1)}L${pt(r,a1)}A${r},${r} 0 ${L} 0 ${pt(r,a0)}Z" fill="${col}"><title>${_dzEsc(x[0])}: ${x[1]} (${pct}%)</title></path>`;
+    a0 = a1;
+    return { path, col, nom: x[0], val: x[1], pct };
+  });
+  el.innerHTML = `<div class="dz-pie"><svg viewBox="0 0 200 200">${filas.map(f => f.path).join('')}
+      <text x="100" y="102" text-anchor="middle" class="dz-ct">${tot}</text>
+      <text x="100" y="121" text-anchor="middle" class="dz-cl">${_dzEsc(centro)}</text></svg>
+    <div class="dz-lg">${filas.map(f => `<div title="${_dzEsc(f.nom)}"><i style="background:${f.col}"></i><span>${_dzEsc(f.nom)}</span><b>${f.val}</b><em>${f.pct}%</em></div>`).join('')}</div></div>`;
+}
+
 function renderDashboard() {
   const stats = computeStats();
+  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const hoy = new Date();
+  const mesAct = MESES[hoy.getMonth()];
+  const esAc = o => (o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL');
 
-  animateKPI('kTotal',      stats.total,      false);
-  animateKPI('kAceptadas',  stats.aceptadas,  false);
-  animateKPI('kMes',        stats.estesMes,   false);
-  document.getElementById('kTasa').textContent = 'Tasa: ' + stats.tasa + '%';
+  // Franja: saludo con el nombre de quien entra
+  const h = hoy.getHours();
+  const nom = ((currentUser && currentUser.nombre) || '').trim().split(/\s+/)[0] || '';
+  const nomBonito = nom ? nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase() : '';
+  const sal = h < 12 ? 'Buenos días' : (h < 19 ? 'Buenas tardes' : 'Buenas noches');
+  const elS = document.getElementById('dzSaludo'); if (elS) elS.textContent = nomBonito ? `${sal}, ${nomBonito}` : sal;
+  const elF = document.getElementById('dzFecha');
+  if (elF) elF.textContent = '📅 ' + mesAct.charAt(0) + mesAct.slice(1).toLowerCase() + ' ' + hoy.getFullYear();
 
-  // Pie: Ofertas Aceptadas
-  renderSVGPie('svgPieAceptadas', 'legendPieAceptadas', [
-    { label: 'ACEPTADO', val: stats.aceptadas,                    color: '#157a5b' },
-    { label: 'RECIBIDO', val: stats.total - stats.aceptadas,      color: '#e8641a' },
-  ], false);
+  // KPIs
+  animateKPI('kTotal',     stats.total,     false);
+  animateKPI('kAceptadas', stats.aceptadas, false);
+  animateKPI('kMes',       stats.estesMes,  false);
+  document.getElementById('kTasa').innerHTML = 'Tasa <b>' + stats.tasa + '%</b>';
+  const acMes = allOfertas.filter(o => o.mes === mesAct && esAc(o)).length;
+  const elMS = document.getElementById('kMesSub'); if (elMS) elMS.textContent = acMes + (acMes === 1 ? ' aceptada' : ' aceptadas');
+  const elTS = document.getElementById('kTotalSub'); if (elTS) elTS.textContent = stats.estesMes ? `+${stats.estesMes} este mes` : ' ';
+  // Valor aceptado: si el cliente aprobó solo una parte, cuenta lo aprobado. Las ofertas en USD no se mezclan.
+  const valAc = allOfertas.filter(esAc).reduce((s, o) => {
+    if ((o.moneda||'COP').toUpperCase() === 'USD') return s;
+    const ap = Number(o.valor_aprobado || 0);
+    return s + (ap > 0 ? ap : Number(o.valor || 0));
+  }, 0);
+  const elV = document.getElementById('kValorAc');
+  if (elV) elV.textContent = '$' + Math.round(valAc / 1e6).toLocaleString('es-CO') + 'M';
 
-  // Donut: Clientes con más ofertas ACEPTADAS
-  const acCliMap = {};
-  allOfertas.forEach(o => {
-    if ((o.respuesta||'').toUpperCase() === 'ACEPTADA' && !(o.seguimiento||'').toUpperCase().includes('CANCEL') && o.cliente)
-      acCliMap[o.cliente] = (acCliMap[o.cliente]||0) + 1;
-  });
-  const acCliData = Object.entries(acCliMap).sort((a,b)=>b[1]-a[1]).slice(0,7)
-    .map(([k,v],i) => ({ label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length] }));
-  renderSVGPie('svgDonutSector', 'legendDonutSector', acCliData, true);
+  // Tortas
+  dzTorta('dzEstado', [['Aceptadas', stats.aceptadas], ['Recibidas / pendientes', stats.total - stats.aceptadas]], 'ofertas', false);
 
-  // Bar: Tipo de Negocio (agrupa dinámicamente el campo 'tipo')
-  const tipoMap = {};
-  allOfertas.forEach(o => { if(o.tipo) tipoMap[o.tipo] = (tipoMap[o.tipo]||0)+1; });
-  const tipoData = Object.entries(tipoMap).sort((a,b)=>b[1]-a[1]).slice(0,8)
-    .map(([k,v],i) => ({label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length]}));
-  renderModernBar('chartTipoNegocio', tipoData);
+  const cuenta = (lista, campo) => { const m = {}; lista.forEach(o => { const k = (o[campo]||'').toString().trim(); if (k) m[k] = (m[k]||0) + 1; }); return Object.entries(m); };
+  dzTorta('dzCliAc',  cuenta(allOfertas.filter(esAc), 'cliente'), 'aceptadas');
+  dzTorta('dzRank',   cuenta(allOfertas, 'cliente'), 'ofertas');
+  dzTorta('dzUnidad', cuenta(allOfertas, 'unidad'),  'ofertas');
+  dzTorta('dzTipo',   cuenta(allOfertas, 'tipo'),    'ofertas');
 
-  // Pie: Ranking Clientes por CANTIDAD de ofertas (a quién más se le oferta)
-  const clienteCntMap = {};
-  allOfertas.forEach(o => { if (o.cliente) clienteCntMap[o.cliente] = (clienteCntMap[o.cliente]||0) + 1; });
-  const clienteData = Object.entries(clienteCntMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
-    .map(([k,v],i) => ({ label:k, val:v, color:CHART_COLORS[i] }));
-  const svgPC = document.getElementById('svgPieClientes');
-  const legPC = document.getElementById('legendPieClientes');
-  if (svgPC && legPC) {
-    svgPC.innerHTML = buildPieSVG(clienteData, 140, 140, 120, 0, true);
-    legPC.innerHTML = clienteData.map(d => `
-      <div style="display:flex;align-items:center;gap:7px;">
-        <span style="width:11px;height:11px;border-radius:3px;background:${d.color};flex-shrink:0;"></span>
-        <span style="font-size:10px;color:#475569;line-height:1.35;">${d.label}<br><b style="color:#1e293b;">${d.val} ofertas</b></span>
-      </div>`).join('');
-  }
-
-  // Bar: Por Mes
-  const months = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  // Columnas: ofertas por mes (mes actual en naranja)
   const mesMap = {};
-  allOfertas.forEach(o => { if(o.mes) mesMap[o.mes] = (mesMap[o.mes]||0)+1; });
-  const porMes = months.filter(m => mesMap[m]).map((m,i) => ({label:m.substring(0,3), val:mesMap[m], color:CHART_COLORS[i%CHART_COLORS.length]}));
-  renderModernBar('chartMes', porMes);
-
-  // Bar: Unidad de Negocio
-  const uniMap = {};
-  allOfertas.forEach(o => { if(o.unidad) uniMap[o.unidad] = (uniMap[o.unidad]||0)+1; });
-  const porUni = Object.entries(uniMap).sort((a,b)=>b[1]-a[1])
-    .map(([k,v],i) => ({label:k, val:v, color:CHART_COLORS[i%CHART_COLORS.length]}));
-  renderModernBar('chartUnidad', porUni);
+  allOfertas.forEach(o => { if (o.mes) mesMap[o.mes] = (mesMap[o.mes]||0) + 1; });
+  const porMes = MESES.filter(m => mesMap[m]).map(m => [m, mesMap[m]]);
+  const elM = document.getElementById('chartMes');
+  if (elM) {
+    if (!porMes.length) { elM.innerHTML = '<div class="dz-vacio">Sin datos</div>'; }
+    else {
+      const mx = Math.max(...porMes.map(x => x[1]));
+      elM.innerHTML = `<div class="dz-cols">${porMes.map(x => `<div class="dz-col" title="${x[0]}: ${x[1]} ofertas"><span class="vv">${x[1]}</span><div class="b ${x[0] === mesAct ? 'cur' : ''}" style="height:${x[1]/mx*85}%"></div></div>`).join('')}</div>
+        <div class="dz-mes">${porMes.map(x => `<span>${x[0].slice(0,3)}</span>`).join('')}</div>`;
+    }
+  }
 }
 
 function computeStats() {
