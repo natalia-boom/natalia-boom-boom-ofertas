@@ -566,11 +566,14 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
   pointer-events:none;
 }
 /* La O del logo ya no rebota: solo se ilumina suave (pedido de Natalia 2026-11-06) */
-@keyframes o-brillo {
-  0%,100% { stroke:#E8601C; filter:drop-shadow(0 0 0 rgba(255,140,60,0)); }
-  50%     { stroke:#FF8F45; filter:drop-shadow(0 0 5px rgba(255,140,60,.55)); }
+/* Destello: una línea de luz blanca le da la vuelta a la O cada 3,5 s (opción B elegida) */
+@keyframes o-destello {
+  0%      { stroke-dashoffset:0;    opacity:0; }
+  8%      { opacity:1; }
+  35%     { stroke-dashoffset:-232; opacity:1; }
+  42%,100%{ stroke-dashoffset:-232; opacity:0; }
 }
-.o-bounce ellipse { animation:o-brillo 3.2s ease-in-out infinite; }
+.o-bounce .o-shine { animation:o-destello 3.5s ease-in-out infinite; }
 @media (max-width:700px) {
   .login-panel { max-width:100%;padding:34px 26px; }
   #loginOverlay::before { background:rgba(8,15,28,0.9); }
@@ -653,6 +656,7 @@ body.rol-viewer .write-only { display:none !important; }
         <g class="o-bounce">
           <g transform="translate(118,104) skewX(-12) translate(-118,-104)">
             <ellipse cx="118" cy="104" rx="35" ry="37" fill="none" stroke="#E8601C" stroke-width="22" stroke-linecap="round"/>
+            <ellipse class="o-shine" cx="118" cy="104" rx="35" ry="37" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="6" stroke-linecap="round" stroke-dasharray="38 194" opacity="0"/>
           </g>
         </g>
         <text x="148" y="148" font-family="Arial Black,Franklin Gothic Heavy,Impact,sans-serif"
@@ -3798,7 +3802,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06b',
+  version: '2026-11-06c',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
