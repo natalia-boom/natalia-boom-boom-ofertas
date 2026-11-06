@@ -609,11 +609,15 @@ body.rol-viewer .write-only { display:none !important; }
 .chat-img-thumb .thumb-remove { position:absolute; top:-5px; right:-5px; background:var(--danger); color:#fff; border:none; border-radius:50%; width:17px; height:17px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; padding:0; }
 .chat-burbuja img { max-width:220px; max-height:160px; border-radius:6px; object-fit:cover; display:block; margin-bottom:4px; border:1px solid rgba(0,0,0,0.08); }
 /* ── Selector de Módulos ── */
-#moduloSelector { position:fixed; inset:0; background:linear-gradient(135deg,#0c1a3a 0%,#1a3060 55%,#0d1c3f 100%); display:none; flex-direction:column; align-items:center; justify-content:flex-start; z-index:998; overflow-y:auto; padding:3vh 0 40px; }
-.modulo-header { text-align:center; margin-bottom:40px; position:relative; z-index:1; }
+/* Fondo: convoy BOOM en el Puente Pumarejo (foto elegida por Natalia, 2026-11-06) con capa azul para leer el texto */
+#moduloSelector { position:fixed; inset:0; background:linear-gradient(180deg,rgba(12,26,58,.55) 0%,rgba(12,26,58,.35) 30%,rgba(12,26,58,.70) 70%,rgba(12,26,58,.88) 100%), url('/api/inicio-bg') center 40%/cover no-repeat, #0c1a3a; display:none; flex-direction:column; align-items:center; justify-content:flex-start; z-index:998; overflow-y:auto; padding:3vh 0 40px; }
+.modulo-header { text-align:center; margin:2vh 0 34px; position:relative; z-index:1; }
 .modulo-header-logo { height:52px; margin-bottom:10px; }
-.modulo-header h2 { font-size:22px; font-weight:700; color:#ffffff; margin:0 0 4px; }
-.modulo-header p { font-size:13px; color:rgba(255,255,255,0.55); margin:0; }
+.modulo-header h2 { font-size:46px; font-weight:700; color:#ffffff; margin:0 0 4px; letter-spacing:3px !important; text-shadow:0 3px 18px rgba(0,0,0,.55); }
+.modulo-header h2 span { text-shadow:0 0 18px rgba(232,96,28,.55),0 3px 18px rgba(0,0,0,.5); }
+.modulo-header .marca { font-size:12px; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,.85); font-weight:600; margin:0 0 14px; text-shadow:0 1px 8px rgba(0,0,0,.6); }
+.modulo-header p { display:inline-block; font-size:14px; font-weight:600; color:#fff; margin:0; padding:7px 18px; border-radius:30px; background:rgba(12,26,58,.55); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(4px); }
+.modulo-credito { position:fixed; right:14px; bottom:10px; font-size:11px; color:rgba(255,255,255,.7); z-index:1; pointer-events:none; }
 .modulo-grid { position:relative; z-index:1; }
 @keyframes gear-spin-cw  { to { transform:rotate(360deg);  } }
 @keyframes gear-spin-ccw { to { transform:rotate(-360deg); } }
@@ -623,7 +627,8 @@ body.rol-viewer .write-only { display:none !important; }
 .modulo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; max-width:960px; width:100%; padding:0 24px; }
 .modulo-card { background:#fff; border-radius:20px; padding:40px 28px; text-align:center; cursor:pointer; border:2px solid transparent; box-shadow:var(--shadow); transition:all 0.22s; user-select:none; }
 .modulo-card:hover { border-color:var(--orange); transform:translateY(-5px); box-shadow:var(--shadow-lg); }
-.modulo-card.disabled { opacity:0.35; cursor:not-allowed; pointer-events:none; }
+.modulo-card.disabled { background:rgba(255,255,255,.82); cursor:not-allowed; pointer-events:none; }
+.modulo-card.disabled > * { opacity:.55; }
 .modulo-icon { width:66px; height:66px; margin:0 auto 16px; border-radius:16px; background:rgba(232,96,28,0.10); display:flex; align-items:center; justify-content:center; }
 .modulo-icon svg { width:34px; height:34px; stroke:#E8601C; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .modulo-card.pronto-card .modulo-icon { background:rgba(143,163,196,0.14); }
@@ -884,36 +889,9 @@ body.rol-viewer .write-only { display:none !important; }
 <!-- SELECTOR DE MÓDULOS -->
 <div id="moduloSelector">
 
-  <!-- Engranajes decorativos de fondo -->
-  <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <!-- Engranaje de 8 dientes centrado en (0,0) con fill-rule evenodd para el hueco central -->
-      <path id="mgear" fill-rule="evenodd" d="M29.6,-12.2 L31.5,-5.6 L45.7,-4.8 L45.7,4.8 L31.5,5.6 L29.6,12.2 L26.2,18.4 L35.7,29.0 L29.0,35.7 L18.4,26.2 L12.2,29.6 L5.6,31.5 L4.8,45.7 L-4.8,45.7 L-5.6,31.5 L-12.2,29.6 L-18.4,26.2 L-29.0,35.7 L-35.7,29.0 L-26.2,18.4 L-29.6,12.2 L-31.5,5.6 L-45.7,4.8 L-45.7,-4.8 L-31.5,-5.6 L-29.6,-12.2 L-26.2,-18.4 L-35.7,-29.0 L-29.0,-35.7 L-18.4,-26.2 L-12.2,-29.6 L-5.6,-31.5 L-4.8,-45.7 L4.8,-45.7 L5.6,-31.5 L12.2,-29.6 L18.4,-26.2 L29.0,-35.7 L35.7,-29.0 L26.2,-18.4 Z M16,0 A16,16,0,1,0,-16,0 A16,16,0,1,0,16,0 Z"/>
-    </defs>
-
-    <!-- Engranaje grande — esquina superior derecha -->
-    <g transform="translate(1350, 20) scale(4.5)" fill="rgba(255,255,255,0.055)">
-      <use class="gear-bg-cw" href="#mgear"/>
-    </g>
-
-    <!-- Engranaje grande — esquina inferior izquierda -->
-    <g transform="translate(30, 860) scale(4)" fill="rgba(255,255,255,0.028)">
-      <use class="gear-bg-ccw" href="#mgear"/>
-    </g>
-
-    <!-- Engranaje mediano — esquina inferior derecha -->
-    <g transform="translate(1420, 840) scale(3)" fill="rgba(232,96,28,0.045)">
-      <use class="gear-bg-med" href="#mgear"/>
-    </g>
-
-    <!-- Engranaje pequeño — zona central alta izquierda -->
-    <g transform="translate(110, 200) scale(1.8)" fill="rgba(255,255,255,0.022)">
-      <use class="gear-bg-ccw" href="#mgear"/>
-    </g>
-  </svg>
-
   <div class="modulo-header">
-    <h2 style="font-family:'Exo 2',sans-serif;letter-spacing:2px;display:inline-flex;align-items:center;justify-content:center;">n<svg width="15" height="15" viewBox="0 0 20 20" style="margin:0 2px;vertical-align:middle;"><path d="M10,1 C10,6 12,8 17,10 C12,12 10,14 10,19 C10,14 8,12 3,10 C8,8 10,6 10,1 Z" fill="#E8601C"/></svg><span style="color:#E8601C;">IAP</span></h2>
+    <h2 style="font-family:'Exo 2',sans-serif;letter-spacing:2px;display:inline-flex;align-items:center;justify-content:center;">n<svg width="28" height="28" viewBox="0 0 20 20" style="margin:0 3px;vertical-align:middle;filter:drop-shadow(0 0 6px rgba(232,96,28,.7));"><path d="M10,1 C10,6 12,8 17,10 C12,12 10,14 10,19 C10,14 8,12 3,10 C8,8 10,6 10,1 Z" fill="#E8601C"/></svg><span style="color:#E8601C;">IAP</span></h2>
+    <div class="marca">BOOM Logistics · Control de Ofertas</div>
     <p>Selecciona el módulo al que deseas ingresar</p>
   </div>
   <div class="modulo-grid">
@@ -954,6 +932,7 @@ body.rol-viewer .write-only { display:none !important; }
       <div class="modulo-tag">Ingresar</div>
     </div>
   </div>
+  <div class="modulo-credito">Puente Pumarejo · Río Magdalena · BOOM Logistics</div>
 </div>
 
 <!-- HEADER -->
@@ -3824,7 +3803,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-04e',
+  version: '2026-11-06',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este

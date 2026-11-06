@@ -3065,7 +3065,7 @@ def _serialize(d: dict) -> dict:
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="BOOM Logistics - Control de Ofertas")
 
-_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg",
+_AUTH_PUBLIC = {"", "/", "/manual", "/anexo-legal", "/auth/login", "/auth/logout", "/auth/me", "/auth/cambiar-clave", "/api/logo", "/api/login-bg", "/api/inicio-bg",
                 "/manifest.webmanifest", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icon-192.png", "/icon-512.png", "/favicon.ico", "/api/version"}
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Rutas de escritura del módulo OPERACIONES (OSI, equipos, alertas). Un usuario
@@ -4213,7 +4213,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-04e"
+APP_VERSION = "2026-11-06"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -4310,6 +4310,17 @@ def login_bg():
     """Foto de fondo del login (mula BOOM con carga extradimensionada). Pública
     para que cargue en la pantalla de acceso antes de iniciar sesión."""
     ruta = os.path.join(os.path.dirname(__file__), "templates", "login_mula.jpg")
+    if not os.path.exists(ruta):
+        raise HTTPException(404, "Sin imagen de fondo")
+    return FileResponse(ruta, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/inicio-bg")
+def inicio_bg():
+    """Foto de fondo de la pantalla de inicio (selector de módulos): convoy BOOM
+    cruzando el Puente Pumarejo. Elegida por Natalia de su carpeta INSTAGRAM."""
+    ruta = os.path.join(os.path.dirname(__file__), "templates", "inicio_puente.jpg")
     if not os.path.exists(ruta):
         raise HTTPException(404, "Sin imagen de fondo")
     return FileResponse(ruta, media_type="image/jpeg",
