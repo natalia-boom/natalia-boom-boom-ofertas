@@ -3894,7 +3894,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-06i',
+  version: '2026-11-11',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -4674,7 +4674,9 @@ async function factMetaRender() {
   $('fmPresu').textContent = _fmMil(d.presupuesto_total);
   $('fmPresuSub').textContent = 'Meta ' + d.anio;
   $('fmFact').textContent = _fmMil(d.facturado_total);
-  $('fmFactSub').textContent = (d.presupuesto_total ? _fmPct(d.facturado_total / d.presupuesto_total) : '—') + ' del presupuesto anual';
+  // Valor exacto en pesos debajo del redondeado (pedido de Natalia 2026-11-10).
+  $('fmFactSub').innerHTML = '<span style="display:block;font-weight:600;opacity:.95;">$ ' + Math.round(d.facturado_total || 0).toLocaleString('es-CO') + '</span>'
+    + (d.presupuesto_total ? _fmPct(d.facturado_total / d.presupuesto_total) : '—') + ' del presupuesto anual';
   if (d.cumplimiento_acum != null) {
     const dif = (d.cumplimiento_acum - 1) * 100;
     const ok = dif >= 0;
@@ -7559,14 +7561,19 @@ async function iaHandleFiles(files) {
         fr.onload = ev => {
           const img = new Image();
           img.onload = () => {
-            // Re-encode a JPEG con ancho máx 1400px para no inflar la oferta
-            const maxW = 1400;
-            const scale = img.width > maxW ? maxW / img.width : 1;
+            // Re-encode a JPEG liviano (2026-11-11): lado mayor máx 1400px (ancho Y alto,
+            // para capturas largas de rutas/easyLOAD) y se baja la calidad hasta ~300 KB,
+            // así la IA responde más rápido y no se corta con muchas fotos.
+            const maxLado = 1400;
+            const scale = Math.min(1, maxLado / Math.max(img.width, img.height));
             const canvas = document.createElement('canvas');
             canvas.width = Math.round(img.width * scale);
             canvas.height = Math.round(img.height * scale);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const _ctx = canvas.getContext('2d');
+            _ctx.fillStyle = '#fff'; _ctx.fillRect(0, 0, canvas.width, canvas.height);   // PNG transparentes → fondo blanco
+            _ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            let _q = 0.82, dataUrl = canvas.toDataURL('image/jpeg', _q);
+            while (dataUrl.length > 400000 && _q > 0.5) { _q -= 0.08; dataUrl = canvas.toDataURL('image/jpeg', _q); }
             iaFotos.push({ kind: 'image', dataUrl, name });
             resolve();
           };
@@ -7843,6 +7850,10 @@ async function iaSendMessage() {
       if (!document.getElementById('iaRefNum').value) document.getElementById('iaRefNum').value = data.ref;
     }
   } catch (e) {
+    // Si la conexión se cayó antes de responder (navegador sin respuesta), decirlo claro.
+    if (e && /failed to fetch|networkerror|load failed/i.test(e.message || '')) {
+      e = new Error('⏳ Se perdió la conexión mientras la IA trabajaba (suele pasar con muchas fotos pesadas o internet inestable). Vuelve a intentar; si persiste, adjunta menos imágenes.');
+    }
     bubble.textContent = '' + e.message;
     showToast('' + e.message, 'error');
   } finally {

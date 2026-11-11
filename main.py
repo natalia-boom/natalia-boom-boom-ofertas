@@ -4213,7 +4213,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-06i"
+APP_VERSION = "2026-11-11"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -6995,7 +6995,35 @@ def oferta_ia_endpoint(body: OfertaIABody):
         return _oferta_ia(body.messages, body.fotos or [], ref, body.firmante, body.forma_pago)
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, _ia_error_amigable(e))
+
+def _ia_error_amigable(e) -> str:
+    """Traduce el error de la IA a una causa clara para el equipo (2026-11-11).
+    Antes se veia un generico 'Connection error' y no se sabia si eran creditos,
+    fotos pesadas o demora."""
+    t = (str(e) or "").lower()
+    cls = type(e).__name__.lower()
+    st = getattr(e, "status_code", None)
+    if "credit balance" in t or "billing" in t or "insufficient" in t:
+        return ("⚠️ Sin créditos de Claude: el saldo de la cuenta de IA se agotó. "
+                "Recarga en Claude Console (Agregar fondos) y vuelve a intentar.")
+    if st in (401, 403) or "authentication" in t or "api key" in t or "x-api-key" in t:
+        return "⚠️ La clave de la IA no es válida o venció. Avísale a Natalia para revisarla en Claude Console."
+    if st == 413 or "too large" in t or "request_too_large" in t or ("image" in t and ("exceed" in t or "size" in t)):
+        return ("⚠️ Las fotos o archivos adjuntos son demasiado pesados para la IA. "
+                "Quita algunos, recórtalos o usa capturas más pequeñas y vuelve a intentar.")
+    if st == 429 or "rate limit" in t or "rate_limit" in t:
+        return "⏳ Se hicieron muchas solicitudes seguidas a la IA. Espera un minuto y vuelve a intentar."
+    if st == 529 or "overloaded" in t:
+        return "⏳ Claude está saturado en este momento. Espera unos minutos y vuelve a intentar."
+    if "timeout" in cls or "timed out" in t or "timeout" in t:
+        return ("⏳ La IA tardó demasiado en responder (suele pasar con muchas fotos pesadas). "
+                "Vuelve a intentar; si persiste, adjunta menos imágenes.")
+    if "connection" in cls or "connection error" in t:
+        return ("⚠️ No hubo conexión con la IA. Revisa los créditos en Claude Console "
+                "(si están en negativo la IA no responde) o vuelve a intentar en un momento.")
+    return "Error generando la oferta: " + str(e)
+
 
 
 def _fmt_cop_py(v):
