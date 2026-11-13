@@ -1176,7 +1176,7 @@ body.rol-viewer .write-only { display:none !important; }
     <div class="dz-card"><h3>Clientes con más ofertas aceptadas</h3><p class="dz-sub">Top 5 + otros</p><div id="dzCliAc"></div></div>
     <div class="dz-card"><h3>Ranking de clientes</h3><p class="dz-sub">Top 5 + otros · total de ofertas</p><div id="dzRank"></div></div>
     <div class="dz-card"><h3>Unidad de negocio</h3><p class="dz-sub">Cantidad de ofertas</p><div id="dzUnidad"></div></div>
-    <div class="dz-card"><h3>Tipo de negocio</h3><p class="dz-sub">Cantidad de ofertas</p><div id="dzTipo"></div></div>
+    <div class="dz-card"><h3>Tipo de cliente</h3><p class="dz-sub">Cantidad de ofertas</p><div id="dzTipo"></div></div>
   </div>
 
 </section>
@@ -5626,7 +5626,16 @@ function renderDashboard() {
   dzTorta('dzCliAc',  cuenta(allOfertas.filter(esAc), 'cliente'), 'aceptadas');
   dzTorta('dzRank',   cuenta(allOfertas, 'cliente'), 'ofertas');
   dzTorta('dzUnidad', cuenta(allOfertas, 'unidad'),  'ofertas');
-  dzTorta('dzTipo',   cuenta(allOfertas, 'tipo'),    'ofertas');
+  // Tipo de cliente: desde may-2026 el formulario guarda el sector en 'sector' y en 'tipo'
+  // queda la unidad o una descripción; las ofertas viejas tienen el sector en 'tipo'.
+  const SECTORES = ['AGENTES DE CARGA','MINERO','CONSTRUCCIÓN','INDUSTRIAL','ENERGÉTICO','EMP. TRANSP','PUERTOS','NAVIERA','ADUANAS'];
+  const tipoCliente = o => {
+    const s = (o.sector || '').toString().trim().toUpperCase();
+    if (s) return s;
+    const t = (o.tipo || '').toString().trim().toUpperCase();
+    return SECTORES.includes(t) ? t : '';
+  };
+  dzTorta('dzTipo',   cuenta(allOfertas.map(o => ({ tc: tipoCliente(o) })), 'tc'), 'ofertas');
 
   // Columnas: ofertas por mes (mes actual en naranja)
   const mesMap = {};
