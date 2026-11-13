@@ -5623,12 +5623,13 @@ function renderDashboard() {
   dzTorta('dzEstado', [['Aceptadas', stats.aceptadas], ['Recibidas / pendientes', stats.total - stats.aceptadas]], 'ofertas', false);
 
   const cuenta = (lista, campo) => { const m = {}; lista.forEach(o => { const k = (o[campo]||'').toString().trim(); if (k) m[k] = (m[k]||0) + 1; }); return Object.entries(m); };
-  dzTorta('dzCliAc',  cuenta(allOfertas.filter(esAc), 'cliente'), 'aceptadas');
-  dzTorta('dzRank',   cuenta(allOfertas, 'cliente'), 'ofertas');
+  const ofReales = allOfertas.filter(o => !o.es_prueba);  // las ofertas de prueba no cuentan en las tortas
+  dzTorta('dzCliAc',  cuenta(ofReales.filter(esAc), 'cliente'), 'aceptadas');
+  dzTorta('dzRank',   cuenta(ofReales, 'cliente'), 'ofertas');
   // Unidad de negocio: las ofertas viejas guardaron "SPOT TRANSPORTE", "PROYECTO IZAJE"...
   // en 'unidad'; el formulario actual usa TRANSPORTE / IZAJE / MIXTO. Se quita el prefijo.
   const unidadBase = o => (o.unidad || '').toString().trim().toUpperCase().replace(/^(SPOT|PROYECTO)\s+/, '');
-  dzTorta('dzUnidad', cuenta(allOfertas.map(o => ({ u: unidadBase(o) })), 'u'), 'ofertas');
+  dzTorta('dzUnidad', cuenta(ofReales.map(o => ({ u: unidadBase(o) })), 'u'), 'ofertas');
   // Tipo de cliente: desde may-2026 el formulario guarda el sector en 'sector' y en 'tipo'
   // queda la unidad o una descripción; las ofertas viejas tienen el sector en 'tipo'.
   const SECTORES = ['AGENTES DE CARGA','MINERO','CONSTRUCCIÓN','INDUSTRIAL','ENERGÉTICO','EMP. TRANSP','PUERTOS','NAVIERA','ADUANAS'];
@@ -5638,7 +5639,7 @@ function renderDashboard() {
     const t = (o.tipo || '').toString().trim().toUpperCase();
     return SECTORES.includes(t) ? t : '';
   };
-  dzTorta('dzTipo',   cuenta(allOfertas.map(o => ({ tc: tipoCliente(o) })), 'tc'), 'ofertas');
+  dzTorta('dzTipo',   cuenta(ofReales.map(o => ({ tc: tipoCliente(o) })), 'tc'), 'ofertas');
 
   // Columnas: ofertas por mes (mes actual en naranja)
   const mesMap = {};
