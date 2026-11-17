@@ -5847,7 +5847,7 @@ def contratos_pendientes_delete(cid: int, request: Request):
 
 
 @app.get("/api/ofertas/{oferta_id}/correo-inicio.eml")
-def correo_inicio_eml(oferta_id: int, fecha: str = Query(""), excluir: str = Query("")):
+def correo_inicio_eml(oferta_id: int, request: Request, fecha: str = Query(""), excluir: str = Query("")):
     """Correo de INICIO DE SERVICIO como archivo .eml "sin enviar" (X-Unsent: 1):
     al abrirlo, Outlook de escritorio lo muestra como un correo NUEVO ya armado
     (para, copia, asunto, diseño y la OFERTA EN PDF ADJUNTA) y la persona solo da
@@ -5885,7 +5885,17 @@ def correo_inicio_eml(oferta_id: int, fecha: str = Query(""), excluir: str = Que
         msg = MIMEMultipart("mixed")
         msg["Subject"] = asunto
         msg["To"] = ", ".join(NOTIF_TO)
-        msg["Cc"] = ", ".join(NOTIF_CC)
+        # Natalia va en copia cuando el correo lo prepara otro compañero
+        # (pedido de Natalia 2026-11-17). Ella entra como 'admin' o con su nombre.
+        cc = list(NOTIF_CC)
+        _u = getattr(request.state, "user", None) or {}
+        es_natalia = (_u.get("username") == "admin"
+                      or _misma_persona(_u.get("nombre", ""), "NATALIA VARGAS"))
+        # Su correo sale de COMERCIAL_INFO (el mismo de la firma de las ofertas).
+        cc_natalia = COMERCIAL_INFO.get("Natalia Vargas", ("", ""))[1]
+        if not es_natalia and cc_natalia and cc_natalia not in cc:
+            cc.append(cc_natalia)
+        msg["Cc"] = ", ".join(cc)
         msg["X-Unsent"] = "1"
         cuerpo = MIMEMultipart("alternative")
         cuerpo.attach(MIMEText(html_body, "html", "utf-8"))
