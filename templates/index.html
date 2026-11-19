@@ -395,14 +395,14 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 @keyframes campoFalta { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 .campo-falta-nota { color: #b91c1c; font-size: 11.5px; font-weight: 700; margin-top: 4px; }
 /* Estrellita de seguimiento: gris apagada, amarilla al marcarla (con un pequeño "pop"). */
-/* Botón "V" (versionar) en Control: loguito verde fluorescente */
+/* Botón "V" (versionar) en Control: loguito naranja fluorescente */
 .v-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; padding:0 !important;
-  margin:0 2px; vertical-align:middle; position:relative; top:-3px; border-radius:7px; border:none; cursor:pointer;
-  background: linear-gradient(145deg, #7CFF4F 0%, #39FF14 55%, #1FD40A 100%);
-  color:#0B2A12; font: 900 13px/1 'Barlow', sans-serif; letter-spacing:-.5px;
-  box-shadow: 0 0 0 1px rgba(20,140,10,.35), 0 0 8px rgba(57,255,20,.55);
-  text-shadow: 0 1px 0 rgba(255,255,255,.45); transition: transform .15s ease, box-shadow .15s ease; }
-.v-btn:hover { transform: translateY(-1px) scale(1.12); box-shadow: 0 0 0 1px rgba(20,140,10,.5), 0 0 14px rgba(57,255,20,.85); }
+  margin:0 2px; vertical-align:middle; position:relative; top:-3px; border-radius:50%; border:none; cursor:pointer;
+  background: linear-gradient(145deg, #FFB36B 0%, #FF6B00 55%, #E85500 100%);
+  color:#fff; font: 900 13px/1 'Barlow', sans-serif; letter-spacing:-.5px;
+  box-shadow: 0 0 0 1px rgba(200,80,0,.4), 0 0 9px rgba(255,107,0,.65);
+  text-shadow: 0 1px 1px rgba(0,0,0,.25); transition: transform .15s ease, box-shadow .15s ease; }
+.v-btn:hover { transform: translateY(-1px) scale(1.12); box-shadow: 0 0 0 1px rgba(200,80,0,.55), 0 0 15px rgba(255,107,0,.9); }
 .estrella-btn svg { display: block; transition: transform .15s ease; }
 .estrella-btn:hover svg { transform: scale(1.18); }
 .estrella-btn.on svg { filter: drop-shadow(0 1px 2px rgba(245,179,1,.45)); animation: estrellaPop .3s ease; }
@@ -3902,7 +3902,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-19',
+  version: '2026-11-19b',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
