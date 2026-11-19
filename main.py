@@ -4146,6 +4146,29 @@ def _oferta_ia(messages: list, fotos: list, ref: str, firmante: dict = None, for
     meta_str = _between(raw, "<<<META>>>", "<<<FINMETA>>>")
     reply = raw.split("<<<HTML>>>")[0].strip() if "<<<HTML>>>" in raw else raw.strip()
 
+    # RED DE SEGURIDAD: a veces el modelo devuelve la oferta como CÓDIGO (```html …)
+    # sin las marcas <<<HTML>>>. En vez de mostrarle el código al usuario, rescatamos
+    # el documento y lo tratamos como una oferta normal. No toca el prompt.
+    if not html and not ("<<<HTML>>>" in raw):
+        _low = raw.lower()
+        _i = _low.find("<!doctype html")
+        if _i == -1:
+            _i = _low.find("<html")
+        _j = _low.rfind("</html>")
+        if _i != -1 and _j > _i:
+            html = raw[_i:_j + len("</html>")].strip()
+            _antes = raw[:_i]
+            _antes = re.sub(r"`{1,3}\s*html\s*$", "", _antes.strip(), flags=re.I).strip()
+            reply = _antes or "Listo, aquí está la oferta actualizada. Revísala en la vista previa."
+            if not meta_str:
+                try:
+                    _rb = re.search(r'class="ref-bar".*?<p>(.*?)</p>', html, re.S | re.I)
+                    _partes = [re.sub(r"<[^>]+>|&nbsp;", " ", x).strip() for x in (_rb.group(1).split("|") if _rb else [])]
+                    if len(_partes) >= 2 and _partes[1]:
+                        meta_str = json.dumps({"cliente": _partes[1]})
+                except Exception:
+                    pass
+
     meta = None
     if meta_str:
         try:
