@@ -3812,6 +3812,7 @@ function prepareUser(user) {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('headerUserName').textContent = user.nombre;
   document.getElementById('headerUserRol').textContent = ROL_LABEL[user.rol] || user.rol;
+  try { aplicarSaludo(); } catch (e) {}   // saluda por nombre a quien entró
   _iniciarVigilanciaInactividad();   // arranca el reloj de 2h de inactividad
 }
 
@@ -3902,7 +3903,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-19b',
+  version: '2026-11-19c',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5963,10 +5964,23 @@ function saludoHora() {
   if (h >= 12 && h < 19) return 'Buenas tardes';
   return 'Buenas noches';
 }
-// Rellena todos los saludos del chat con la hora actual + "equipo comercial".
+// Primer nombre de quien inició sesión, para saludarlo por su nombre
+// ("Buenos días Boris"). La cuenta 'Administrador' es la de Natalia.
+function nombreSaludo() {
+  const u = (typeof currentUser === 'object' && currentUser) ? currentUser : {};
+  let n = String(u.nombre || '').trim();
+  if (!n || /^admin/i.test(n)) n = (u.rol === 'admin' || /^admin/i.test(n)) ? 'Natalia' : '';
+  const p = n.split(/\s+/)[0] || '';
+  return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+}
+function saludoConNombre() {
+  const n = nombreSaludo();
+  return saludoHora() + (n ? ' ' + n : '');
+}
+// Rellena todos los saludos del chat con la hora actual + el nombre de quien está.
 function aplicarSaludo() {
   document.querySelectorAll('.js-saludo').forEach(el => {
-    el.textContent = `${saludoHora()}, equipo comercial `;
+    el.textContent = `${saludoConNombre()}. `;
   });
 }
 
@@ -7366,7 +7380,7 @@ function resetChat() {
   pendingExcelContent = null;
   const container = document.getElementById('chatHistoria');
   container.innerHTML = '';
-  appendChatMessage('assistant', `${saludoHora()}, equipo comercial Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un archivo (imagen, PDF, Excel, Word...). Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.`);
+  appendChatMessage('assistant', `${saludoConNombre()}. Pega el correo del cliente, descríbeme el servicio que necesitas cotizar o adjunta un archivo (imagen, PDF, Excel, Word...). Completaré automáticamente todos los campos de la oferta y podrás ajustar lo que necesites conversando conmigo.`);
   document.getElementById('chatInput').value = '';
   const anyIn = document.getElementById('anyFileInput');
   if (anyIn) anyIn.value = '';
@@ -8495,7 +8509,7 @@ function iaResetChat(silent) {
   { const _qc = document.getElementById('iaQueCambio'); if (_qc) _qc.value = ''; }
   iaRenderCambiosAuto();
   document.getElementById('iaChatHistoria').innerHTML =
-    '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">Listo para una nueva oferta Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
+    '<div class="chat-msg"><div class="chat-avatar">AI</div><div class="chat-burbuja">' + saludoConNombre() + '. Listo para una nueva oferta. Cuéntame la operación o pega el correo del cliente, y arrastra las fotos de referencia.</div></div>';
   document.getElementById('iaChatInput').value = '';
   document.getElementById('iaFileInput').value = '';
   ['iaSector','iaUnidad','iaTipo','iaRespuesta','iaSeguimiento'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
