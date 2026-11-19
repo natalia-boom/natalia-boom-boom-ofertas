@@ -3359,14 +3359,16 @@ except Exception as _e0:
 # Expresión SQL que devuelve el nombre del grupo (o el cliente tal cual si no
 # pertenece a ningún grupo). Se agrupa por NIT (dígitos) para máxima precisión.
 # COLOMBIAN NATURAL RESOURCES = CNR II (900333493) + CNR III (900268901) +
-# TRANSPORTE FERROPORTUARIO - TRANSFERPORT (900519515).
+# TRANSPORTE FERROPORTUARIO - TRANSFERPORT (900519515) +
+# SOCIEDAD PORTUARIA PUERTO NUEVO (900273253, agregada 2026-11-19 a pedido de Natalia).
 _FACT_CLIENTE_GRUPO_SQL = """
     CASE
         WHEN regexp_replace(COALESCE(nit,''), '\\D', '', 'g') IN
-             ('900333493', '900268901', '900519515')
+             ('900333493', '900268901', '900519515', '900273253')
           OR UPPER(cliente) LIKE '%COLOMBIAN NATURAL RESOURCES%'
           OR UPPER(cliente) LIKE 'CNR III%'
           OR UPPER(cliente) LIKE '%TRANSFERPORT%'
+          OR UPPER(cliente) LIKE '%PUERTO NUEVO%'
         THEN 'COLOMBIAN NATURAL RESOURCES'
         ELSE cliente
     END
@@ -10442,7 +10444,8 @@ def reporte_top_clientes(limit: int = Query(10)):
     GRUPO EMPRESARIAL: un mismo cliente puede facturar bajo varias razones
     sociales (varios NIT). SOLO en este tablero de facturación esas razones
     sociales se suman como un único cliente. Hoy: COLOMBIAN NATURAL RESOURCES
-    agrupa CNR II (900333493), CNR III (900268901) y TRANSFERPORT (900519515)."""
+    agrupa CNR II (900333493), CNR III (900268901), TRANSFERPORT (900519515)
+    y PUERTO NUEVO (900273253)."""
     try:
         limit = max(1, min(limit, 500))
         with get_conn() as conn:
