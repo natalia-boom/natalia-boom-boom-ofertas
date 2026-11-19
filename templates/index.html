@@ -426,6 +426,10 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
   color:#fff; font: 900 13px/1 'Barlow', sans-serif; letter-spacing:-.5px;
   box-shadow: 0 0 0 1px rgba(200,80,0,.4), 0 0 9px rgba(255,107,0,.65);
   text-shadow: 0 1px 1px rgba(0,0,0,.25); transition: transform .15s ease, box-shadow .15s ease; }
+/* Ranking de facturación: el #1 (corona dorada) late suavemente */
+@keyframes podioLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+.podio-lider { animation: podioLate 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .podio-lider { animation: none; } }
 .v-btn:hover { transform: translateY(-1px) scale(1.12); box-shadow: 0 0 0 1px rgba(200,80,0,.55), 0 0 15px rgba(255,107,0,.9); }
 .estrella-btn svg { display: block; transition: transform .15s ease; }
 .estrella-btn:hover svg { transform: scale(1.18); }
@@ -6648,7 +6652,18 @@ async function loadTopClientes(wrapId, limit) {
       return;
     }
     const max = cli[0].valor || 1;
-    const medals = ['', '', ''];
+    // Iconos del podio (SVG, no dependen de emojis): 1 corona, 2 diamante, 3 estrella.
+    const _svg = (d, fill) => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="${d}" fill="${fill}" stroke="rgba(0,0,0,.18)" stroke-width=".6" stroke-linejoin="round"/></svg>`;
+    const medals = [
+      _svg('M3 8l4.5 3.5L12 4l4.5 7.5L21 8l-2 11H5L3 8z', '#fff'),
+      _svg('M7 4h10l4 5-9 11L3 9l4-5z', '#fff'),
+      _svg('M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9L12 2.8z', '#fff')
+    ];
+    const podio = [
+      { bg: 'radial-gradient(circle at 30% 30%,#fde68a,#f59e0b 55%,#b45309)', glow: '0 0 0 3px #fde68a, 0 0 16px 4px rgba(245,158,11,.75)', tag: 'Líder' },
+      { bg: 'radial-gradient(circle at 30% 30%,#f1f5f9,#94a3b8 55%,#475569)', glow: '0 0 0 2px #e2e8f0, 0 0 8px rgba(100,116,139,.5)', tag: '2.º' },
+      { bg: 'radial-gradient(circle at 30% 30%,#fed7aa,#d97706 55%,#92400e)', glow: '0 0 0 2px #fed7aa, 0 0 8px rgba(217,119,6,.45)', tag: '3.º' }
+    ];
     const barColors = [
       'linear-gradient(90deg,#f59e0b,#fbbf24)',  // oro
       'linear-gradient(90deg,#64748b,#94a3b8)',  // plata
@@ -6662,9 +6677,18 @@ async function loadTopClientes(wrapId, limit) {
       const nf = c.n_facturas + (c.n_facturas === 1 ? ' factura' : ' facturas');
       html += `
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="flex:0 0 36px;height:36px;border-radius:50%;background:${i < 3 ? '#fff7ed' : '#f1f5f9'};
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:${i < 3 ? '19px' : '14px'};font-weight:800;color:#334155;">${badge}</div>
+        ${i < 3 ? `
+        <div style="flex:0 0 40px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <div class="${i === 0 ? 'podio-lider' : ''}" style="width:${i === 0 ? 40 : 34}px;height:${i === 0 ? 40 : 34}px;border-radius:50%;
+                      background:${podio[i].bg};box-shadow:${podio[i].glow};
+                      display:flex;align-items:center;justify-content:center;">${badge}</div>
+          <span style="font-size:9.5px;font-weight:800;letter-spacing:.3px;color:${i === 0 ? '#b45309' : '#64748b'};text-transform:uppercase;">${podio[i].tag}</span>
+        </div>` : `
+        <div style="flex:0 0 40px;display:flex;justify-content:center;">
+          <div style="width:30px;height:30px;border-radius:50%;background:#f1f5f9;
+                      display:flex;align-items:center;justify-content:center;
+                      font-size:13px;font-weight:800;color:#334155;">${badge}</div>
+        </div>`}
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;align-items:baseline;">
             <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.cliente}">${c.cliente}</span>
