@@ -345,6 +345,30 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 .fm-tab { background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; font-size:13px; color:var(--text-muted); cursor:pointer; font-family:inherit; }
 .fm-tab.on { border-bottom-color:#E8601C; color:#1B2A4A; font-weight:700; }
 .fm-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+/* Facturación › Cargar facturas (pegar desde Vulcano) — maqueta aprobada 2026-11-19 */
+.fp-hero { background:linear-gradient(90deg,rgba(27,58,107,.97),rgba(27,58,107,.8)); color:#fff; padding:18px 22px; border-radius:14px; margin-bottom:14px; }
+.fp-hero h2 { margin:0; font-size:20px; font-weight:800; } .fp-hero p { margin:4px 0 0; font-size:13px; opacity:.88; }
+.fp-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(27,42,74,.05); }
+.fp-paso { display:flex; align-items:center; gap:10px; font-weight:800; color:#1B3A6B; margin-bottom:10px; font-size:14px; }
+.fp-paso i { font-style:normal; background:#E8601C; color:#fff; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; }
+.fp-txt { width:100%; height:120px; border:1.5px dashed #b9c6d6; border-radius:10px; padding:10px; font:12px Consolas,monospace; color:#33445e; background:#FAFBFD; resize:vertical; }
+.fp-ayuda { font-size:12px; color:var(--text-muted); margin-top:6px; }
+.fp-res { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.fp-res div { flex:1; min-width:130px; border:1px solid var(--border); border-radius:10px; padding:9px 12px; }
+.fp-res b { display:block; font-size:20px; } .fp-res small { color:var(--text-muted); font-size:11.5px; }
+.fp-tbl { width:100%; overflow-x:auto; }
+.fp-tbl table { width:100%; border-collapse:collapse; font-size:12.5px; min-width:860px; }
+.fp-tbl th { background:#F0F3F8; color:#1B3A6B; text-align:left; padding:8px; font-size:11px; text-transform:uppercase; letter-spacing:.3px; }
+.fp-tbl td { padding:8px; border-bottom:1px solid #EEF1F5; vertical-align:middle; }
+.fp-tbl td.v { text-align:right; font-weight:600; white-space:nowrap; }
+.fp-of { width:92px; padding:4px 6px; border:1px solid var(--border); border-radius:6px; font:600 12px inherit; color:#1B3A6B; }
+.fp-p { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+.fp-ok { background:#E6F5EC; color:#1A8A4A; } .fp-par { background:#FFF4D6; color:#C98A00; } .fp-sin { background:#EEF1F5; color:#5b6b82; }
+.fp-skip { background:#F2F2F2; color:#999; } .fp-warn { background:#FDECEA; color:#C0392B; }
+.fp-det { font-size:11px; color:var(--text-muted); margin-top:2px; max-width:420px; }
+.fp-tbl tr.off td { opacity:.45; }
+.fp-pie { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.fp-pie .tot b { color:#E8601C; font-size:16px; }
 /* Estilo B "ejecutivo oscuro" (elegido por Natalia 2026-11-03); el PDF sale en versión clara. */
 #factMetaView, #factHistView { background:#16233F; border-radius:14px; padding:18px; color:#fff; }
 .fh-tab { width:100%; border-collapse:collapse; font-size:13px; }
@@ -1759,6 +1783,7 @@ body.rol-viewer .write-only { display:none !important; }
     <button class="fm-tab on" id="fmTabMeta" onclick="factSubtab('meta')">Meta <span id="fmTabAnio">2026</span></button>
     <button class="fm-tab" id="fmTabDet" onclick="factSubtab('detalle')">Por mes y clientes</button>
     <button class="fm-tab" id="fmTabHist" onclick="factSubtab('historico')">Histórico</button>
+    <button class="fm-tab" id="fmTabCarga" onclick="factSubtab('carga')" style="display:none;">📥 Cargar facturas</button>
   </div>
 
   <!-- ===== META (Fase 1) ===== -->
@@ -1863,6 +1888,46 @@ body.rol-viewer .write-only { display:none !important; }
     </div>
   </div>
   </div><!-- /factDetalleView -->
+
+  <!-- ===== CARGAR FACTURAS (pegar desde Vulcano) — solo Natalia ===== -->
+  <div id="factCargaView" style="display:none;">
+    <div class="fp-hero">
+      <h2>Pegar facturas de Vulcano</h2>
+      <p>Copia las filas del Excel de Vulcano y pégalas aquí. Nada se guarda hasta que le des "Cargar". No envía avisos y no gasta créditos de IA.</p>
+    </div>
+    <div class="fp-card">
+      <div class="fp-paso"><i>1</i> Pega las filas</div>
+      <textarea id="fpTexto" class="fp-txt" placeholder="BLCE4044	19/11/2026	NOVIEMBRE	contabilizado	800248701	TIBA COLOMBIA S.A.S.	 $10,500,000.00 	26-1440"></textarea>
+      <div class="fp-ayuda">Columnas: Factura · Fecha · Mes · Estado · NIT · Cliente · Subtotal · Oferta No. Puedes pegar con o sin la fila de títulos.</div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" onclick="fpRevisar()">Revisar</button>
+        <button class="btn btn-outline btn-sm" onclick="fpLimpiar()">Limpiar</button>
+      </div>
+    </div>
+    <div class="fp-card" id="fpRevisionCard" style="display:none;">
+      <div class="fp-paso"><i>2</i> Revisa lo que va a pasar</div>
+      <div class="fp-res" id="fpResumen"></div>
+      <div class="fp-tbl"><table>
+        <thead><tr><th style="width:44px">Cargar</th><th>Factura</th><th>Fecha</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Oferta</th><th>Qué va a pasar</th></tr></thead>
+        <tbody id="fpFilas"></tbody>
+      </table></div>
+      <div class="fp-pie">
+        <div class="tot" id="fpTotal"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="fpRevisarDeNuevo()" title="Vuelve a revisar con los números de oferta que corregiste">Volver a revisar</button>
+          <button class="btn btn-primary btn-sm" id="fpBtnCargar" onclick="fpCargar()">Cargar</button>
+        </div>
+      </div>
+      <div class="fp-ayuda" style="margin-top:8px;">Al cargar: se guardan en Facturación, se suma lo facturado a cada oferta, las completas pasan a "Facturada" y todo queda en el historial de la oferta.</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-paso"><i>3</i> Facturas cargadas (últimas 40)</div>
+      <div class="fp-tbl"><table>
+        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Oferta</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="fpRecientes"><tr><td colspan="7" style="color:var(--text-muted)">Cargando…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
 </section>
 
 <!-- ==================== USUARIOS ==================== -->
@@ -3903,7 +3968,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-19c',
+  version: '2026-11-19d',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -4570,14 +4635,150 @@ function factSubtab(cual) {
   const permitido = puedeVerMeta();
   document.getElementById('fmTabMeta').style.display = permitido ? '' : 'none';
   document.getElementById('fmTabHist').style.display = permitido ? '' : 'none';
-  if (!permitido) cual = 'detalle';
-  const vistas = { meta: ['factMetaView', 'fmTabMeta'], detalle: ['factDetalleView', 'fmTabDet'], historico: ['factHistView', 'fmTabHist'] };
+  const puedeCargar = fpPuedeCargar();
+  document.getElementById('fmTabCarga').style.display = puedeCargar ? '' : 'none';
+  if (cual === 'carga' && !puedeCargar) cual = 'detalle';
+  if (!permitido && cual !== 'carga') cual = 'detalle';
+  const vistas = { meta: ['factMetaView', 'fmTabMeta'], detalle: ['factDetalleView', 'fmTabDet'], historico: ['factHistView', 'fmTabHist'], carga: ['factCargaView', 'fmTabCarga'] };
   Object.entries(vistas).forEach(([k, [vista, tab]]) => {
     document.getElementById(vista).style.display = k === cual ? '' : 'none';
     document.getElementById(tab).classList.toggle('on', k === cual);
   });
   if (cual === 'meta') factMetaRender();
   if (cual === 'historico') factHistRender();
+  if (cual === 'carga') fpRecientes();
+}
+
+// ===== Facturación › Cargar facturas (pegar desde Vulcano) — solo Natalia =====
+let fpFilasActuales = [];
+function fpPuedeCargar() {
+  return !!(currentUser && (currentUser.rol === 'admin' || mismaPersona(currentUser.nombre, 'NATALIA VARGAS')));
+}
+const fpPesos = v => '$' + Number(v || 0).toLocaleString('es-CO');
+const fpEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fpFechaCorta(f) { if (!f) return '—'; const p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : f; }
+function fpLimpiar() {
+  document.getElementById('fpTexto').value = '';
+  document.getElementById('fpRevisionCard').style.display = 'none';
+  fpFilasActuales = [];
+}
+async function fpPost(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let d = null; try { d = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error((d && d.detail) || ('Error ' + r.status));
+  return d;
+}
+async function fpRevisar() {
+  const texto = document.getElementById('fpTexto').value;
+  if (!texto.trim()) { showToast('Pega primero las filas de Vulcano', 'warning'); return; }
+  try {
+    const d = await fpPost('/api/facturas/pegar/revisar', { texto });
+    fpFilasActuales = d.filas || [];
+    fpRender();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+async function fpRevisarDeNuevo() {
+  const antes = fpFilasActuales.map(f => f.oferta_ref || '');
+  fpLeerTabla();
+  // Si corrigió el número de oferta, la casilla vuelve a lo que diga la nueva revisión.
+  const filas = fpFilasActuales.map((f, i) => {
+    const x = Object.assign({}, f);
+    if ((x.oferta_ref || '') !== antes[i]) delete x.cargar;
+    return x;
+  });
+  try {
+    const d = await fpPost('/api/facturas/pegar/revisar', { filas });
+    fpFilasActuales = d.filas || [];
+    fpRender();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+function fpLeerTabla() {
+  fpFilasActuales.forEach((f, i) => {
+    const ck = document.getElementById('fpCk' + i), of = document.getElementById('fpOf' + i);
+    if (ck && !ck.disabled) f.cargar = ck.checked;
+    if (of && !of.disabled) f.oferta_ref = of.value.trim();
+  });
+}
+const FP_PILL = {
+  completa: ['fp-ok', '● Completa'], parcial: ['fp-par', '● Parcial'], sin_oferta: ['fp-sin', '● Sin oferta'],
+  contrato: ['fp-sin', '● Contrato'], ya: ['fp-skip', '● Ya estaba cargada'], revisar: ['fp-warn', '⚠️ Revisar']
+};
+function fpRender() {
+  const F = fpFilasActuales;
+  const cnt = t => F.filter(f => f.tipo === t).length;
+  document.getElementById('fpResumen').innerHTML = [
+    ['#1A8A4A', cnt('completa'), 'Completas → Facturada'], ['#C98A00', cnt('parcial'), 'Parciales (con saldo)'],
+    ['#5b6b82', cnt('sin_oferta') + cnt('contrato'), 'Sin oferta / contrato'], ['#C0392B', cnt('revisar'), 'Para revisar ⚠️'],
+    ['#999', cnt('ya'), 'Ya estaban (se ignoran)']
+  ].map(([c, n, t]) => `<div><b style="color:${c}">${n}</b><small>${t}</small></div>`).join('');
+  document.getElementById('fpFilas').innerHTML = F.map((f, i) => {
+    const ya = f.tipo === 'ya';
+    const [cls, txt] = FP_PILL[f.tipo] || ['fp-sin', f.tipo];
+    const o = f.oferta;
+    let det = fpEsc(f.detalle || '');
+    if (o && (f.tipo === 'parcial' || f.tipo === 'completa')) det = 'Oferta ' + fpPesos(o.valor) + ' · quedaría facturado ' + fpPesos(o.facturado_nuevo) + ' · ' + det;
+    return `<tr class="${ya ? 'off' : ''}">
+      <td><input type="checkbox" id="fpCk${i}" ${f.cargar ? 'checked' : ''} ${ya ? 'disabled' : ''} onchange="fpTotales()"></td>
+      <td><b>${fpEsc(f.factura)}</b></td><td>${fpFechaCorta(f.fecha)}</td>
+      <td>${fpEsc(f.cliente || '')}${o && o.cliente ? `<div class="fp-det">Oferta: ${fpEsc(o.cliente)}</div>` : ''}</td>
+      <td class="v">${fpPesos(f.subtotal)}</td>
+      <td><input class="fp-of" id="fpOf${i}" value="${fpEsc(f.oferta_ref || '')}" ${ya ? 'disabled' : ''} ${f.tipo === 'revisar' ? 'style="border-color:#C0392B"' : ''}></td>
+      <td><span class="fp-p ${cls}">${txt}</span><div class="fp-det">${det}</div></td></tr>`;
+  }).join('');
+  document.getElementById('fpRevisionCard').style.display = '';
+  fpTotales();
+}
+function fpTotales() {
+  fpLeerTabla();
+  const sel = fpFilasActuales.filter(f => f.cargar && f.tipo !== 'ya');
+  const ign = fpFilasActuales.filter(f => f.tipo === 'ya').length;
+  const sinM = fpFilasActuales.filter(f => !f.cargar && f.tipo !== 'ya').length;
+  const tot = sel.reduce((a, f) => a + Number(f.subtotal || 0), 0);
+  document.getElementById('fpTotal').innerHTML = `Se cargarán <b>${sel.length} factura${sel.length === 1 ? '' : 's'} · ${fpPesos(tot)}</b>`
+    + (ign || sinM ? ` <span style="color:var(--text-muted);font-size:12px">(${ign ? ign + ' ya estaba' + (ign > 1 ? 'n' : '') : ''}${ign && sinM ? ', ' : ''}${sinM ? sinM + ' sin marcar' : ''})</span>` : '');
+  const b = document.getElementById('fpBtnCargar');
+  b.textContent = 'Cargar ' + sel.length + ' factura' + (sel.length === 1 ? '' : 's');
+  b.disabled = !sel.length;
+}
+async function fpCargar() {
+  fpLeerTabla();
+  // Si cambió algún número de oferta, hay que revisar de nuevo antes de cargar.
+  const sel = fpFilasActuales.filter(f => f.cargar && f.tipo !== 'ya');
+  if (!sel.length) return;
+  const tot = sel.reduce((a, f) => a + Number(f.subtotal || 0), 0);
+  if (!confirm('¿Cargar ' + sel.length + ' factura(s) por ' + fpPesos(tot) + '?\n\nSe suman a sus ofertas y las completas pasan a Facturada (sin avisos).')) return;
+  const b = document.getElementById('fpBtnCargar'); b.disabled = true; b.textContent = 'Cargando…';
+  try {
+    const d = await fpPost('/api/facturas/pegar/cargar', { filas: fpFilasActuales });
+    showToast(`${d.n} factura(s) cargadas (${fpPesos(d.monto)})` + (d.ofertas_cerradas.length ? ' · Facturadas: ' + d.ofertas_cerradas.join(', ') : ''), 'success');
+    fpLimpiar();
+    fpRecientes();
+    try { loadAll(); } catch (e) {}
+  } catch (e) { showToast(e.message, 'error'); fpTotales(); }
+}
+async function fpRecientes() {
+  const tb = document.getElementById('fpRecientes');
+  try {
+    const r = await fetch('/api/facturas/pegar/recientes');
+    if (!r.ok) throw new Error('http ' + r.status);
+    const L = await r.json();
+    tb.innerHTML = L.map(f => {
+      const anul = String(f.estado || '').toUpperCase() === 'ANULADA';
+      const est = anul ? '<span class="fp-p fp-warn">Anulada</span>' : (f.excluida ? '<span class="fp-p fp-skip">Excluida</span>' : '<span class="fp-p fp-ok">Vigente</span>');
+      return `<tr><td><b>${fpEsc(f.factura)}</b></td><td>${fpFechaCorta(f.fecha)}</td><td>${fpEsc(f.cliente || '')}</td>
+        <td class="v" ${anul ? 'style="text-decoration:line-through;color:#999"' : ''}>${fpPesos(f.subtotal)}</td><td>${fpEsc(f.oferta_ref || '')}</td><td>${est}</td>
+        <td>${(!anul && !f.excluida) ? `<button class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:11.5px" onclick="fpAnular('${fpEsc(f.factura)}', ${Number(f.subtotal || 0)})">Anular</button>` : ''}</td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="color:var(--text-muted)">No hay facturas.</td></tr>';
+  } catch (e) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted)">No se pudo cargar la lista.</td></tr>'; }
+}
+async function fpAnular(fac, valor) {
+  if (!confirm('¿Anular la factura ' + fac + ' por ' + fpPesos(valor) + '?\n\nDeja de sumar en la facturación y se le resta a su oferta. Queda el rastro (no se borra).')) return;
+  try {
+    const d = await fpPost('/api/facturas/pegar/anular', { factura: fac });
+    showToast('Factura ' + fac + ' anulada' + (d.oferta ? ' · oferta ' + d.oferta.num + ' queda con ' + fpPesos(d.oferta.facturado) : ''), 'success');
+    fpRecientes();
+    try { loadAll(); } catch (e) {}
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 const MESES_NOMBRE_FH = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];

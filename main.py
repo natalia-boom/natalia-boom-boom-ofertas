@@ -4236,7 +4236,7 @@ def index():
 # AUNQUE tengan la pestaña abierta (el front pregunta esto cada ciclo y, si cambió,
 # muestra la alarma). Para avisar de una nueva actualización: sube esta fecha
 # (debe coincidir con AVISO_UPDATE.version del index.html) y redespliega.
-APP_VERSION = "2026-11-19c"
+APP_VERSION = "2026-11-19d"
 APP_UPDATE_MSG = ("Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> "
                   "(cierra sesión y vuelve a entrar, o presiona "
                   "<b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.")
@@ -9695,6 +9695,402 @@ def vulcano_excluir(factura: str, body: VulcanoExcluir):
             resumen = _vulcano_calc_resumen(cur)
             return {"ok": True, "factura": factura, "excluida": body.excluida,
                     "resumen": resumen}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+# ── Facturación › Cargar facturas (pegar desde Vulcano) ──────────────────────
+# Pedido de Natalia (2026-11-19): en vez de pasarle las facturas a Claude para que
+# las cargue a mano, ella pega las filas copiadas del Excel de Vulcano, revisa qué
+# va a pasar con cada una y le da "Cargar". Hace lo mismo que se hacía a mano:
+# inserta en vulcano_facturas, suma lo facturado a la oferta, cierra como
+# 'Facturada' la que queda completa, anota en el historial y NO envía avisos.
+# Solo la ve Natalia (cuenta Administrador).
+
+_FP_MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO",
+             "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+
+# Mismo cliente con nombres distintos entre la oferta y la factura de Vulcano.
+_FP_ALIAS = [
+    ("GAMALOG", "REDGAMA"), ("CWW", "CRANE"), ("CHANEME", "SOMOS"),
+    ("GRUAS MANIOBRAS", "GM&M"), ("GRUAS MANIOBRAS", "GMM"), ("FRUTTCO", "FRUTCO"),
+    ("ASTILLEROS", "AUSA"), ("CNR", "CNR"),
+]
+_FP_RUIDO = {"S.A.S", "SAS", "S.A.S.", "SA", "S.A", "S.A.", "LTDA", "LTD", "LIMITED",
+             "COLOMBIA", "SUCURSAL", "DE", "DEL", "LA", "LOS", "Y", "E.S.P", "ESP",
+             "E.S.P.", "INC", "LLC", "GROUP", "GLOBAL", "S", "A", "-", "&"}
+
+
+class FactPegarBody(BaseModel):
+    texto: Optional[str] = ""
+    filas: Optional[list] = None
+
+
+class FactAnularBody(BaseModel):
+    factura: str
+
+
+def _fp_es_natalia(user) -> bool:
+    u = user or {}
+    return u.get("rol") == "admin" or _misma_persona(u.get("nombre", ""), "NATALIA VARGAS")
+
+
+def _fp_monto(s):
+    s = re.sub(r"[^\d,.\-]", "", str(s or ""))
+    if not s:
+        return 0
+    if "," in s and "." in s:
+        if s.rfind(".") > s.rfind(","):
+            s = s.replace(",", "")
+        else:
+            s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", "") if re.fullmatch(r"-?\d{1,3}(,\d{3})+", s) else s.replace(",", ".")
+    elif "." in s:
+        if re.fullmatch(r"-?\d{1,3}(\.\d{3})+", s):
+            s = s.replace(".", "")
+    try:
+        return int(round(float(s)))
+    except Exception:
+        return 0
+
+
+def _fp_fecha(s):
+    s = str(s or "").strip()
+    m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})", s)
+    if m:
+        try:
+            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except Exception:
+            return None
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", s)
+    if m:
+        try:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except Exception:
+            return None
+    return None
+
+
+def _fp_parsear(texto):
+    """Filas pegadas (tabuladas, como salen del Excel de Vulcano):
+    Factura | Fecha | Mes | Estado | NIT | Cliente | Subtotal | Oferta No."""
+    texto = str(texto or "").replace("\r", "")
+    # Si dos filas quedaron pegadas ("26-0319BLCE4036"), las separa.
+    texto = re.sub(r"(?<=[^\t\n])(?=BLCE\d{3,})", "\n", texto)
+    filas, vistos = [], set()
+    for ln in texto.split("\n"):
+        if not ln.strip():
+            continue
+        cel = [c.strip() for c in ln.split("\t")]
+        if len(cel) < 4:
+            cel = [c.strip() for c in re.split(r"\s{2,}", ln.strip())]
+        if not cel or not re.fullmatch(r"[A-Za-z]{2,6}\d{3,7}", cel[0] or ""):
+            continue   # títulos u otra basura
+        factura = cel[0].upper()
+        if factura in vistos:
+            continue   # misma factura pegada dos veces
+        vistos.add(factura)
+        cel += [""] * (8 - len(cel))
+        fecha = _fp_fecha(cel[1])
+        mes = (cel[2] or "").strip().upper()
+        if fecha and not mes:
+            mes = _FP_MESES[fecha.month - 1]
+        mes = "NOVIEMBRE" if mes == "NOVIEMRBE" else mes
+        filas.append({
+            "factura": factura,
+            "fecha": fecha.isoformat() if fecha else None,
+            "mes": mes or None,
+            "anio": str(fecha.year) if fecha else str(datetime.now().year),
+            "estado": (cel[3] or "contabilizado").strip(),
+            "nit": re.sub(r"\D", "", cel[4] or "") or None,
+            "cliente": _vulcano_fix_cliente((cel[5] or "").strip()) or None,
+            "subtotal": _fp_monto(cel[6]),
+            "oferta_ref": (cel[7] or "").strip(),
+        })
+    return filas
+
+
+def _fp_tokens(nombre):
+    import unicodedata
+    n = unicodedata.normalize("NFD", str(nombre or "")).encode("ascii", "ignore").decode().upper()
+    n = re.sub(r"[^A-Z0-9& ]", " ", n)
+    return {t for t in n.split() if t not in _FP_RUIDO and len(t) >= 3}
+
+
+def _fp_mismo_cliente(a, b):
+    if not a or not b:
+        return True
+    ca, cb = _canon_cliente(a), _canon_cliente(b)
+    if ca == cb:
+        return True
+    A, B = str(ca).upper(), str(cb).upper()
+    for x, y in _FP_ALIAS:
+        if (x in A and y in B) or (y in A and x in B) or (x in A and x in B):
+            return True
+    return bool(_fp_tokens(ca) & _fp_tokens(cb))
+
+
+def _fp_num_oferta(ref):
+    nums = sorted(set("26" + m.zfill(4) for m in re.findall(r"26-?(\d{3,4})", str(ref or ""))))
+    return nums
+
+
+def _fp_clasificar(cur, filas, marcadas=None):
+    """Dice qué va a pasar con cada factura (sin guardar nada)."""
+    acum = {}   # num -> facturado acumulado dentro del mismo pegado
+    out = []
+    for f in filas:
+        r = dict(f)
+        r["oferta"] = None
+        cur.execute("SELECT excluida, estado FROM vulcano_facturas WHERE factura=%s", (f["factura"],))
+        prev = fetchone(cur)
+        if prev is not None:
+            r.update(tipo="ya", cargar=False,
+                     detalle="Ya estaba cargada" + (" (anulada)" if str(prev.get("estado") or "").upper() == "ANULADA" else "") + ": se ignora, no se duplica")
+            out.append(r)
+            continue
+        if not f.get("subtotal"):
+            r.update(tipo="revisar", cargar=False, detalle="No se pudo leer el valor de la factura")
+            out.append(r)
+            continue
+        ref = f.get("oferta_ref") or ""
+        nums = _fp_num_oferta(ref)
+        if len(nums) == 0:
+            es_contrato = "CONTRATO" in ref.upper()
+            r.update(tipo="contrato" if es_contrato else "sin_oferta", cargar=True,
+                     detalle="Suma al mes como contrato" if es_contrato else "Sin número de oferta: solo suma al total del mes")
+            out.append(r)
+            continue
+        if len(nums) > 1:
+            r.update(tipo="revisar", cargar=True,
+                     detalle="Trae varias ofertas (" + ", ".join(n[:2] + "-" + n[2:] for n in nums)
+                     + "): se carga al mes pero NO se suma a ninguna oferta")
+            out.append(r)
+            continue
+        num = nums[0]
+        cur.execute("SELECT id, num, cliente, valor, COALESCE(valor_facturado,0) AS vf, "
+                    "UPPER(COALESCE(respuesta,'')) AS resp, COALESCE(seguimiento,'') AS seg "
+                    "FROM ofertas WHERE num=%s AND NOT COALESCE(anulada,false) "
+                    "ORDER BY id DESC LIMIT 1", (num,))
+        o = fetchone(cur)
+        fmt = num[:2] + "-" + num[2:]
+        if not o:
+            r.update(tipo="revisar", cargar=False,
+                     detalle="La oferta " + fmt + " no existe en la plataforma (o está anulada). Corrige el número o márcala para cargarla solo al mes")
+            out.append(r)
+            continue
+        valor = int(o["valor"] or 0)
+        prev_vf = acum.get(num, int(o["vf"] or 0))
+        nuevo = prev_vf + int(f["subtotal"])
+        acum[num] = nuevo
+        r["oferta"] = {"id": o["id"], "num": fmt, "cliente": o["cliente"], "valor": valor,
+                       "facturado_antes": prev_vf, "facturado_nuevo": nuevo,
+                       "respuesta": o["resp"], "seguimiento": o["seg"]}
+        avisos = []
+        duro = False
+        if not _fp_mismo_cliente(o["cliente"], f.get("cliente")):
+            avisos.append("La oferta " + fmt + " es de " + str(o["cliente"]) + ", no de " + str(f.get("cliente")))
+            duro = True
+        if o["resp"] != "ACEPTADA":
+            avisos.append("La oferta " + fmt + " no está aceptada (" + (o["resp"] or "sin respuesta") + ")")
+            duro = True
+        if valor > 0 and nuevo > 2 * valor:
+            avisos.append("Lo facturado (" + "{:,}".format(nuevo).replace(",", ".") + ") pasa del doble de la oferta ("
+                          + "{:,}".format(valor).replace(",", ".") + ")")
+        completa = valor > 0 and nuevo >= valor - 1000
+        if avisos:
+            r.update(tipo="revisar", cargar=not duro, detalle=" · ".join(avisos))
+        elif completa:
+            ya = (o["seg"] or "").upper() == "FACTURADA"
+            r.update(tipo="completa", cargar=True,
+                     detalle=("Ya estaba Facturada: se le suma la factura" if ya else "Queda completa → pasa a Facturada"))
+        else:
+            r.update(tipo="parcial", cargar=True,
+                     detalle="Le faltan " + "{:,}".format(max(valor - nuevo, 0)).replace(",", "."))
+        if "CANCEL" in (o["seg"] or "").upper():
+            r["detalle"] += " · la oferta está Cancelada (no se cambia su estado)"
+        out.append(r)
+    if marcadas is not None:
+        for r in out:
+            if r["tipo"] != "ya" and r["factura"] in marcadas:
+                r["cargar"] = bool(marcadas[r["factura"]])
+    return out
+
+
+@app.post("/api/facturas/pegar/revisar")
+def facturas_pegar_revisar(body: FactPegarBody, request: Request):
+    if not _fp_es_natalia(getattr(request.state, "user", None)):
+        raise HTTPException(403, "Solo Natalia puede cargar facturas.")
+    filas = _fp_parsear(body.texto) if body.texto else []
+    if body.filas:   # re-revisar con números de oferta corregidos
+        filas = [{k: x.get(k) for k in ("factura", "fecha", "mes", "anio", "estado", "nit",
+                                          "cliente", "subtotal", "oferta_ref")} for x in body.filas]
+    if not filas:
+        raise HTTPException(400, "No encontré facturas en lo que pegaste. Copia las filas del Excel de Vulcano (desde la columna Factura).")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            marc = {x.get("factura"): x.get("cargar") for x in (body.filas or []) if "cargar" in x}
+            return {"filas": _fp_clasificar(cur, filas, marc if body.filas else None)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/facturas/pegar/cargar")
+def facturas_pegar_cargar(body: FactPegarBody, request: Request):
+    user = getattr(request.state, "user", None)
+    if not _fp_es_natalia(user):
+        raise HTTPException(403, "Solo Natalia puede cargar facturas.")
+    entrada = body.filas or []
+    filas = [{k: x.get(k) for k in ("factura", "fecha", "mes", "anio", "estado", "nit",
+                                    "cliente", "subtotal", "oferta_ref")} for x in entrada]
+    marc = {x.get("factura"): bool(x.get("cargar")) for x in entrada}
+    if not filas:
+        raise HTTPException(400, "No hay facturas para cargar")
+    usuario = ((user or {}).get("nombre") or "Natalia") + " (Cargar facturas)"
+    cargadas, monto, cerradas, sumadas = [], 0, [], []
+    try:
+        with get_conn() as conn:
+            conn.autocommit = False
+            cur = conn.cursor()
+            try:
+                revisadas = _fp_clasificar(cur, filas, marc)
+                for r in revisadas:
+                    if not r.get("cargar") or r["tipo"] == "ya":
+                        continue
+                    fch = _fp_fecha(r.get("fecha")) if r.get("fecha") else None
+                    sub = int(r.get("subtotal") or 0)
+                    cur.execute("""
+                        INSERT INTO vulcano_facturas
+                            (factura, fecha, mes, anio, estado, nit, cliente,
+                             subtotal, total, valor_pagado, saldo, excluida, oferta_ref)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,%s,%s)
+                    """, (r["factura"], fch, r.get("mes"), r.get("anio"), r.get("estado") or "contabilizado",
+                          r.get("nit"), r.get("cliente"), sub, sub,
+                          r["factura"] in _VULCANO_EXCLUIDAS_DEFAULT, r.get("oferta_ref") or None))
+                    cargadas.append(r["factura"])
+                    monto += sub
+                    o = r.get("oferta")
+                    if not o:
+                        continue
+                    cur.execute("SELECT valor, COALESCE(valor_facturado,0) AS vf, no_factura, "
+                                "UPPER(COALESCE(respuesta,'')) AS resp, COALESCE(seguimiento,'') AS seg "
+                                "FROM ofertas WHERE id=%s", (o["id"],))
+                    act = fetchone(cur)
+                    if not act:
+                        continue
+                    nuevo = int(act["vf"] or 0) + sub
+                    nf = (act["no_factura"] or "").strip()
+                    nf = (nf + ", " + r["factura"]) if nf else r["factura"]
+                    seg_ant = act["seg"] or ""
+                    seg_nuevo = seg_ant
+                    valor = int(act["valor"] or 0)
+                    if (act["resp"] == "ACEPTADA" and valor > 0 and nuevo >= valor - 1000
+                            and "CANCEL" not in seg_ant.upper()):
+                        seg_nuevo = "Facturada"
+                    cur.execute("UPDATE ofertas SET valor_facturado=%s, no_factura=%s, "
+                                "fecha_facturacion=COALESCE(%s, fecha_facturacion), seguimiento=%s WHERE id=%s",
+                                (nuevo, nf[:250], fch, seg_nuevo, o["id"]))
+                    cur.execute("INSERT INTO oferta_historial (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario) "
+                                "VALUES (%s,%s,%s,%s,%s,%s)",
+                                (o["id"], o["num"].replace("-", ""), "Factura cargada",
+                                 "facturado " + str(act["vf"] or 0) + (" · " + seg_ant if seg_ant else ""),
+                                 r["factura"] + " $" + str(sub) + " → facturado " + str(nuevo)
+                                 + (" · Facturada" if seg_nuevo != seg_ant and seg_nuevo == "Facturada" else ""),
+                                 usuario))
+                    sumadas.append(o["num"])
+                    if seg_nuevo != seg_ant and seg_nuevo == "Facturada":
+                        cerradas.append(o["num"])
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.autocommit = True
+            try:
+                _sync_facturas_estado_proyecto(cur)
+            except Exception:
+                traceback.print_exc()
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+    return {"ok": True, "cargadas": cargadas, "n": len(cargadas), "monto": monto,
+            "ofertas_sumadas": sorted(set(sumadas)), "ofertas_cerradas": sorted(set(cerradas))}
+
+
+@app.get("/api/facturas/pegar/recientes")
+def facturas_pegar_recientes(request: Request):
+    if not _fp_es_natalia(getattr(request.state, "user", None)):
+        raise HTTPException(403, "Solo Natalia puede cargar facturas.")
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT factura, fecha, mes, cliente, subtotal, oferta_ref, estado, excluida "
+                        "FROM vulcano_facturas ORDER BY fecha DESC NULLS LAST, factura DESC LIMIT 40")
+            return fetchall(cur)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/facturas/pegar/anular")
+def facturas_pegar_anular(body: FactAnularBody, request: Request):
+    user = getattr(request.state, "user", None)
+    if not _fp_es_natalia(user):
+        raise HTTPException(403, "Solo Natalia puede anular facturas.")
+    fac = str(body.factura or "").strip().upper()
+    usuario = ((user or {}).get("nombre") or "Natalia") + " (Anular factura)"
+    try:
+        with get_conn() as conn:
+            conn.autocommit = False
+            cur = conn.cursor()
+            try:
+                cur.execute("SELECT factura, subtotal, oferta_ref, excluida, estado FROM vulcano_facturas WHERE factura=%s", (fac,))
+                f = fetchone(cur)
+                if not f:
+                    raise HTTPException(404, "No encontré la factura " + fac)
+                if str(f.get("estado") or "").upper() == "ANULADA":
+                    raise HTTPException(409, "La factura " + fac + " ya está anulada")
+                cur.execute("UPDATE vulcano_facturas SET excluida=true, estado='ANULADA' WHERE factura=%s", (fac,))
+                oferta = None
+                nums = _fp_num_oferta(f.get("oferta_ref"))
+                if len(nums) == 1 and not f.get("excluida"):
+                    cur.execute("SELECT id, num, valor, COALESCE(valor_facturado,0) AS vf, no_factura, "
+                                "COALESCE(seguimiento,'') AS seg FROM ofertas "
+                                "WHERE num=%s AND NOT COALESCE(anulada,false) ORDER BY id DESC LIMIT 1", (nums[0],))
+                    o = fetchone(cur)
+                    if o and fac in (o["no_factura"] or ""):
+                        nuevo = max(int(o["vf"] or 0) - int(f["subtotal"] or 0), 0)
+                        nf = ", ".join(x.strip() for x in (o["no_factura"] or "").split(",")
+                                       if x.strip() and x.strip().upper() != fac)
+                        seg = o["seg"] or ""
+                        valor = int(o["valor"] or 0)
+                        if seg.upper() == "FACTURADA" and (valor <= 0 or nuevo < valor - 1000):
+                            seg = "Ejecutado"
+                        cur.execute("UPDATE ofertas SET valor_facturado=%s, no_factura=%s, seguimiento=%s WHERE id=%s",
+                                    (nuevo, nf or None, seg, o["id"]))
+                        cur.execute("INSERT INTO oferta_historial (oferta_id, oferta_num, campo, valor_ant, valor_nuevo, usuario) "
+                                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                                    (o["id"], o["num"], "Factura anulada",
+                                     fac + " $" + str(f["subtotal"] or 0) + " · facturado " + str(o["vf"] or 0),
+                                     "facturado " + str(nuevo) + (" · " + seg if seg != (o["seg"] or "") else ""),
+                                     usuario))
+                        oferta = {"num": o["num"][:2] + "-" + o["num"][2:], "facturado": nuevo, "seguimiento": seg}
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.autocommit = True
+        return {"ok": True, "factura": fac, "oferta": oferta}
     except HTTPException:
         raise
     except Exception as e:
