@@ -395,6 +395,14 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 @keyframes campoFalta { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 .campo-falta-nota { color: #b91c1c; font-size: 11.5px; font-weight: 700; margin-top: 4px; }
 /* Estrellita de seguimiento: gris apagada, amarilla al marcarla (con un pequeño "pop"). */
+/* Botón "V" (versionar) en Control: loguito verde fluorescente */
+.v-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; padding:0 !important;
+  margin:0 2px; vertical-align:middle; position:relative; top:-3px; border-radius:7px; border:none; cursor:pointer;
+  background: linear-gradient(145deg, #7CFF4F 0%, #39FF14 55%, #1FD40A 100%);
+  color:#0B2A12; font: 900 13px/1 'Barlow', sans-serif; letter-spacing:-.5px;
+  box-shadow: 0 0 0 1px rgba(20,140,10,.35), 0 0 8px rgba(57,255,20,.55);
+  text-shadow: 0 1px 0 rgba(255,255,255,.45); transition: transform .15s ease, box-shadow .15s ease; }
+.v-btn:hover { transform: translateY(-1px) scale(1.12); box-shadow: 0 0 0 1px rgba(20,140,10,.5), 0 0 14px rgba(57,255,20,.85); }
 .estrella-btn svg { display: block; transition: transform .15s ease; }
 .estrella-btn:hover svg { transform: scale(1.18); }
 .estrella-btn.on svg { filter: drop-shadow(0 1px 2px rgba(245,179,1,.45)); animation: estrellaPop .3s ease; }
@@ -3894,7 +3902,7 @@ function mostrarApp() {
 // a cada usuario le sonará UNA vez y verá el aviso hasta que lo cierre o reinicie.
 const AVISO_UPDATE = {
   activo:  true,
-  version: '2026-11-11',
+  version: '2026-11-19',
   mensaje: 'Hicimos mejoras en la plataforma. Por favor <b>reinicia</b> (cierra sesión y vuelve a entrar, o presiona <b>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</b>) para ver los cambios.'
 };
 // Sondeo al servidor: si se desplegó una versión MÁS NUEVA que la que cargó este
@@ -5827,6 +5835,7 @@ function renderControlTable() {
           ${puedeEditar ? `<button class="action-btn write-only" onclick="openEdit(${o.id})" title="Editar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>` : '<span class="action-btn" title="Solo el administrador o quien creó la oferta puede editarla" style="opacity:.35;cursor:not-allowed;display:inline-block;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa5b5" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>'}
+          ${(puedeEditar && !anulada) ? `<button class="action-btn write-only v-btn" onclick="versionarDesdeControl('${nEsc}')" title="Versionar esta oferta (abre el Generador con la oferta ya cargada)">V</button>` : ''}
           <button class="action-btn" onclick="openHistorial(${o.id},'${nEsc}')" title="Historial de cambios"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
           <button class="action-btn" onclick="downloadPdfOferta(${o.id},'${nEsc}','${cEsc}')" title="Descargar PDF">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--petrol)" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -7500,6 +7509,8 @@ async function iaLoadRef() {
     const n = parseInt(data && data.consecutivo, 10);
     // Solo aceptamos un consecutivo válido (nunca 0 / vacío / basura) para no mostrar "00-000".
     if (!Number.isFinite(n) || n < 260000) throw new Error('consecutivo inválido: ' + (data && data.consecutivo));
+    // Si mientras tanto se cargó una oferta para versionar, NO pisar su número.
+    if (iaEditingId) { iaRefAssigned = true; return; }
     const numPad = String(n).padStart(6, '0');
     const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
     document.getElementById('iaRefDisplay').textContent = fmt;
@@ -8505,6 +8516,24 @@ function iaToggleCargarPanel() {
   const vis = p.style.display !== 'none';
   p.style.display = vis ? 'none' : 'flex';
   if (!vis) setTimeout(() => document.getElementById('iaCargarNum').focus(), 50);
+}
+
+// Botón "V" de Control: lleva al Generador con la oferta ya cargada para versionar
+// (sin tener que recordar ni digitar el número).
+async function versionarDesdeControl(num) {
+  num = String(num || '').replace(/\D/g, '');
+  if (!num) return;
+  const numPad = num.padStart(6, '0');
+  const fmt = numPad.slice(0, 2) + '-' + numPad.slice(2);
+  if (iaHistory.length && !confirm('En el Generador hay una oferta en curso. ¿Dejarla y versionar la ' + fmt + '?')) return;
+  iaResetChat(true);
+  iaEditingId = -1;               // evita que el consecutivo nuevo pise el número mientras carga
+  iaRefAssigned = true;
+  switchTab('iaoferta');
+  document.getElementById('iaCargarNum').value = num;
+  iaEditingId = null;
+  await iaCargarOferta();
+  if (!iaEditingId) iaResetChat(true);   // no se encontró: el Generador queda limpio para oferta nueva
 }
 
 async function iaCargarOferta() {
