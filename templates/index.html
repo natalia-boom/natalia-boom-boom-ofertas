@@ -4649,6 +4649,12 @@ function factSubtab(cual) {
     document.getElementById(tab).classList.toggle('on', k === cual);
   });
   if (cual === 'meta') factMetaRender();
+  // "Por mes y clientes": recargar siempre, para que se vean las facturas recién cargadas.
+  if (cual === 'detalle') {
+    pyRenderReal();
+    factTopCargado = false;
+    if (document.getElementById('factVistaCliente')?.style.display === 'block') { factTopCargado = true; loadTopClientes('factTopClientes', 500); }
+  }
   if (cual === 'historico') factHistRender();
   if (cual === 'carga') fpRecientes();
 }
@@ -4758,6 +4764,7 @@ async function fpCargar() {
     fpLimpiar();
     fpRecientes();
     try { loadAll(); } catch (e) {}
+    try { pyRenderReal(); factTopCargado = false; } catch (e) {}
   } catch (e) { showToast(e.message, 'error'); fpTotales(); }
 }
 async function fpRecientes() {
@@ -4782,6 +4789,7 @@ async function fpAnular(fac, valor) {
     showToast('Factura ' + fac + ' anulada' + (d.oferta ? ' · oferta ' + d.oferta.num + ' queda con ' + fpPesos(d.oferta.facturado) : ''), 'success');
     fpRecientes();
     try { loadAll(); } catch (e) {}
+    try { pyRenderReal(); factTopCargado = false; } catch (e) {}
   } catch (e) { showToast(e.message, 'error'); }
 }
 
