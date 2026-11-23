@@ -398,20 +398,15 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
   background:linear-gradient(90deg,#FF6B00,#FFB37A); box-shadow:0 0 10px rgba(255,107,0,.55); transition:width 1.2s ease; }
 .fm-pista-deb { position:absolute; top:-6px; width:3px; height:24px; margin-left:-1px; border-radius:2px; background:#4FD1A5; box-shadow:0 0 6px rgba(79,209,165,.8); }
 .fm-pista-flag { position:absolute; right:-16px; top:-22px; font-size:20px; }
-.fm-atleta { position:absolute; top:-30px; transform:translateX(-50%); transition:left 1.2s ease; }
-.fm-atleta-in { display:inline-block; font-size:26px; line-height:1; }
-.fm-sudor { position:absolute; left:-8px; top:-2px; font-size:11px; opacity:0; animation:fmSudor 1.3s ease-in infinite; }
-.fm-trota { animation:fmTrota .38s ease-in-out infinite alternate; }
-.fm-tijera { animation:fmTijera .32s ease-in-out infinite alternate; }
-.fm-voltereta { animation:fmVoltereta 1.3s ease-in-out infinite; }
-@keyframes fmTrota { from { transform:scaleX(-1) translateY(0) rotate(0); } to { transform:scaleX(-1) translateY(-5px) rotate(-10deg); } }
-@keyframes fmTijera { from { transform:translateY(0) scale(1,1); } to { transform:translateY(-8px) scale(1.12,.9); } }
-@keyframes fmVoltereta { 0% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-10px) rotate(180deg); } 100% { transform:translateY(0) rotate(360deg); } }
-@keyframes fmSudor { 0% { opacity:0; transform:translate(0,0); } 30% { opacity:.9; } 100% { opacity:0; transform:translate(-8px,10px); } }
+.fm-atleta { position:absolute; top:-34px; width:34px; height:34px; margin-left:-17px; transition:left 1.2s ease; pointer-events:none; }
+.fm-atleta-in { position:absolute; left:4px; bottom:0; font-size:26px; line-height:1; will-change:transform; transform-origin:50% 90%; }
+.fm-sombra { position:absolute; left:7px; bottom:-5px; width:20px; height:5px; border-radius:50%; background:rgba(0,0,0,.45); filter:blur(1px); }
+.fm-fx { position:absolute; font-size:11px; pointer-events:none; animation:fmFx .9s ease-out forwards; }
+@keyframes fmFx { from { opacity:.9; transform:translate(0,0) scale(.7); } to { opacity:0; transform:translate(var(--dx,-14px), var(--dy,-6px)) scale(1.2); } }
 .fm-pista-lbl { display:flex; justify-content:space-between; font-size:11.5px; color:#A9B6D3; margin:8px 18px 0 6px; }
 .fm-pista-ley { font-size:11px; color:#A9B6D3; margin:4px 6px 0; }
 .fm-pista-ley i { display:inline-block; width:3px; height:11px; background:#4FD1A5; margin-right:6px; vertical-align:-1px; border-radius:2px; }
-@media (prefers-reduced-motion: reduce) { .fm-trota, .fm-tijera, .fm-voltereta, .fm-sudor { animation:none; } }
+@media (prefers-reduced-motion: reduce) { .fm-fx { display:none; } }
 .fm-trofeo { display:inline-block; font-size:18px; margin-right:8px; vertical-align:-2px; }
 .fm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#A9B6D3; margin:6px 0 4px; }
 .fm-legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
@@ -4920,23 +4915,59 @@ function fmPintarPista(al, d) {
     '<div class="fm-pista-carril"><div class="fm-pista-fill" style="width:' + pct + '%"></div>'
     + '<div class="fm-pista-deb" style="left:' + pctDeb + '%" title="Donde deberíamos ir hoy: ' + _fmMil(deberia) + '"></div>'
     + '<span class="fm-pista-flag" aria-hidden="true">🏁</span>'
-    + '<span class="fm-atleta" style="left:' + pct + '%" aria-hidden="true"><span class="fm-atleta-in fm-trota">🏃</span><span class="fm-sudor">💦</span></span></div>'
+    + '<span class="fm-atleta" style="left:' + pct + '%" aria-hidden="true"><span class="fm-sombra"></span><span class="fm-atleta-in">🏃</span></span></div>'
     + '<div class="fm-pista-lbl"><span>$0</span><span style="color:#FFB37A;font-weight:800;">' + _fmMil(d.facturado_total) + ' (' + _fmPct(d.facturado_total / meta) + ')</span>'
     + '<span>Meta ' + _fmMil(meta) + '</span></div>'
     + '<div class="fm-pista-ley"><i></i>Deberíamos ir en ' + _fmMil(deberia) + ' hoy</div>';
   al.appendChild(pista);
-  // Rutina: trota 4 s → salto de tijera → trota → voltereta…
-  if (fmAerobicoTimer) clearInterval(fmAerobicoTimer);
+  // Rutina aeróbica fluida (requestAnimationFrame + ondas seno): trota con zancada y polvo,
+  // salto de tijera (abre/cierra brazos en cada salto), trota, voltereta, estiramiento.
+  if (fmAerobicoTimer) cancelAnimationFrame(fmAerobicoTimer);
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const rutina = [['🏃', 'fm-trota'], ['🙆', 'fm-tijera'], ['🏃', 'fm-trota'], ['🤸', 'fm-voltereta']];
-  let paso = 0;
-  fmAerobicoTimer = setInterval(() => {
-    const el = document.querySelector('#fmAlerta .fm-atleta-in');
-    if (!el) { clearInterval(fmAerobicoTimer); fmAerobicoTimer = null; return; }
-    paso = (paso + 1) % rutina.length;
-    el.textContent = rutina[paso][0];
-    el.className = 'fm-atleta-in ' + rutina[paso][1];
-  }, 2600);
+  const FASES = [['trota', 3600], ['tijera', 2400], ['trota', 3600], ['voltereta', 1300], ['trota', 2400], ['estira', 1800]];
+  let fase = 0, iniFase = performance.now(), ultPaso = -1, pose = '';
+  const cont = pista.querySelector('.fm-atleta'), el = pista.querySelector('.fm-atleta-in'), sombra = pista.querySelector('.fm-sombra');
+  const ponPose = e => { if (pose !== e) { pose = e; el.textContent = e; } };
+  const fx = (txt, x, y, dx, dy) => {
+    const f = document.createElement('span'); f.className = 'fm-fx'; f.textContent = txt;
+    f.style.left = x + 'px'; f.style.top = y + 'px'; f.style.setProperty('--dx', dx + 'px'); f.style.setProperty('--dy', dy + 'px');
+    cont.appendChild(f); setTimeout(() => f.remove(), 950);
+  };
+  const tick = now => {
+    if (!document.body.contains(el)) { fmAerobicoTimer = null; return; }
+    let t = now - iniFase;
+    if (t > FASES[fase][1]) { fase = (fase + 1) % FASES.length; iniFase = now; t = 0; ultPaso = -1; }
+    const tipo = FASES[fase][0];
+    let y = 0, rot = 0, sx = 1, sy = 1, flip = true, x = 0;
+    if (tipo === 'trota') {
+      ponPose('🏃');
+      const ph = t / 340 * Math.PI;                 // una zancada cada 340 ms
+      const b = Math.abs(Math.sin(ph));
+      y = -b * 7; rot = -9 + Math.sin(ph * 2) * 3; x = Math.sin(ph / 2) * 2;
+      sy = 0.9 + b * 0.12; sx = 1.08 - b * 0.1;     // se aplasta al pisar, se estira en el aire
+      const paso = Math.floor(t / 340);
+      if (paso !== ultPaso) { ultPaso = paso; fx('💨', -6, 22, -16, -2); if (paso % 4 === 1) fx('💦', 2, -4, -10, 12); }
+    } else if (tipo === 'tijera') {
+      const ph = t / 300 * Math.PI;
+      const b = Math.abs(Math.sin(ph));
+      ponPose(Math.floor(t / 300) % 2 ? '🙆' : '🧍');  // brazos arriba / abajo en cada salto
+      y = -b * 10; sy = 0.88 + b * 0.16; sx = 1.1 - b * 0.12; flip = false;
+    } else if (tipo === 'voltereta') {
+      ponPose('🤸');
+      const k = t / FASES[fase][1];
+      const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // suave al entrar y salir
+      rot = e * 360; y = -Math.sin(k * Math.PI) * 14; flip = false;
+    } else {                                          // estira: se inclina a un lado y al otro
+      ponPose('🙆');
+      const ph = t / FASES[fase][1] * Math.PI * 2;
+      rot = Math.sin(ph) * 14; y = -Math.abs(Math.sin(ph)) * 2; flip = false;
+    }
+    el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg) scale(' + ((flip ? -1 : 1) * sx).toFixed(3) + ',' + sy.toFixed(3) + ')';
+    const h = Math.min(1, -y / 14);
+    sombra.style.transform = 'scale(' + (1 - h * 0.45).toFixed(2) + ')'; sombra.style.opacity = (0.8 - h * 0.5).toFixed(2);
+    fmAerobicoTimer = requestAnimationFrame(tick);
+  };
+  fmAerobicoTimer = requestAnimationFrame(tick);
 }
 
 async function factMetaRender() {
