@@ -390,6 +390,28 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 /* Muñequito corriendo en el aviso de atraso (Natalia): mira hacia la meta y "trota". */
 .fm-corredor { display:inline-block; font-size:19px; margin-right:8px; vertical-align:-3px; animation:fmCorre .45s ease-in-out infinite alternate; }
 @keyframes fmCorre { from { transform:scaleX(-1) translate(0,0) rotate(0deg); } to { transform:scaleX(-1) translate(-3px,-3px) rotate(-8deg); } }
+/* Pista de la meta: el atleta avanza según lo facturado y hace aeróbicos */
+.fm-pista { margin-top:12px; }
+.fm-pista-carril { position:relative; height:12px; margin:26px 18px 0 6px; border-radius:999px;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 18px, rgba(255,255,255,.04) 18px 36px); }
+.fm-pista-fill { position:absolute; left:0; top:0; bottom:0; border-radius:999px;
+  background:linear-gradient(90deg,#FF6B00,#FFB37A); box-shadow:0 0 10px rgba(255,107,0,.55); transition:width 1.2s ease; }
+.fm-pista-deb { position:absolute; top:-6px; width:3px; height:24px; margin-left:-1px; border-radius:2px; background:#4FD1A5; box-shadow:0 0 6px rgba(79,209,165,.8); }
+.fm-pista-flag { position:absolute; right:-16px; top:-22px; font-size:20px; }
+.fm-atleta { position:absolute; top:-30px; transform:translateX(-50%); transition:left 1.2s ease; }
+.fm-atleta-in { display:inline-block; font-size:26px; line-height:1; }
+.fm-sudor { position:absolute; left:-8px; top:-2px; font-size:11px; opacity:0; animation:fmSudor 1.3s ease-in infinite; }
+.fm-trota { animation:fmTrota .38s ease-in-out infinite alternate; }
+.fm-tijera { animation:fmTijera .32s ease-in-out infinite alternate; }
+.fm-voltereta { animation:fmVoltereta 1.3s ease-in-out infinite; }
+@keyframes fmTrota { from { transform:scaleX(-1) translateY(0) rotate(0); } to { transform:scaleX(-1) translateY(-5px) rotate(-10deg); } }
+@keyframes fmTijera { from { transform:translateY(0) scale(1,1); } to { transform:translateY(-8px) scale(1.12,.9); } }
+@keyframes fmVoltereta { 0% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-10px) rotate(180deg); } 100% { transform:translateY(0) rotate(360deg); } }
+@keyframes fmSudor { 0% { opacity:0; transform:translate(0,0); } 30% { opacity:.9; } 100% { opacity:0; transform:translate(-8px,10px); } }
+.fm-pista-lbl { display:flex; justify-content:space-between; font-size:11.5px; color:#A9B6D3; margin:8px 18px 0 6px; }
+.fm-pista-ley { font-size:11px; color:#A9B6D3; margin:4px 6px 0; }
+.fm-pista-ley i { display:inline-block; width:3px; height:11px; background:#4FD1A5; margin-right:6px; vertical-align:-1px; border-radius:2px; }
+@media (prefers-reduced-motion: reduce) { .fm-trota, .fm-tijera, .fm-voltereta, .fm-sudor { animation:none; } }
 .fm-trofeo { display:inline-block; font-size:18px; margin-right:8px; vertical-align:-2px; }
 .fm-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#A9B6D3; margin:6px 0 4px; }
 .fm-legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
@@ -4877,6 +4899,46 @@ async function factHistRender() {
   } else { $('fhCierreCard').style.display = 'none'; }
 }
 
+// Pista de la meta (Natalia 2026-11-23): el muñeco corre hasta donde va la facturación del año
+// y hace "aeróbicos" (trota, salta, da una voltereta). La rayita marca dónde deberíamos ir hoy.
+let fmAerobicoTimer = null;
+function fmPintarPista(al, d) {
+  const meta = d.presupuesto_total || 0;
+  if (!meta) return;
+  const pct = Math.min(100, Math.max(0, d.facturado_total * 100 / meta));
+  // Dónde deberíamos ir hoy: meta de los meses cerrados + parte proporcional del mes en curso.
+  let deberia = d.presupuesto_acum || 0;
+  const hoy = new Date(), enCurso = d.meses[d.meses_cerrados];
+  if (enCurso && enCurso.estado === 'en_curso') {
+    const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+    deberia += enCurso.presupuesto * hoy.getDate() / diasMes;
+  }
+  const pctDeb = Math.min(100, deberia * 100 / meta);
+  const pista = document.createElement('div');
+  pista.className = 'fm-pista';
+  pista.innerHTML =
+    '<div class="fm-pista-carril"><div class="fm-pista-fill" style="width:' + pct + '%"></div>'
+    + '<div class="fm-pista-deb" style="left:' + pctDeb + '%" title="Donde deberíamos ir hoy: ' + _fmMil(deberia) + '"></div>'
+    + '<span class="fm-pista-flag" aria-hidden="true">🏁</span>'
+    + '<span class="fm-atleta" style="left:' + pct + '%" aria-hidden="true"><span class="fm-atleta-in fm-trota">🏃</span><span class="fm-sudor">💦</span></span></div>'
+    + '<div class="fm-pista-lbl"><span>$0</span><span style="color:#FFB37A;font-weight:800;">' + _fmMil(d.facturado_total) + ' (' + _fmPct(d.facturado_total / meta) + ')</span>'
+    + '<span>Meta ' + _fmMil(meta) + '</span></div>'
+    + '<div class="fm-pista-ley"><i></i>Deberíamos ir en ' + _fmMil(deberia) + ' hoy</div>';
+  al.appendChild(pista);
+  // Rutina: trota 4 s → salto de tijera → trota → voltereta…
+  if (fmAerobicoTimer) clearInterval(fmAerobicoTimer);
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rutina = [['🏃', 'fm-trota'], ['🙆', 'fm-tijera'], ['🏃', 'fm-trota'], ['🤸', 'fm-voltereta']];
+  let paso = 0;
+  fmAerobicoTimer = setInterval(() => {
+    const el = document.querySelector('#fmAlerta .fm-atleta-in');
+    if (!el) { clearInterval(fmAerobicoTimer); fmAerobicoTimer = null; return; }
+    paso = (paso + 1) % rutina.length;
+    el.textContent = rutina[paso][0];
+    el.className = 'fm-atleta-in ' + rutina[paso][1];
+  }, 2600);
+}
+
 async function factMetaRender() {
   let d;
   try {
@@ -4935,6 +4997,7 @@ async function factMetaRender() {
       al.style.cssText = 'display:block;background:rgba(79,209,165,.12);border:1px solid rgba(79,209,165,.45);color:#A8F0D6;';
       al.innerHTML = '<span class="fm-trofeo" aria-hidden="true">🏆</span>Vamos <b>' + _fmMil(-gap) + ' por encima</b> de la meta a ' + MES[cer - 1].mes.toLowerCase() + '.';
     }
+    fmPintarPista(al, d);
   } else { al.style.display = 'none'; }
   // Gráfico de barras (SVG, sin librerías): presupuesto vs facturado por mes.
   const W = 760, H = 230, pl = 54, pb = 24, pt = 10, cw = (W - pl) / 12;
