@@ -4920,8 +4920,17 @@ async function factMetaRender() {
     al.style.display = '';
     if (gap > 0) {
       al.style.cssText = 'display:block;background:rgba(255,138,76,.12);border:1px solid rgba(255,138,76,.45);color:#FFC9A8;';
-      al.innerHTML = '<span class="fm-corredor" aria-hidden="true">🏃</span>Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase()
-        + '. Para cumplir la meta del año hay que facturar <b>' + _fmMil(d.necesita_mes) + ' por mes</b>' + (rest.length ? ' en ' + rest.map(m => MES.find(x => _fmMes(x.mes) === m).mes.toLowerCase()).join(' y ') : '') + '.';
+      // Nota al día (el jefe la veía "desactualizada" porque solo hablaba de meses cerrados):
+      // atraso a meses cerrados + cómo va el mes en curso + lo que falta para el año.
+      const enCurso = MES[cer];
+      al.innerHTML = '<span class="fm-corredor" aria-hidden="true">🏃</span>Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase() + '.'
+        + (enCurso && enCurso.estado === 'en_curso'
+            ? ' En ' + enCurso.mes.toLowerCase() + ' llevamos <b>' + _fmMil(enCurso.facturado) + '</b> de ' + _fmMil(enCurso.presupuesto)
+              + (enCurso.presupuesto ? ' (' + _fmPct(enCurso.facturado / enCurso.presupuesto) + ')' : '') + '.'
+            : '')
+        + (d.falta_anual > 0
+            ? ' Para cumplir la meta del año faltan <b>' + _fmMil(d.falta_anual) + '</b> de aquí al 31 de diciembre.'
+            : ' ¡Meta del año cumplida!');
     } else {
       al.style.cssText = 'display:block;background:rgba(79,209,165,.12);border:1px solid rgba(79,209,165,.45);color:#A8F0D6;';
       al.innerHTML = '<span class="fm-trofeo" aria-hidden="true">🏆</span>Vamos <b>' + _fmMil(-gap) + ' por encima</b> de la meta a ' + MES[cer - 1].mes.toLowerCase() + '.';
