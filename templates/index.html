@@ -388,19 +388,52 @@ tbody td { padding: 11px 14px; vertical-align: middle; }
 .fm-pill { font-size:11px; border-radius:999px; padding:2px 8px; font-weight:700; vertical-align:middle; }
 .fm-alert { margin-top:12px; border-radius:10px; padding:10px 14px; font-size:13px; }
 /* Muñequito corriendo en el aviso de atraso (Natalia): mira hacia la meta y "trota". */
-.fm-corredor { display:inline-block; font-size:19px; margin-right:8px; vertical-align:-3px; animation:fmCorre .45s ease-in-out infinite alternate; }
-@keyframes fmCorre { from { transform:scaleX(-1) translate(0,0) rotate(0deg); } to { transform:scaleX(-1) translate(-3px,-3px) rotate(-8deg); } }
+.fm-corredor { display:inline-block; width:20px; height:24px; margin-right:8px; vertical-align:-6px; animation:fmCorre .28s ease-in-out infinite alternate; }
+.fm-corredor .fm-svg { width:20px; height:24px; filter:none; }
+@keyframes fmCorre { from { transform:translateY(0) rotate(4deg); } to { transform:translateY(-3px) rotate(8deg); } }
 /* Pista de la meta: el atleta avanza según lo facturado y hace aeróbicos */
 .fm-pista { margin-top:12px; }
-.fm-pista-carril { position:relative; height:12px; margin:26px 18px 0 6px; border-radius:999px;
+.fm-pista-carril { position:relative; height:12px; margin:40px 18px 0 6px; border-radius:999px;
   background:repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 18px, rgba(255,255,255,.04) 18px 36px); }
 .fm-pista-fill { position:absolute; left:0; top:0; bottom:0; border-radius:999px;
   background:linear-gradient(90deg,#FF6B00,#FFB37A); box-shadow:0 0 10px rgba(255,107,0,.55); transition:width 1.2s ease; }
 .fm-pista-deb { position:absolute; top:-6px; width:3px; height:24px; margin-left:-1px; border-radius:2px; background:#4FD1A5; box-shadow:0 0 6px rgba(79,209,165,.8); }
 .fm-pista-flag { position:absolute; right:-16px; top:-22px; font-size:20px; }
-.fm-atleta { position:absolute; top:-34px; width:34px; height:34px; margin-left:-17px; transition:left 1.2s ease; pointer-events:none; }
-.fm-atleta-in { position:absolute; left:4px; bottom:0; font-size:26px; line-height:1; will-change:transform; transform-origin:50% 90%; }
-.fm-sombra { position:absolute; left:7px; bottom:-5px; width:20px; height:5px; border-radius:50%; background:rgba(0,0,0,.45); filter:blur(1px); }
+.fm-atleta { position:absolute; top:-42px; width:42px; height:42px; margin-left:-21px; transition:left 1.2s ease; pointer-events:none; }
+.fm-atleta-in { position:absolute; left:0; bottom:-3px; line-height:0; will-change:transform; transform-origin:50% 90%; }
+.fm-svg { width:42px; height:50px; display:block; overflow:visible; filter:drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.fm-svg .pA,.fm-svg .pB,.fm-svg .rA,.fm-svg .rB,.fm-svg .bA,.fm-svg .bB,.fm-svg .cA,.fm-svg .cB { transform-box:view-box; transition:transform .25s ease; }
+.fm-svg .pA,.fm-svg .pB { transform-origin:22px 32px; } .fm-svg .rA,.fm-svg .rB { transform-origin:22px 39.5px; }
+.fm-svg .bA,.fm-svg .bB { transform-origin:22.5px 18px; } .fm-svg .cA,.fm-svg .cB { transform-origin:22.5px 24px; }
+/* Correr: piernas con rodilla, brazos opuestos con el codo doblado */
+.fm-svg.run .pA { animation:fmPierna .56s ease-in-out infinite; } .fm-svg.run .pB { animation:fmPierna .56s ease-in-out -.28s infinite; }
+.fm-svg.run .rA { animation:fmRodilla .56s linear infinite; }      .fm-svg.run .rB { animation:fmRodilla .56s linear -.28s infinite; }
+.fm-svg.run .bA { animation:fmBrazo .56s ease-in-out infinite; }   .fm-svg.run .bB { animation:fmBrazo .56s ease-in-out -.28s infinite; }
+.fm-svg.run .cA,.fm-svg.run .cB { transform:rotate(-95deg); }
+@keyframes fmPierna { 0%,100% { transform:rotate(-38deg); } 50% { transform:rotate(32deg); } }
+@keyframes fmRodilla { 0%,100% { transform:rotate(8deg); } 30% { transform:rotate(25deg); } 58% { transform:rotate(80deg); } 80% { transform:rotate(45deg); } }
+@keyframes fmBrazo { 0%,100% { transform:rotate(38deg); } 50% { transform:rotate(-42deg); } }
+.fm-svg .vel line { stroke:#42A5F5; stroke-width:1.4; stroke-linecap:round; opacity:0; }
+.fm-svg.run .vel line { animation:fmVel .56s linear infinite; }
+.fm-svg.run .vel line:nth-child(2) { animation-delay:-.14s; } .fm-svg.run .vel line:nth-child(3) { animation-delay:-.28s; } .fm-svg.run .vel line:nth-child(4) { animation-delay:-.42s; }
+@keyframes fmVel { 0% { opacity:0; transform:translateX(6px); } 30% { opacity:.9; } 100% { opacity:0; transform:translateX(-6px); } }
+/* Salto de tijera: brazos arriba y piernas abiertas en cada salto */
+.fm-svg.jack .bA { animation:fmJackBrazo .6s ease-in-out infinite; } .fm-svg.jack .bB { animation:fmJackBrazoB .6s ease-in-out infinite; }
+.fm-svg.jack .pA { animation:fmJackPA .6s ease-in-out infinite; } .fm-svg.jack .pB { animation:fmJackPB .6s ease-in-out infinite; }
+@keyframes fmJackBrazo { 0%,100% { transform:rotate(12deg); } 50% { transform:rotate(-128deg); } }
+@keyframes fmJackBrazoB { 0%,100% { transform:rotate(-8deg); } 50% { transform:rotate(-150deg); } }
+@keyframes fmJackPA { 0%,100% { transform:rotate(0); } 50% { transform:rotate(-20deg); } }
+@keyframes fmJackPB { 0%,100% { transform:rotate(0); } 50% { transform:rotate(20deg); } }
+/* Brazos arriba (estiramiento) */
+.fm-svg.up .bA { transform:rotate(-130deg); } .fm-svg.up .bB { transform:rotate(-150deg); } .fm-svg.up .pB { transform:rotate(10deg); }
+/* Celebración: los dos brazos arriba, piernas recogidas en el aire; agacha = toma impulso */
+.fm-svg.celebra .bA { transform:rotate(-160deg); } .fm-svg.celebra .bB { transform:rotate(-196deg); } .fm-svg.celebra .cA,.fm-svg.celebra .cB { transform:translate(0,5.5px); }
+.fm-svg .ext { opacity:0; } .fm-svg.celebra .ext { opacity:1; }
+.fm-svg.celebra .pA { transform:rotate(-22deg); } .fm-svg.celebra .rA { transform:rotate(55deg); }
+.fm-svg.celebra .pB { transform:rotate(18deg); }  .fm-svg.celebra .rB { transform:rotate(60deg); }
+.fm-svg.agacha .bA,.fm-svg.agacha .bB { transform:rotate(30deg); } .fm-svg.agacha .cA,.fm-svg.agacha .cB { transform:rotate(-60deg); }
+.fm-svg.agacha .pA { transform:rotate(-30deg); } .fm-svg.agacha .rA { transform:rotate(55deg); }
+.fm-sombra { position:absolute; left:11px; bottom:-5px; width:20px; height:5px; border-radius:50%; background:rgba(0,0,0,.45); filter:blur(1px); }
 .fm-fx { position:absolute; font-size:11px; pointer-events:none; animation:fmFx .9s ease-out forwards; }
 @keyframes fmFx { from { opacity:.9; transform:translate(0,0) scale(.7); } to { opacity:0; transform:translate(var(--dx,-14px), var(--dy,-6px)) scale(1.2); } }
 .fm-pista-lbl { display:flex; justify-content:space-between; font-size:11.5px; color:#A9B6D3; margin:8px 18px 0 6px; }
@@ -4895,8 +4928,9 @@ async function factHistRender() {
 }
 
 // Pista de la meta (Natalia 2026-11-23): el muñeco corre hasta donde va la facturación del año
-// y hace "aeróbicos" (trota, salta, da una voltereta). La rayita marca dónde deberíamos ir hoy.
+// y hace "aeróbicos" (trota, salta, salto de celebración). La rayita marca dónde deberíamos ir hoy.
 let fmAerobicoTimer = null;
+const FM_ATLETA_SVG = '<svg class="fm-svg run" viewBox="0 0 40 48"><g class="vel"><line x1="2" y1="17" x2="11" y2="17"/><line x1="0" y1="23" x2="9" y2="23"/><line x1="3" y1="29" x2="12" y2="29"/><line x1="1" y1="40" x2="9" y2="40"/></g><g class="bB"><line x1="22.5" y1="18" x2="22.5" y2="24" stroke="#EBA900" stroke-width="4.4" stroke-linecap="round"/><g class="cB"><line class="ext" x1="22.5" y1="18.5" x2="22.5" y2="24" stroke="#EBA900" stroke-width="4.2" stroke-linecap="round"/><line x1="22.5" y1="24" x2="22.5" y2="28.6" stroke="#EBA900" stroke-width="4" stroke-linecap="round"/><rect x="20.4" y="26.6" width="4.2" height="2.2" rx=".6" fill="#212121"/><rect x="21.4" y="27" width="2.2" height="1.4" rx=".3" fill="#4FC3F7"/><circle cx="22.5" cy="29.8" r="2.5" fill="#EBA900"/></g></g><g class="pB"><line x1="22" y1="32" x2="22" y2="39.5" stroke="#EBA900" stroke-width="5" stroke-linecap="round"/><g class="rB"><line x1="22" y1="39.5" x2="22" y2="44.4" stroke="#EBA900" stroke-width="4.4" stroke-linecap="round"/><line x1="22" y1="43.8" x2="22" y2="45.2" stroke="#212121" stroke-width="4.2"/><path d="M19.4 45h6.8q2.4 0 2.4 2v.4h-9.2z" fill="#1565C0"/><path d="M19.4 47.4h9.2" stroke="#ECEFF1" stroke-width="1.1"/></g></g><rect x="21.2" y="13.4" width="4.4" height="3.8" rx="1.2" fill="#FFCA28"/><path d="M17.6 16.8Q21.6 15 25.6 16.6L28.6 17.8 27.6 29.6H16.8Z" fill="#1E88E5"/><path d="M24.6 16.4q.8 2.8-1.2 4.8" stroke="#1565C0" stroke-width="1" fill="none"/><rect x="22.4" y="21.6" width="5.6" height="4" rx=".7" fill="#FFFFFF" transform="rotate(-6 25.2 23.6)"/><text x="25.2" y="25" font-size="2.8" font-weight="900" font-family="Arial,sans-serif" text-anchor="middle" fill="#212121" transform="rotate(-6 25.2 23.6)">123</text><path d="M16.4 28.8H27.9L28.8 35 22.9 35.6 21.9 32.6 16 35Z" fill="#263238"/><path d="M18 29.6q4 1.4 8.6 4.6" stroke="#ECEFF1" stroke-width="1" fill="none"/><g class="pA"><line x1="22" y1="32" x2="22" y2="39.5" stroke="#FFCA28" stroke-width="5" stroke-linecap="round"/><g class="rA"><line x1="22" y1="39.5" x2="22" y2="44.4" stroke="#FFCA28" stroke-width="4.4" stroke-linecap="round"/><line x1="22" y1="43.8" x2="22" y2="45.2" stroke="#212121" stroke-width="4.2"/><path d="M19.4 45h6.8q2.4 0 2.4 2v.4h-9.2z" fill="#1E88E5"/><path d="M19.4 47.4h9.2" stroke="#FFFFFF" stroke-width="1.1"/><path d="M23 45.6l.8 1.2M24.5 45.6l.8 1.2" stroke="#FFFFFF" stroke-width=".7"/></g></g><g class="bA"><line x1="22.5" y1="18" x2="22.5" y2="24" stroke="#FFCA28" stroke-width="4.4" stroke-linecap="round"/><g class="cA"><line class="ext" x1="22.5" y1="18.5" x2="22.5" y2="24" stroke="#FFCA28" stroke-width="4.2" stroke-linecap="round"/><line x1="22.5" y1="24" x2="22.5" y2="28.6" stroke="#FFCA28" stroke-width="4" stroke-linecap="round"/><circle cx="22.5" cy="29.8" r="2.6" fill="#FFCA28"/><path d="M21.3 29.2h2.4" stroke="#EBA900" stroke-width=".6"/></g></g><circle cx="24.4" cy="9" r="6.8" fill="#FFCA28"/><path d="M17.2 9.4C16 3.4 21.2.2 26.4 1.2 29.6 1.6 31.6 3.6 31.4 6.2 30 5.2 28 5 26.6 5.6 26.2 7.4 24.4 8.4 22.6 8.6 21.6 9.8 21.2 11.6 21.2 12.8 19 12.4 17.6 11.2 17.2 9.4Z" fill="#5D4037"/><circle cx="21.6" cy="10" r="1.6" fill="#EBA900"/><path d="M26.6 6.4q1.4-.8 2.6.2" stroke="#4E342E" stroke-width=".8" fill="none" stroke-linecap="round"/><ellipse cx="27.8" cy="8.6" rx="1" ry="1.3" fill="#3E2723"/><circle cx="28.1" cy="8.2" r=".35" fill="#FFFFFF"/><path d="M25.6 11.3q2.3 2.6 4.6-.2z" fill="#C62828"/><path d="M25.9 11.4h4" stroke="#FFFFFF" stroke-width=".7"/></svg>';
 function fmPintarPista(al, d) {
   const meta = d.presupuesto_total || 0;
   if (!meta) return;
@@ -4915,19 +4949,20 @@ function fmPintarPista(al, d) {
     '<div class="fm-pista-carril"><div class="fm-pista-fill" style="width:' + pct + '%"></div>'
     + '<div class="fm-pista-deb" style="left:' + pctDeb + '%" title="Donde deberíamos ir hoy: ' + _fmMil(deberia) + '"></div>'
     + '<span class="fm-pista-flag" aria-hidden="true">🏁</span>'
-    + '<span class="fm-atleta" style="left:' + pct + '%" aria-hidden="true"><span class="fm-sombra"></span><span class="fm-atleta-in">🏃</span></span></div>'
+    + '<span class="fm-atleta" style="left:' + pct + '%" aria-hidden="true"><span class="fm-sombra"></span><span class="fm-atleta-in">' + FM_ATLETA_SVG + '</span></span></div>'
     + '<div class="fm-pista-lbl"><span>$0</span><span style="color:#FFB37A;font-weight:800;">' + _fmMil(d.facturado_total) + ' (' + _fmPct(d.facturado_total / meta) + ')</span>'
     + '<span>Meta ' + _fmMil(meta) + '</span></div>'
     + '<div class="fm-pista-ley"><i></i>Deberíamos ir en ' + _fmMil(deberia) + ' hoy</div>';
   al.appendChild(pista);
   // Rutina aeróbica fluida (requestAnimationFrame + ondas seno): trota con zancada y polvo,
-  // salto de tijera (abre/cierra brazos en cada salto), trota, voltereta, estiramiento.
+  // salto de tijera (abre/cierra brazos en cada salto), trota, salto de celebración, estiramiento.
   if (fmAerobicoTimer) cancelAnimationFrame(fmAerobicoTimer);
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const FASES = [['trota', 3600], ['tijera', 2400], ['trota', 3600], ['voltereta', 1300], ['trota', 2400], ['estira', 1800]];
+  const FASES = [['trota', 2800], ['celebra', 1600], ['trota', 2800], ['tijera', 2400], ['trota', 2800], ['celebra', 1600], ['trota', 2000], ['estira', 1800]];
   let fase = 0, iniFase = performance.now(), ultPaso = -1, pose = '';
   const cont = pista.querySelector('.fm-atleta'), el = pista.querySelector('.fm-atleta-in'), sombra = pista.querySelector('.fm-sombra');
-  const ponPose = e => { if (pose !== e) { pose = e; el.textContent = e; } };
+  const svgAt = el.querySelector('svg');
+  const ponPose = e => { if (pose !== e) { pose = e; svgAt.setAttribute('class', 'fm-svg ' + e); } };
   const fx = (txt, x, y, dx, dy) => {
     const f = document.createElement('span'); f.className = 'fm-fx'; f.textContent = txt;
     f.style.left = x + 'px'; f.style.top = y + 'px'; f.style.setProperty('--dx', dx + 'px'); f.style.setProperty('--dy', dy + 'px');
@@ -4938,31 +4973,37 @@ function fmPintarPista(al, d) {
     let t = now - iniFase;
     if (t > FASES[fase][1]) { fase = (fase + 1) % FASES.length; iniFase = now; t = 0; ultPaso = -1; }
     const tipo = FASES[fase][0];
-    let y = 0, rot = 0, sx = 1, sy = 1, flip = true, x = 0;
+    let y = 0, rot = 0, sx = 1, sy = 1, x = 0;
     if (tipo === 'trota') {
-      ponPose('🏃');
-      const ph = t / 340 * Math.PI;                 // una zancada cada 340 ms
+      ponPose('run');
+      const ph = t / 280 * Math.PI;                 // una zancada cada 280 ms (igual que las piernas)
       const b = Math.abs(Math.sin(ph));
-      y = -b * 7; rot = -9 + Math.sin(ph * 2) * 3; x = Math.sin(ph / 2) * 2;
+      y = -b * 6; rot = 6 + Math.sin(ph * 2) * 2; x = Math.sin(ph / 2) * 2;
       sy = 0.9 + b * 0.12; sx = 1.08 - b * 0.1;     // se aplasta al pisar, se estira en el aire
-      const paso = Math.floor(t / 340);
+      const paso = Math.floor(t / 280);
       if (paso !== ultPaso) { ultPaso = paso; fx('💨', -6, 22, -16, -2); if (paso % 4 === 1) fx('💦', 2, -4, -10, 12); }
     } else if (tipo === 'tijera') {
       const ph = t / 300 * Math.PI;
       const b = Math.abs(Math.sin(ph));
-      ponPose(Math.floor(t / 300) % 2 ? '🙆' : '🧍');  // brazos arriba / abajo en cada salto
-      y = -b * 10; sy = 0.88 + b * 0.16; sx = 1.1 - b * 0.12; flip = false;
-    } else if (tipo === 'voltereta') {
-      ponPose('🤸');
-      const k = t / FASES[fase][1];
-      const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // suave al entrar y salir
-      rot = e * 360; y = -Math.sin(k * Math.PI) * 14; flip = false;
+      ponPose('jack');  // brazos arriba / abajo en cada salto
+      y = -b * 9; sy = 0.92 + b * 0.1; sx = 1.06 - b * 0.08;
+    } else if (tipo === 'celebra') {                 // salto de celebración: 2 brincos con los brazos arriba
+      const k = (t % 800) / 800;                       // un brinco cada 800 ms
+      if (k < 0.18) {                                  // agacharse para tomar impulso
+        ponPose('agacha'); sy = 1 - k / 0.18 * 0.16; sx = 1 + k / 0.18 * 0.1;
+      } else {
+        ponPose('celebra');
+        const v = (k - 0.18) / 0.82;
+        y = -Math.sin(v * Math.PI) * 20; sy = 1 + Math.sin(v * Math.PI) * 0.06;
+        const salto = Math.floor(t / 800);
+        if (v > 0.45 && salto !== ultPaso) { ultPaso = salto; fx('✨', 18, -10, 8, -10); fx('🎉', -4, -8, -10, -12); }
+      }
     } else {                                          // estira: se inclina a un lado y al otro
-      ponPose('🙆');
+      ponPose('up');
       const ph = t / FASES[fase][1] * Math.PI * 2;
-      rot = Math.sin(ph) * 14; y = -Math.abs(Math.sin(ph)) * 2; flip = false;
+      rot = Math.sin(ph) * 14; y = -Math.abs(Math.sin(ph)) * 2;
     }
-    el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg) scale(' + ((flip ? -1 : 1) * sx).toFixed(3) + ',' + sy.toFixed(3) + ')';
+    el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
     const h = Math.min(1, -y / 14);
     sombra.style.transform = 'scale(' + (1 - h * 0.45).toFixed(2) + ')'; sombra.style.opacity = (0.8 - h * 0.5).toFixed(2);
     fmAerobicoTimer = requestAnimationFrame(tick);
@@ -5016,7 +5057,7 @@ async function factMetaRender() {
       // Nota al día (el jefe la veía "desactualizada" porque solo hablaba de meses cerrados):
       // atraso a meses cerrados + cómo va el mes en curso + lo que falta para el año.
       const enCurso = MES[cer];
-      al.innerHTML = '<span class="fm-corredor" aria-hidden="true">🏃</span>Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase() + '.'
+      al.innerHTML = '<span class="fm-corredor" aria-hidden="true">' + FM_ATLETA_SVG + '</span>Vamos <b>' + _fmMil(gap) + ' atrasados</b> frente a la meta a ' + MES[cer - 1].mes.toLowerCase() + '.'
         + (enCurso && enCurso.estado === 'en_curso'
             ? ' En ' + enCurso.mes.toLowerCase() + ' llevamos <b>' + _fmMil(enCurso.facturado) + '</b> de ' + _fmMil(enCurso.presupuesto)
               + (enCurso.presupuesto ? ' (' + _fmPct(enCurso.facturado / enCurso.presupuesto) + ')' : '') + '.'
