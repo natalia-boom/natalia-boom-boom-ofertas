@@ -3185,6 +3185,14 @@ _CLIENTES_CANON = {
     "CNR3": "CNR III LTD SUCURSAL COLOMBIA",
     "CNR III": "CNR III LTD SUCURSAL COLOMBIA",
     "CNR2": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
+    "CNRII": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
+    "CNR II": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
+    "CNR 2": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
+    "CNR 3": "CNR III LTD SUCURSAL COLOMBIA",
+    "GRÚAS MANIOBRAS Y MONTAJES GM&M": "GRUAS MANIOBRAS Y MONTAJES S.A.S.",
+    "GRUAS MANIOBRAS Y MONTAJES GM&M": "GRUAS MANIOBRAS Y MONTAJES S.A.S.",
+    "TRANSFERPORT": "TRANSPORTE FERROPORTUARIO DE COLOMBIA - TRANSFERPORT S.A.S",
+    "TRANSFERPORT S.A.S": "TRANSPORTE FERROPORTUARIO DE COLOMBIA - TRANSFERPORT S.A.S",
     "COLOMBIAN NATURAL RESOURCES II SAS": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
     "COLOMBIAN NATURAL RESOURCES II S.A.S. (CNR)": "COLOMBIAN NATURAL RESOURCES II S.A.S.",
     # Erratas / variantes sin espacio detectadas en ofertas (2026-10-06)
@@ -3219,7 +3227,92 @@ def _canon_cliente(nombre):
     # DHL: por pedido de Natalia, TODO lo de DHL es el mismo cliente.
     if n.startswith("DHL"):
         return "DHL GLOBAL FORWARDING"
-    return _CLIENTES_CANON.get(n, n)
+    if n in _CLIENTES_CANON:
+        return _CLIENTES_CANON[n]
+    # Unificación AUTOMÁTICA (Natalia 2026-11-26): si el nombre escrito es una
+    # variante de un cliente que ya existe (sin S.A.S., sin puntos, sin tildes,
+    # "SION GLOBAL" vs "SION GLOBAL LOGISTICS S.A.S."…), se usa el nombre oficial:
+    # el de facturación Vulcano si factura, si no el más usado en las ofertas.
+    return _cli_auto_oficial(n) or n
+
+
+# Sufijos legales y palabras de relleno que no distinguen a un cliente.
+_CLI_SUFIJOS = re.compile(
+    r"\b(S\s*A\s*S|SAS|S\s*A|SA|LTDA|LTD|LIMITED|SUCURSAL(\s+EN)?\s+COLOMBIA|SUCURSAL|"
+    r"DE\s+COLOMBIA|COLOMBIA|SOCIEDAD\s+POR\s+ACCIONES\s+SIMPLIFICADA|E\s*S\s*P|INC|CORP|GROUP|GRUPO)\b")
+
+
+def _cli_llave(nombre):
+    """Llave de comparación de clientes: sin tildes, puntuación, sufijos legales ni espacios."""
+    import unicodedata
+    s = unicodedata.normalize("NFD", str(nombre or "")).encode("ascii", "ignore").decode().upper()
+    s = re.sub(r"\(.*?\)", " ", s)
+    s = re.sub(r"[.,\-&/]", " ", s)
+    s = _CLI_SUFIJOS.sub(" ", s)
+    s = re.sub(r"\b3\b", "III", s)
+    s = re.sub(r"\b2\b", "II", s)
+    return re.sub(r"[^A-Z0-9]", "", s)
+
+
+_CLI_AUTO = {"t": 0.0, "fact": {}, "ofer": {}}
+
+
+def _cli_mapas():
+    """Dos mapas llave → nombre oficial: (1) facturación Vulcano (manda; el nombre
+    más frecuente por llave) y (2) ofertas, para clientes que nunca han facturado
+    (el nombre más usado; empate, el más largo). Los nombres fijados a mano en
+    _CLIENTES_CANON entran como facturación. Se recalculan cada 10 minutos."""
+    if time.time() - _CLI_AUTO["t"] < 600 and (_CLI_AUTO["fact"] or _CLI_AUTO["ofer"]):
+        return _CLI_AUTO["fact"], _CLI_AUTO["ofer"]
+
+    def _mejor(filas, largo_primero=False):
+        m = {}
+        for r in filas:
+            nom = r["cliente"]
+            k = _cli_llave(nom)
+            if len(k) < 3:
+                continue
+            n = int(r["n"] or 0)
+            # Facturación: el nombre más frecuente. Ofertas: el MÁS LARGO (regla
+            # "unificado pero completo" de Natalia), luego el más usado.
+            cand = (len(nom), n, nom) if largo_primero else (n, len(nom), nom)
+            if k not in m or cand > m[k]:
+                m[k] = cand
+        return {k: v[2] for k, v in m.items()}
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT cliente, COUNT(*) n FROM vulcano_facturas WHERE cliente IS NOT NULL "
+                        "AND NOT COALESCE(excluida, false) GROUP BY cliente")
+            fact = _mejor(fetchall(cur))
+            cur.execute("SELECT cliente, COUNT(*) n FROM ofertas WHERE cliente IS NOT NULL "
+                        "AND NOT COALESCE(anulada, false) AND NOT COALESCE(es_prueba, false) GROUP BY cliente")
+            ofer = _mejor(fetchall(cur), largo_primero=True)
+        for oficial in set(_CLIENTES_CANON.values()):
+            fact[_cli_llave(oficial)] = oficial
+        _CLI_AUTO.update(t=time.time(), fact=fact, ofer=ofer)
+    except Exception:
+        traceback.print_exc()
+    return _CLI_AUTO["fact"], _CLI_AUTO["ofer"]
+
+
+def _cli_auto_oficial(n):
+    """Nombre oficial para `n` si es variante de un cliente existente; None si no.
+    Orden: facturación (exacta, luego por comienzo único: "SION GLOBAL" →
+    "SION GLOBAL LOGISTICS S.A.S.") y después ofertas (igual). Si hay más de una
+    candidata no se adivina; los nombres compuestos con "/" tampoco."""
+    k = _cli_llave(n)
+    if len(k) < 4:
+        return None
+    fact, ofer = _cli_mapas()
+    for mapa in (fact, ofer):
+        if k in mapa:
+            return mapa[k]
+        if len(k) >= 8 and "/" not in n:
+            cands = {v for kk, v in mapa.items() if kk != k and kk.startswith(k)}
+            if len(cands) == 1:
+                return cands.pop()
+    return None
 
 
 def _misma_persona(a, b):
